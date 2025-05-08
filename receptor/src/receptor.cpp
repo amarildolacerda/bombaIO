@@ -104,6 +104,7 @@ void setup()
     rf95.setPromiscuous(true);
     rf95.setHeaderTo(0xFF);
     rf95.setHeaderFrom(TERMINAL_ID);
+    rf95.setTxPower(20);
 
     Logger::log(LogLevel::INFO, "LoRa Server Ready");
     digitalWrite(LED_PIN, LOW);
@@ -131,7 +132,7 @@ bool waitAck()
             }
         }
         digitalWrite(LED_PIN, LOW);
-        delay(50);
+        // delay(50);
     }
     Logger::log(LogLevel::INFO, "ACK timeout");
     return false;
@@ -157,12 +158,12 @@ void sendFormattedMessage(uint8_t tid, const char *event, const char *value)
         Logger::log(LogLevel::ERROR, "Não conseguiu enviar o packet"); // + messageBuffer);
     }
     else
-        Logger::log(LogLevel::INFO, "Mensagem enviada"); // + messageBuffer);
+        Logger::log(LogLevel::INFO, "Enviou"); // + messageBuffer);
     // Serial.println(messageBuffer);
     Logger::log(LogLevel::DEBUG, messageBuffer);
     digitalWrite(LED_PIN, LOW);
 
-    delay(100);
+    // delay(100);
 }
 
 void sendPresentation(uint8_t n)
@@ -173,25 +174,26 @@ void sendPresentation(uint8_t n)
         String attemptMessage = String(attempt); // String("presentation attempt ") + (attempt + 1);
         // Logger::log(LogLevel::INFO, String("Enviando apresentação: tentativa ") + (attempt + 1));
         sendFormattedMessage(0, "presentation", attemptMessage.c_str());
-        delay(1000); // Delay antes de esperar o ACK
-        ackReceived = waitAck();
-        if (!ackReceived)
+        Logger::info("Presentation");
+        // delay(100); // Delay antes de esperar o ACK
+        /* ackReceived = waitAck();
+         if (!ackReceived)
+         {
+             YIELD
+             /// Logger::log(LogLevel::WARNING, String("Tentativa ") + (attempt + 1) + " falhou");
+             delay(100); // Delay adicional antes da próxima tentativa
+         }*/
+    }
+    /*
+        if (ackReceived)
         {
-            YIELD
-            /// Logger::log(LogLevel::WARNING, String("Tentativa ") + (attempt + 1) + " falhou");
-            delay(100); // Delay adicional antes da próxima tentativa
+            mustPresentation = false;
+            Logger::log(LogLevel::INFO, "Apresentação bem-sucedida");
         }
-    }
-
-    if (ackReceived)
-    {
-        mustPresentation = false;
-        Logger::log(LogLevel::INFO, "Apresentação bem-sucedida");
-    }
-    else
-    {
-        Logger::log(LogLevel::ERROR, "Falha na apresentação"); // + String(n) + " tentativas");
-    }
+        else
+        {
+            Logger::log(LogLevel::ERROR, "Falha na apresentação"); // + String(n) + " tentativas");
+        } */
 }
 
 uint8_t nHeaderId = 0;
@@ -216,6 +218,7 @@ bool processAndRespondToMessage(const char *message)
     if (message == nullptr)
         return false;
 
+    Logger::debug(message);
     if (strstr_P(message, PSTR("status")) != nullptr)
     {
         sendStatus();

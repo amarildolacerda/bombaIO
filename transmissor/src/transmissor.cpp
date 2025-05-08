@@ -75,7 +75,7 @@ void SystemState::loraRcv(const String &message)
         strncpy(loraRcvMessage, message.c_str(), sizeof(loraRcvMessage) - 1);
         loraRcvMessage[sizeof(loraRcvMessage) - 1] = '\0'; // Garante terminação
     }
-    //  Logger::log(LogLevel::DEBUG, "RCV: " + message);
+    Logger::log(LogLevel::DEBUG, String("RCV: " + message).c_str());
 }
 
 void SystemState::updateDisplay()
@@ -86,8 +86,13 @@ void SystemState::updateDisplay()
     display.print("WiFi: ");
     display.println(wifiConnected ? WiFi.localIP().toString() : "DESCONECTADO");
 
-    display.print("LoRa: ");
-    display.println(loraInitialized ? "OK" : "FALHA");
+    int rssi = LoRa.packetRssi();
+    float snr = LoRa.packetSnr();
+
+    bool baixo = (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD);
+
+    display.print("Radio: ");
+    display.println(loraInitialized ? (baixo) ? "Baixo" : "OK" : "FALHA");
 
     display.print("Estado: ");
     display.println(relayState);
@@ -127,7 +132,7 @@ void onReceiveCallback(int packetSize)
     if (packetSize == 0)
         return; // Se não há pacote, ignora
 
-    Serial.print("Pacote recebido (" + String(packetSize) + " bytes): ");
+    // Serial.print("Pacote recebido (" + String(packetSize) + " bytes): ");
 
     LoRaCom::processIncoming();
 
@@ -140,7 +145,7 @@ void onReceiveCallback(int packetSize)
         }
     */
     // Exibe RSSI (força do sinal)
-    Serial.println("RSSI: " + String(LoRa.packetRssi()) + " dBm");
+    // Serial.println("RSSI: " + String(LoRa.packetRssi()) + " dBm");
 }
 // ========== LoRaCom Implementations ==========
 bool LoRaCom::initialize()
@@ -161,7 +166,7 @@ bool LoRaCom::initialize()
     // LoRa.setSpreadingFactor(7);     // SF7 (mais rápido)
     // LoRa.setSignalBandwidth(500e3); // BW = 500 kHz (maior largura = mais velocidade)
     // LoRa.setCodingRate4(4);         // CR = 4/5 (sem redundância extra)
-    // LoRa.setTxPower(5);             // TX Power baixo (5 dBm)
+    LoRa.setTxPower(20); // TX Power baixo (5 dBm)
     // LoRa.enableCrc();               // CRC ativado para segurança
 
     Logger::log(LogLevel::INFO, "LoRa inicializado com sucesso");
@@ -171,7 +176,7 @@ bool LoRaCom::initialize()
 
 void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const char *value)
 {
-    sprintf(message, "    {\"dtype\":\"gateway\",\"event\":\"%s\",\"value\":\"%s\"}\0", event, value);
+    sprintf(message, "{\"dtype\":\"gateway\",\"event\":\"%s\",\"value\":\"%s\"}\0", event, value);
 }
 
 void LoRaCom::ack(bool ak, uint8_t tid)
@@ -204,20 +209,12 @@ uint8_t LoRaCom::genHeaderId()
 
 void LoRaCom::sendHeaderTo(uint8_t tid)
 {
-    /* char msg[5];
-     msg[0] = tid;
-     msg[1] = Config::TERMINAL_ID;
-     msg[2] = LoRaCom::genHeaderId();
-     msg[3] = 0;
-     msg[4] = 32;
-     LoRa.print(msg);
-     for (size_t i = 0; i < 5; ++i)
-     {
-         Serial.print(msg[i], HEX);
-         Serial.print(" ");
-     }
-     Serial.println();
-     */
+    char msg[4];
+    msg[0] = tid;
+    msg[1] = Config::TERMINAL_ID;
+    msg[2] = LoRaCom::genHeaderId();
+    msg[3] = 0xFF;
+    LoRa.print(msg);
 }
 void LoRaCom::sendPresentation(uint8_t tid, uint8_t n)
 {
@@ -231,7 +228,7 @@ void LoRaCom::sendPresentation(uint8_t tid, uint8_t n)
         formatMessage(message, tid, "presentation", nStr);
 
         LoRa.beginPacket();
-        Serial.println(message);
+        // Serial.println(message);
         sendHeaderTo(tid);
         LoRa.print(message);
         if (LoRa.endPacket() == 0)
@@ -239,7 +236,8 @@ void LoRaCom::sendPresentation(uint8_t tid, uint8_t n)
             Logger::log(LogLevel::ERROR, "Falha ao enviar apresentação LoRa");
             return;
         }
-        // Logger::log(LogLevel::INFO, "Presentation: " + (String)message + " (tentativa " + String(attempt + 1) + ")");
+        Logger::info("Presentation");
+        Logger::log(LogLevel::DEBUG, String((String)message + " (tentativa " + String(attempt + 1) + ")").c_str());
         /*   ackReceived = waitAck();
            if (!ackReceived)
            {
@@ -271,7 +269,7 @@ bool LoRaCom::waitAck()
             // Verifica se há pacote disponível
         }
         digitalWrite(BUILTIN_LED, HIGH); // Indicate waiting for ACK
-        delay(100);
+        // delay(100);
         if (LoRa.parsePacket())
         {
             char payload[Config::MESSAGE_LEN];
@@ -300,12 +298,12 @@ bool LoRaCom::waitAck()
         else
         {
             digitalWrite(BUILTIN_LED, LOW);
-            delay(100);
+            // delay(100);
         }
 
         digitalWrite(BUILTIN_LED, LOW); // Turn off LED
     }
-    Serial.println("ACK not received within timeout.");
+    // Serial.println("ACK not received within timeout.");
     ack(false);
     return false;
 }
@@ -314,7 +312,7 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
 {
     char output[Config::MESSAGE_LEN];
     formatMessage(output, tid, event.c_str(), value.c_str());
-    Serial.println(output);
+    // Serial.println(output);
 
     LoRa.beginPacket();
 
@@ -326,7 +324,8 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
         Logger::log(LogLevel::ERROR, "Falha ao enviar comando LoRa");
         return false;
     }
-    // Logger::log(LogLevel::INFO, "Enviou: " + event);
+    Logger::info("Enviou");
+    Logger::log(LogLevel::DEBUG, String(output).c_str());
 
     // Feedback visual
     display.clearDisplay();
@@ -361,10 +360,10 @@ void LoRaCom::processIncoming()
         {
             uint8_t byte = LoRa.read();
             char cbyte = static_cast<char>(byte);
-            Serial.print(" ");
-            Serial.print(byte, HEX);
-            Serial.print(":");
-            Serial.print(cbyte);
+            // Serial.print(" ");
+            // Serial.print(byte, HEX);
+            // Serial.print(":");
+            // Serial.print(cbyte);
 
             if (pos++ == 1)
                 tid = byte;
@@ -375,7 +374,7 @@ void LoRaCom::processIncoming()
             if (cbyte == '}')
                 break;
         }
-        Serial.println("");
+        // Serial.println("");
         if (payload.length() == 0)
         {
             Logger::log(LogLevel::WARNING, "Payload LoRa vazio");
@@ -684,7 +683,7 @@ void handleStateRequest()
         {
             break;
         }
-        delay(100);
+        // delay(100);
     }
 
     server.send(200, "text/plain", systemState.getState());
