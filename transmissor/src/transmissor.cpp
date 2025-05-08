@@ -123,6 +123,7 @@ void SystemState::conditionalUpdateDisplay()
 // Função chamada quando um pacote LoRa é recebido
 void onReceiveCallback(int packetSize)
 {
+    Logger::verbose("onReceiveCallback");
     if (packetSize == 0)
         return; // Se não há pacote, ignora
 
@@ -146,7 +147,7 @@ bool LoRaCom::initialize()
 {
     LoRa.setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
 
-    LoRa.onReceive(onReceiveCallback);
+    // LoRa.onReceive(onReceiveCallback);
     if (!LoRa.begin(Config::LORA_BAND))
     {
         Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");
@@ -233,18 +234,19 @@ void LoRaCom::sendPresentation(uint8_t tid, uint8_t n)
         Serial.println(message);
         sendHeaderTo(tid);
         LoRa.print(message);
-        if (LoRa.endPacket() == 0 || n <= 1)
+        if (LoRa.endPacket() == 0)
         { // não pega ack se for broadcast por timeout  n == 1
             Logger::log(LogLevel::ERROR, "Falha ao enviar apresentação LoRa");
             return;
         }
         // Logger::log(LogLevel::INFO, "Presentation: " + (String)message + " (tentativa " + String(attempt + 1) + ")");
-        ackReceived = waitAck();
-        if (!ackReceived)
-        {
-            Logger::log(LogLevel::WARNING, "Tentando reenviar apresentação...");
-        }
+        /*   ackReceived = waitAck();
+           if (!ackReceived)
+           {
+               Logger::log(LogLevel::WARNING, "Tentando reenviar apresentação...");
+           } */
     }
+    /*
     if (!ackReceived)
     {
         Logger::log(LogLevel::ERROR, "Falha ao receber ACK para apresentação LoRa");
@@ -252,7 +254,7 @@ void LoRaCom::sendPresentation(uint8_t tid, uint8_t n)
     else
     {
         Logger::log(LogLevel::INFO, "ACK recebido para apresentação LoRa");
-    }
+    }*/
 }
 
 bool LoRaCom::waitAck()
@@ -333,7 +335,7 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
     display.println(event);
     display.display();
     // Aguarda ~1 segundo sem bloquear, permitindo background
-    sleep(100);
+    // sleep(100);
     return true;
 }
 
@@ -782,7 +784,7 @@ static uint32_t lastPresentationTime = 0; // Adiciona um controle para o envio d
 void loop()
 {
     //  LoRa.idle();
-    // LoRaCom::processIncoming();
+    LoRaCom::processIncoming();
     my_device.uart_service();
     server.handleClient();
 
@@ -800,7 +802,7 @@ void loop()
     }
 
     // Envia mensagem de Presentation a cada 1 minuto
-    if (millis() - lastPresentationTime > 60000) // 60000 ms = 1 minuto
+    if (millis() - lastPresentationTime > Config::PRESENTATION_INTERVAL) // 60000 ms = 1 minuto
     {
         LoRaCom::sendPresentation(0xFF, 1);
         lastPresentationTime = millis();

@@ -161,7 +161,8 @@ void sendFormattedMessage(uint8_t tid, const char *event, const char *value)
     // Serial.println(messageBuffer);
     Logger::log(LogLevel::DEBUG, messageBuffer);
     digitalWrite(LED_PIN, LOW);
-    /// delay(100);
+
+    delay(100);
 }
 
 void sendPresentation(uint8_t n)
@@ -169,7 +170,7 @@ void sendPresentation(uint8_t n)
     bool ackReceived = false;
     for (int attempt = 0; attempt < n && !ackReceived; ++attempt)
     {
-        String attemptMessage = String("presentation attempt ") + (attempt + 1);
+        String attemptMessage = String(attempt); // String("presentation attempt ") + (attempt + 1);
         // Logger::log(LogLevel::INFO, String("Enviando apresentação: tentativa ") + (attempt + 1));
         sendFormattedMessage(0, "presentation", attemptMessage.c_str());
         delay(1000); // Delay antes de esperar o ACK

@@ -45,7 +45,8 @@ namespace Config
     // Sistema
     constexpr uint32_t SERIAL_BAUD = 115200;
     constexpr uint32_t STATE_TIMEOUT_MS = 300000 / 5; // 5 minutos (status automático)
-    constexpr uint32_t STATE_CHECK_INTERVAL = 30000;
+    constexpr uint32_t STATE_CHECK_INTERVAL = 3000;
+    constexpr uint32_t PRESENTATION_INTERVAL = 5000;
     constexpr uint32_t COMMAND_TIMEOUT = 3000;
 
     // Tuya IoT

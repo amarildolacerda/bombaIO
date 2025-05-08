@@ -36,6 +36,10 @@ public:
     {
         log(LogLevel::DEBUG, message);
     }
+    static void verbose(const char *message)
+    {
+        log(LogLevel::VERBOSE, message);
+    }
 
     static void log(LogLevel level, const char *message);
 
