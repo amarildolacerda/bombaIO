@@ -1,0 +1,93 @@
+
+
+### **1. Alimentação Elétrica**
+- **TTGO LoRa32 (Transmissor):**
+  - Tensão de operação: **3,3V - 5V**.
+  - Recomenda-se utilizar uma fonte de alimentação USB de 5V com pelo menos **1A** de corrente.
+  - Opcional: Utilizar uma bateria LiPo (3,7V) conectada ao módulo, garantindo autonomia móvel.
+
+- **ESP8266 D1 (Receptor):**
+  - Tensão de operação: **5V** via porta USB ou regulador.
+  - Fonte recomendada: Adaptador USB de 5V com no mínimo **1A**.
+
+- **Relé (Controle da bomba):**
+  - Tensão de operação do circuito de controle: **5V**.
+  - O circuito de potência (saída do relé) deve ser dimensionado para a carga da bomba.
+  - Certifique-se de utilizar uma fonte separada se a bomba operar em **110/220V AC**, com o relé isolando as tensões.
+
+---
+
+### **2. Ligações Elétricas**
+#### **Transmissor TTGO LoRa32**
+- **Fonte de Alimentação:**
+  - Conectar o terminal VCC do TTGO à saída 5V da fonte ou regulador.
+  - GND do TTGO conectado ao terminal negativo da fonte.
+
+- **Botões Físicos:**
+  - Conectar um lado do botão ao pino GPIO configurado (ex.: `BUTTON_PIN`).
+  - O outro lado do botão deve ser conectado ao GND. Utilize o `INPUT_PULLUP` no código para simplificar.
+
+- **Módulo LoRa Integrado:**
+  - Já embutido no TTGO, sem necessidade de cabeamento adicional.
+
+#### **Receptor ESP8266 D1**
+- **Fonte de Alimentação:**
+  - Alimentar o ESP8266 via USB ou regulador de 5V com terminal GND compartilhado com o relé.
+
+- **Conexão ao Módulo LoRa:**
+  - **MISO (LoRa)** → **D6 (ESP8266)**.
+  - **MOSI (LoRa)** → **D7 (ESP8266)**.
+  - **SCK (LoRa)** → **D5 (ESP8266)**.
+  - **NSS (LoRa CS)** → **D8 (ESP8266)**.
+  - **GND (LoRa)** → **GND (ESP8266)**.
+  - **VCC (LoRa)** → **3,3V (ESP8266)**.
+
+- **Relé:**
+  - Conectar o pino de controle do relé ao GPIO configurado no código (ex.: `RELAY_PIN`).
+  - **Com (Comum):** Ligar a entrada de potência da bomba.
+  - **NO (Normalmente Aberto):** Ligar à outra entrada da bomba.
+  - **NC (Normalmente Fechado):** Não será utilizado neste caso.
+
+---
+
+### **3. Necessidades e Cuidados**
+- **Dimensão da carga da bomba:**
+  - Verifique a potência (W) ou corrente (A) da bomba e escolha um relé adequado para suportar a carga.
+  - Relés de potência típicos suportam até **10A em 220V AC**. Use relés mais robustos se necessário.
+
+- **Isolamento Elétrico:**
+  - Utilize optoacopladores no relé para evitar interferência ou danos ao ESP8266, especialmente em cargas altas.
+
+- **Proteção contra sobrecarga:**
+  - Instale fusíveis na entrada de potência da bomba para proteção adicional.
+  - Considere o uso de supressores de surto na alimentação, garantindo maior durabilidade.
+
+- **Rede WiFi:**
+  - Certifique-se de que o transmissor TTGO e a plataforma Tuya tenham um sinal WiFi estável.
+
+- **Antena LoRa:**
+  - Conecte uma antena LoRa de 868 MHz no TTGO e no receptor para melhorar o alcance da comunicação.
+
+---
+
+### **Esquema Básico**
+- O **TTGO LoRa32** serve como transmissor e gerenciador (WiFi + Tuya), alimentado por 5V.
+- O **ESP8266 D1** atua como receptor, conectado ao LoRa externo e controlando o relé.
+- O relé é responsável por ligar/desligar a bomba e está isolado da lógica de controle.
+
+---
+
+### **Diagrama Simplificado**
+Aqui está uma breve descrição de um diagrama típico (sugiro criar visualmente com base no seguinte):
+- **TTGO Transmissor:**
+  - Alimentação 5V → TTGO.
+  - Botões GPIO para comandos → TTGO.
+  - Antena LoRa conectada ao transmissor.
+
+- **ESP8266 Receptor:**
+  - Alimentação 5V → ESP8266.
+  - Módulo LoRa → SPI do ESP8266.
+  - GPIO para controle de relé.
+  - Alimentação separada para a bomba.
+
+---

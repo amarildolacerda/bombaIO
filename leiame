@@ -1,0 +1,91 @@
+
+## **Projeto BombaIO: Acionamento Remoto de Bomba com Suporte Tuya**
+
+### **Objetivo**
+Criar um sistema de controle remoto para acionamento de uma bomba, utilizando comunicação LoRa, um portal de configuração WiFi (WiFiManager), integração com a plataforma Tuya IoT e suporte ao comando "REVERTER" para alternar dinamicamente o estado do relé.
+
+---
+
+### **Componentes**
+1. **Transmissor:**
+   - TTGO LoRa32 com LoRa e WiFi integrados.
+   - Botões físicos para envio de comandos (ex.: Ligar, Desligar, Solicitar Status e Reverter).
+   - Fonte de alimentação para o TTGO.
+
+2. **Receptor:**
+   - ESP8266 D1 com módulo Grove Seeed Radio LoRa 868 MHz.
+   - Relé integrado para acionar a bomba.
+   - Fonte de alimentação para o ESP8266.
+
+3. **Conexão Tuya:**
+   - Configuração e integração do TTGO com a plataforma Tuya IoT via WiFi.
+   - Controle e monitoramento remoto pelo Tuya App.
+
+---
+
+### **Funcionamento**
+1. **Transmissor (TTGO LoRa32):**
+   - O TTGO envia comandos via LoRa utilizando um protocolo JSON.
+   - Um portal de configuração WiFi gerenciado pelo WiFiManager facilita ajustes de rede.
+   - Permite interação com o Tuya App para enviar comandos e sincronizar status.
+
+2. **Receptor (ESP8266 D1):**
+   - O ESP8266 processa comandos recebidos via LoRa (Ligar, Desligar, Solicitar Status e Reverter).
+   - Alterna o estado do relé conforme solicitado e atualiza o status na plataforma Tuya.
+
+3. **Controle via Tuya App:**
+   - O usuário pode controlar a bomba diretamente pelo Tuya App.
+   - Cenários automatizados podem ser configurados no Tuya App (ex.: acionamento em horários específicos).
+
+---
+
+### **Fluxo do Sistema**
+1. O TTGO (Transmissor) envia um comando JSON (ex.: `{"command":"REVERTER"}`) via LoRa para o ESP8266 (Receptor).
+2. O ESP8266 alterna o estado do relé e responde ao TTGO com o status atualizado, caso solicitado.
+3. O estado do sistema é sincronizado na plataforma Tuya e pode ser controlado pelo aplicativo.
+
+---
+
+### **Protocolo JSON**
+- Estrutura de mensagem padrão:
+  ```json
+  {
+      "device_id": "transmitter_01",
+      "command": "STATUS",
+      "timestamp": "2025-04-28T21:45:00Z"
+  }
+  ```
+- **Campos principais:**
+  - `device_id`: Identifica o módulo (ex.: transmissor ou receptor).
+  - `command`: Especifica o comando (`LIGAR`, `DESLIGAR`, `STATUS`, `REVERTER`).
+  - `timestamp`: Data e hora do envio do comando.
+
+---
+
+### **Benefícios**
+- **Configuração facilitada:** O WiFiManager permite configurar a rede diretamente via um portal.
+- **Flexibilidade:** Controle por botões físicos, Tuya App ou comandos automatizados.
+- **Monitoramento:** Consulta de status do relé a qualquer momento.
+- **Automatização:** Cenários personalizados no Tuya App.
+- **Interatividade:** Suporte ao comando "REVERTER" para alternância rápida.
+
+---
+
+### **Considerações Técnicas**
+1. **Configuração LoRa:**
+   - Certifique-se de que os módulos LoRa estejam configurados com os mesmos parâmetros (frequência, Spreading Factor, etc.).
+
+2. **WiFiManager no TTGO:**
+   - Habilita a configuração de rede WiFi diretamente no transmissor.
+
+3. **Integração com Tuya IoT:**
+   - Cadastre o TTGO na plataforma Tuya IoT e configure as credenciais (Product ID, Device ID, Secret Key) no código.
+
+4. **Programação:**
+   - Utilize o PlatformIO para programar os dispositivos, integrando as bibliotecas `LoRa.h`, `WiFiManager` e o SDK Tuya.
+
+---
+
+### **Conclusão**
+Com este sistema atualizado, o controle remoto da bomba é flexível, confiável e completamente integrado com as tecnologias modernas de comunicação e IoT. Caso precise realizar novos ajustes ou expandir funcionalidades, o projeto está preparado para futuras atualizações.
+

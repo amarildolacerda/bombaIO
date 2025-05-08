@@ -1,0 +1,51 @@
+
+### **Inventário de Material**
+
+#### **1. Transmissor (TTGO LoRa32)**
+- **1x TTGO LoRa32 ESP32 com módulo LoRa e WiFi integrado**
+- **1x Fonte de alimentação 5V (ex.: adaptador USB ou bateria LiPo 3.7V)**
+- **2x Botões físicos (1 para Ligar/Desligar e 1 para Solicitar Status ou REVERTER)**
+- **1x Antena LoRa (frequência 868 MHz)**
+- **1x Protoboard ou conectores para montagem**
+
+#### **2. Receptor (ESP8266 D1)**
+- **1x ESP8266 D1 Mini ou placa similar**
+- **1x Módulo Grove Seeed Radio LoRa 868 MHz**
+- **1x Relé de estado sólido ou mecânico (compatível com carga da bomba)**
+- **1x Fonte de alimentação 5V para ESP8266 (ex.: adaptador USB)**
+- **1x Antena LoRa (frequência 868 MHz)**
+- **Fios e conectores para ligações**
+
+#### **3. Bomba**
+- **1x Bomba elétrica (especificação conforme necessidade do projeto, ex.: 110V ou 220V AC)**
+- **Fios e conectores para alimentação da bomba**
+- **1x Fusível para proteção da bomba (opcional)**
+- **1x Supressor de surto (opcional, dependendo da sensibilidade do circuito)**
+
+#### **4. Comunicação e Configuração**
+- **1x Smartphone com Tuya App instalado**
+- **Conta registrada na plataforma Tuya IoT**
+- **Configuração do WiFiManager embutido no transmissor (para acessar via navegador)**
+
+#### **5. Ferramentas para Montagem**
+- **1x Ferro de solda e estanho (para conexões permanentes)**
+- **1x Multímetro (para verificar ligações e tensões)**
+- **1x Alicate de corte e decapador de fios**
+- **Fita isolante ou terminais de conexão para segurança**
+- **1x Caixa de montagem ou protetor para encapsular os componentes eletrônicos**
+
+#### **6. Software e Programação**
+- **PlatformIO (ou Arduino IDE para programar os dispositivos)**
+- **Bibliotecas necessárias:**
+  - `LoRa.h` (para comunicação LoRa)
+  - `WiFiManager` (para configuração de rede no TTGO)
+  - Tuya SDK IoT (para integração com a Tuya)
+  - `ArduinoJson` (para manipulação de mensagens JSON)
+- **Computador com cabo USB para gravação do firmware**
+
+---
+
+### **Notas Adicionais**
+1. **Compatibilidade:** Certifique-se de que todos os componentes utilizados são compatíveis (ex.: frequência LoRa 868 MHz para os dois módulos).
+2. **Segurança:** Assegure que as ligações elétricas da bomba estejam isoladas e que o relé seja compatível com a potência da bomba.
+3. **Testes:** Antes de utilizar a bomba em carga total, realize testes com cargas menores para validar as conexões e o sistema.
