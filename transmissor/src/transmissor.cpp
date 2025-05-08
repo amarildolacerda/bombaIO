@@ -1,5 +1,6 @@
 #include "transmissor.h"
 #include "logger.h"
+#include <map>
 
 // ========== Instâncias Globais ==========
 Adafruit_SSD1306 display(Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT, &Wire, -1);
@@ -7,7 +8,32 @@ TuyaWifi my_device;
 WebServer server(Config::WEBSERVER_PORT);
 SystemState systemState;
 
+// Global map to store device information
+std::map<uint8_t, String> deviceList;
+
 // ========== Implementações ==========
+
+// Function to add or update a device in the list
+void updateDeviceList(uint8_t deviceId, const String &message)
+{
+    deviceList[deviceId] = message;
+}
+
+// Function to generate the device list HTML
+String generateDeviceListHtml()
+{
+    String html = "<!DOCTYPE html><html lang='pt-BR'><head><title>Lista de Dispositivos</title></head><body>";
+    html += "<h1>Dispositivos Registrados</h1>";
+    html += "<table border='1'><tr><th>ID</th><th>Última Mensagem</th></tr>";
+    for (const auto &device : deviceList)
+    {
+        html += "<tr><td>" + String(device.first) + "</td><td>" + device.second + "</td></tr>";
+    }
+    html += "</table>";
+    html += "<a href='/'>Voltar</a>";
+    html += "</body></html>";
+    return html;
+}
 
 // ========== SystemState Implementations ==========
 void SystemState::updateState(const String &newState)
@@ -173,7 +199,10 @@ bool LoRaCom::initialize()
     }
 
     //  LoRa.setSyncWord(Config::LORA_SYNC_WORD);
-    // LoRa.setTxPower(20); // Potência máxima
+    LoRa.setTxPower(14);            // Potência máxima
+    LoRa.setSpreadingFactor(10);    // Spreading Factor
+    LoRa.setSignalBandwidth(125E3); // Bandwidth
+    LoRa.setCodingRate4(5);         // Coding Rate 4/5
     //  LoRa.setPreambleLength(8);
     //  LoRa.setCodingRate4(4);
     // LoRa.setSpreadingFactor(7);     // SF7 (mais rápido)
@@ -432,6 +461,11 @@ void LoRaCom::processIncoming()
 
         systemState.setLoraEvent(event, value); // Atualiza o estado do sistema
 
+        if (event != nullptr && String(event) == "presentation")
+        {
+            updateDeviceList(tid, payload);
+        }
+
         // LoRaCom::ack(true, sid);
 
         if (event == nullptr)
@@ -601,6 +635,7 @@ String generateHtmlPage()
     html += "    </div>";
     html += "    <div id='stateInfo'>Estado atual: " + systemState.getState() + "</div>";
     html += "    <div class='status'>Última atualização: " + systemState.getISOTime() + "</div>";
+    html += "    <div class='status'>RSSI Atual: " + String(LoRa.packetRssi()) + " dBm</div>";
     html += "  </div>";
 
     html += "  <div class='card'>";
@@ -608,6 +643,7 @@ String generateHtmlPage()
     html += "    <div class='button-group'>";
     html += "      <a href='/update'><button class='btn-info'>Atualização OTA</button></a>";
     html += "      <button onclick='location.reload()' class='btn-warning'>Recarregar Página</button>";
+    html += "      <a href='/devices'><button class='btn-info'>Lista de Dispositivos</button></a>";
     html += "    </div>";
     html += "  </div>";
     html += "</div>";
@@ -727,6 +763,11 @@ void handleTurnOffRelayRequest()
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleTurnOffRelayRequest");
 }
 
+void handleDeviceListRequest()
+{
+    server.send(200, "text/html", generateDeviceListHtml());
+}
+
 void initWebServer()
 {
     Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initWebServer");
@@ -735,6 +776,7 @@ void initWebServer()
     server.on("/revertRelay", HTTP_POST, handleRevertRelayRequest);
     server.on("/turnOnRelay", HTTP_POST, handleTurnOnRelayRequest);
     server.on("/turnOffRelay", HTTP_POST, handleTurnOffRelayRequest);
+    server.on("/devices", HTTP_GET, handleDeviceListRequest);
 
     ElegantOTA.begin(&server);
     server.begin();
