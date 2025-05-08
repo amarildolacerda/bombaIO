@@ -145,6 +145,19 @@ void formatMessage(uint8_t tid, const char *event, const char *value = "")
             dtype, event, value);
 }
 
+void sendMessage(uint8_t tid, const char *message)
+{
+    rf95.setHeaderTo(tid);
+    rf95.setHeaderId(genHeaderId());
+    rf95.send((uint8_t *)message, strlen(message));
+    if (!rf95.waitPacketSent())
+    {
+        Logger::log(LogLevel::ERROR, "Falha ao envia mensagem"); // + messageBuffer);
+    }
+    else
+        Logger::log(LogLevel::DEBUG, message); // + messageBuffer);
+}
+
 void sendFormattedMessage(uint8_t tid, const char *event, const char *value)
 {
     digitalWrite(LED_PIN, HIGH);
@@ -171,7 +184,7 @@ void sendPresentation(uint8_t n)
     bool ackReceived = false;
     for (int attempt = 0; attempt < n && !ackReceived; ++attempt)
     {
-        String attemptMessage = String(attempt); // String("presentation attempt ") + (attempt + 1);
+        String attemptMessage = String(attempt + 1); // String("presentation attempt ") + (attempt + 1);
         // Logger::log(LogLevel::INFO, String("Enviando apresentação: tentativa ") + (attempt + 1));
         sendFormattedMessage(0, "presentation", attemptMessage.c_str());
         Logger::info("Presentation");
@@ -207,7 +220,7 @@ uint8_t genHeaderId()
 void sendStatus()
 {
     int currentState = digitalRead(RELAY_PIN);
-    const char *status = currentState == HIGH ? "off" : "on";
+    const char *status = currentState == HIGH ? "on" : "off";
     sendFormattedMessage(0x00, "status", status);
     lastPinState = currentState;
     pinStateChanged = false;
@@ -215,33 +228,38 @@ void sendStatus()
 
 bool processAndRespondToMessage(const char *message)
 {
+    uint8_t tid = rf95.headerFrom();
     if (message == nullptr)
         return false;
 
     Logger::debug(message);
     if (strstr_P(message, PSTR("status")) != nullptr)
     {
-        sendStatus();
+        pinStateChanged = true;
+        ack(true, tid);
     }
     else if (strstr_P(message, PSTR("ligar")) != nullptr)
     {
+        ack(true, tid);
         digitalWrite(RELAY_PIN, LOW);
         Logger::log(LogLevel::INFO, "Relay ON");
     }
     else if (strstr_P(message, PSTR("desligar")) != nullptr)
     {
+        ack(true, tid);
         digitalWrite(RELAY_PIN, HIGH);
         Logger::log(LogLevel::INFO, "Relay OFF");
     }
     else if (strstr_P(message, PSTR("reverter")) != nullptr)
     {
+        ack(true, tid);
         int currentState = digitalRead(RELAY_PIN);
         digitalWrite(RELAY_PIN, !currentState);
         Logger::log(LogLevel::INFO, "Relay toggled "); // + (!currentState) ? "ON" : "OFF");
     }
     else if (strstr_P(message, PSTR("presentation")) != nullptr)
     {
-        ack(true, 0);
+        ack(true, tid);
         mustPresentation = true;
     }
     else if (strstr_P(message, PSTR("ping")) != nullptr)
@@ -257,10 +275,9 @@ bool processAndRespondToMessage(const char *message)
     return true;
 }
 
-void ack(bool ak, uint8_t targetTerminal)
+void ack(bool ak, uint8_t tid)
 {
-    const char *ackMessage = ak ? "ACK" : "NAK";
-    sendFormattedMessage(targetTerminal, "ack", ackMessage);
+    sendMessage(tid, ak ? "ack" : "nak");
 }
 
 void handleLoraIncomingMessages()
@@ -285,24 +302,13 @@ void handleLoraIncomingMessages()
 
 void loop()
 {
-    if (pinStateChanged)
-    {
-        pinStateChanged = false;
-        int currentState = digitalRead(RELAY_PIN);
-        if (currentState != lastPinState)
-        {
-            sendStatus();
-        }
-    }
-
-    if (millis() - previousMillis >= STATUS_INTERVAL)
+    if ((pinStateChanged) || (millis() - previousMillis >= STATUS_INTERVAL))
     {
         previousMillis = millis();
         sendStatus();
     }
 
     handleLoraIncomingMessages();
-
     static unsigned long lastPresentationMillis = 0;
     if (mustPresentation || millis() - lastPresentationMillis >= 60000)
     {

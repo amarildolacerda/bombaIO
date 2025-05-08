@@ -78,6 +78,7 @@ void SystemState::loraRcv(const String &message)
     Logger::log(LogLevel::DEBUG, String("RCV: " + message).c_str());
 }
 
+static long ultimoBaixo = 0;
 void SystemState::updateDisplay()
 {
     display.clearDisplay();
@@ -90,9 +91,17 @@ void SystemState::updateDisplay()
     float snr = LoRa.packetSnr();
 
     bool baixo = (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD);
+    if (baixo && (millis() - ultimoBaixo > 30000))
+    {
+        Logger::log(LogLevel::WARNING, String("Sinal LoRa baixo: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
+        ultimoBaixo = millis();
+    }
 
     display.print("Radio: ");
-    display.println(loraInitialized ? (baixo) ? "Baixo" : "OK" : "FALHA");
+    display.print(loraInitialized ? (baixo) ? "Baixo" : "OK" : "FALHA");
+    display.print(" (");
+    display.print(rssi);
+    display.println(")");
 
     display.print("Estado: ");
     display.println(relayState);
@@ -129,8 +138,8 @@ void SystemState::conditionalUpdateDisplay()
 void onReceiveCallback(int packetSize)
 {
     Logger::verbose("onReceiveCallback");
-    if (packetSize == 0)
-        return; // Se não há pacote, ignora
+    // if (packetSize == 0)
+    //     return; // Se não há pacote, ignora
 
     // Serial.print("Pacote recebido (" + String(packetSize) + " bytes): ");
 
@@ -152,7 +161,7 @@ bool LoRaCom::initialize()
 {
     LoRa.setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
 
-    // LoRa.onReceive(onReceiveCallback);
+    LoRa.onReceive(onReceiveCallback);
     if (!LoRa.begin(Config::LORA_BAND))
     {
         Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");
@@ -166,7 +175,7 @@ bool LoRaCom::initialize()
     // LoRa.setSpreadingFactor(7);     // SF7 (mais rápido)
     // LoRa.setSignalBandwidth(500e3); // BW = 500 kHz (maior largura = mais velocidade)
     // LoRa.setCodingRate4(4);         // CR = 4/5 (sem redundância extra)
-    LoRa.setTxPower(20); // TX Power baixo (5 dBm)
+    LoRa.setTxPower(5); // TX Power baixo (5 dBm)
     // LoRa.enableCrc();               // CRC ativado para segurança
 
     Logger::log(LogLevel::INFO, "LoRa inicializado com sucesso");
@@ -431,7 +440,7 @@ void LoRaCom::processIncoming()
             if (String(event) == "status")
             {
                 // Apenas atualiza o estado sem acionar comandos extras
-                systemState.updateState(value);
+                systemState.updateState(String(value));
 
                 // Atualiza Tuya Cloud
                 unsigned char dp_id = 1;
@@ -457,12 +466,12 @@ void LoRaCom::processIncoming()
             }
             else
             {
-                systemState.updateState((String)event + "=" + value);
+                // systemState.updateState((String)event + "=" + value);
             }
         }
         else
         {
-            systemState.updateState((String)event + "=" + value);
+            //  systemState.updateState((String)event + "=" + value);
         }
     }
     else
@@ -750,7 +759,6 @@ void setup()
 
     if (display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS))
     {
-        Logger::log(LogLevel::ERROR, "Falha ao iniciar display OLED");
         display.setTextSize(1);
         display.setTextColor(SSD1306_WHITE);
 
@@ -758,6 +766,10 @@ void setup()
         display.setCursor(0, 0);
         display.println("Iniciando...");
         display.display();
+    }
+    else
+    {
+        Logger::log(LogLevel::ERROR, "Falha ao iniciar display OLED");
     }
 
     initWiFi();
@@ -783,7 +795,7 @@ static uint32_t lastPresentationTime = 0; // Adiciona um controle para o envio d
 void loop()
 {
     //  LoRa.idle();
-    LoRaCom::processIncoming();
+    // LoRaCom::processIncoming();
     my_device.uart_service();
     server.handleClient();
 
