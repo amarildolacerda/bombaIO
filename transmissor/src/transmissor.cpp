@@ -160,6 +160,10 @@ void onReceiveCallback(int packetSize)
 bool LoRaCom::initialize()
 {
     LoRa.setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
+    // #define SS 18
+    // #define RST 14
+    // #define DIO0 26
+    //     LoRa.setPins(SS, RST, DIO0);
 
     LoRa.onReceive(onReceiveCallback);
     if (!LoRa.begin(Config::LORA_BAND))
@@ -168,14 +172,14 @@ bool LoRaCom::initialize()
         return false;
     }
 
-    LoRa.setSyncWord(Config::LORA_SYNC_WORD);
+    //  LoRa.setSyncWord(Config::LORA_SYNC_WORD);
     // LoRa.setTxPower(20); // Potência máxima
-    LoRa.setPreambleLength(8);
-    LoRa.setCodingRate4(4);
+    //  LoRa.setPreambleLength(8);
+    //  LoRa.setCodingRate4(4);
     // LoRa.setSpreadingFactor(7);     // SF7 (mais rápido)
     // LoRa.setSignalBandwidth(500e3); // BW = 500 kHz (maior largura = mais velocidade)
     // LoRa.setCodingRate4(4);         // CR = 4/5 (sem redundância extra)
-    LoRa.setTxPower(5); // TX Power baixo (5 dBm)
+    //  LoRa.setTxPower(5); // TX Power baixo (5 dBm)
     // LoRa.enableCrc();               // CRC ativado para segurança
 
     Logger::log(LogLevel::INFO, "LoRa inicializado com sucesso");
