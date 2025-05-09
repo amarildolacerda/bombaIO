@@ -11,6 +11,7 @@
 #include <time.h>
 #include <WebServer.h>
 #include <ElegantOTA.h>
+#include <Update.h>
 #include "display_manager.h"
 #include "LoRaCom.h"
 

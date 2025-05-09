@@ -77,7 +77,7 @@ namespace HtmlServer
         html += "  <div class='card'>";
         html += "    <h2>Gerenciamento do Sistema</h2>";
         html += "    <div class='button-group'>";
-        html += "      <a href='/update'><button class='btn-info'>Atualização OTA</button></a>";
+        html += "      <a href='/ota'><button class='btn-info'>Atualização OTA</button></a>";
         html += "      <button onclick='location.reload()' class='btn-warning'>Recarregar Página</button>";
         html += "      <a href='/devices'><button class='btn-info'>Lista de Dispositivos</button></a>";
         html += "    </div>";
@@ -204,6 +204,84 @@ namespace HtmlServer
         server.send(200, "text/html", generateDeviceListHtml());
     }
 
+    void handleOtaPageRequest()
+    {
+        String html = "<!DOCTYPE html><html lang='pt-BR'>";
+        html += "<head>";
+        html += "<meta charset='UTF-8'>";
+        html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+        html += "<title>OTA Update</title>";
+        html += "<style>";
+        html += "  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }";
+        html += "  .container { max-width: 600px; margin: 50px auto; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }";
+        html += "  h1 { text-align: center; color: #333; }";
+        html += "  .upload-container { border: 2px dashed #3498db; border-radius: 10px; padding: 20px; text-align: center; background-color: #f9f9f9; cursor: pointer; transition: background-color 0.3s; }";
+        html += "  .upload-container:hover { background-color: #eaf6ff; }";
+        html += "  .upload-container input[type='file'] { display: none; }";
+        html += "  .upload-container p { margin: 0; color: #7f8c8d; }";
+        html += "  .file-name { margin-top: 10px; font-weight: bold; color: #2c3e50; }";
+        html += "  .btn-success { display: block; width: 100%; padding: 10px; margin-top: 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }";
+        html += "  .btn-success:hover { background-color: #218838; }";
+        html += "  .btn-warning { display: block; width: 100%; padding: 10px; margin-top: 10px; background-color: #ffc107; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; text-align: center; text-decoration: none; }";
+        html += "  .btn-warning:hover { background-color: #e0a800; }";
+        html += "</style>";
+        html += "</head>";
+        html += "<body>";
+        html += "<div class='container'>";
+        html += "<h1>Atualização OTA</h1>";
+        html += "<form method='POST' action='/update' enctype='multipart/form-data'>";
+        html += "  <label class='upload-container'>";
+        html += "    <input type='file' name='firmware' accept='.bin' required onchange='displayFileName(this)'>";
+        html += "    <p>Arraste e solte o arquivo aqui ou clique para selecionar</p>";
+        html += "    <span class='file-name' id='file-name'>Nenhum arquivo selecionado</span>";
+        html += "  </label>";
+        html += "  <button type='submit' class='btn-success'>Enviar Firmware</button>";
+        html += "</form>";
+        html += "<a href='/' class='btn-warning'>Voltar</a>";
+        html += "</div>";
+        html += "<script>";
+        html += "  function displayFileName(input) {";
+        html += "    const fileName = input.files[0] ? input.files[0].name : 'Nenhum arquivo selecionado';";
+        html += "    document.getElementById('file-name').textContent = fileName;";
+        html += "  }";
+        html += "</script>";
+        html += "</body></html>";
+
+        server.send(200, "text/html", html);
+    }
+
+    void handleFirmwareUpload()
+    {
+        HTTPUpload &upload = server.upload();
+
+        if (upload.status == UPLOAD_FILE_START)
+        {
+            Serial.printf("Iniciando upload: %s\n", upload.filename.c_str());
+            if (!Update.begin(UPDATE_SIZE_UNKNOWN))
+            {
+                Update.printError(Serial);
+            }
+        }
+        else if (upload.status == UPLOAD_FILE_WRITE)
+        {
+            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+            {
+                Update.printError(Serial);
+            }
+        }
+        else if (upload.status == UPLOAD_FILE_END)
+        {
+            if (Update.end(true))
+            {
+                Serial.printf("Upload concluído: %s\n", upload.filename.c_str());
+            }
+            else
+            {
+                Update.printError(Serial);
+            }
+        }
+    }
+
     void initWebServer()
     {
         Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initWebServer");
@@ -213,8 +291,12 @@ namespace HtmlServer
         server.on("/turnOnRelay", HTTP_POST, handleTurnOnRelayRequest);
         server.on("/turnOffRelay", HTTP_POST, handleTurnOffRelayRequest);
         server.on("/devices", HTTP_GET, handleDeviceListRequest);
+        server.on("/ota", HTTP_GET, handleOtaPageRequest);
+        server.on("/update", HTTP_POST, []()
+                  {
+            server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+            ESP.restart(); }, handleFirmwareUpload);
 
-        ElegantOTA.begin(&server);
         server.begin();
 
         Logger::log(LogLevel::INFO, "Servidor HTTP iniciado");
