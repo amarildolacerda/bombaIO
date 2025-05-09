@@ -8,27 +8,21 @@
 namespace HtmlServer
 {
 
-    class Server
-    {
-    public:
-        Server(WebServer &server);
+    // ========== Web Server Implementations ==========
+    String generateHtmlPage();
+    void handleRootRequest();
+    void handleStateRequest();
+    void handleRevertRelayRequest();
+    void handleTurnOnRelayRequest();
+    void handleTurnOffRelayRequest();
+    void handleDeviceListRequest();
+    String generateDeviceListHtml();
+    void initWebServer();
+    String generateDeviceListHtml();
 
-        void init();
-        void handleRootRequest();
-        void handleStateRequest();
-        void handleRevertRelayRequest();
-        void handleTurnOnRelayRequest();
-        void handleTurnOffRelayRequest();
-        void handleDeviceListRequest();
-
-    private:
-        WebServer &server;
-        std::map<uint8_t, std::string> deviceList;
-
-        std::string generateControlPageHtml();
-        std::string generateDeviceListHtml();
-    };
+    void process();
 
 } // namespace HtmlServer
 
+extern WebServer server;
 #endif // HTML_SERVER_H

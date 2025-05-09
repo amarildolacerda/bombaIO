@@ -4,36 +4,154 @@
 #include <Arduino.h>
 #include "config.h"
 #include "system_state.h"
+#include "device_info.h"
+
+// Add the correct external declaration for the server object
+WebServer server(Config::WEBSERVER_PORT);
 
 namespace HtmlServer
 {
 
-    Server::Server(WebServer &server) : server(server) {}
-
-    void Server::init()
+    // ========== Web Server Implementations ==========
+    String generateHtmlPage()
     {
-        server.on("/", HTTP_GET, [this]()
-                  { handleRootRequest(); });
-        server.on("/getState", HTTP_GET, [this]()
-                  { handleStateRequest(); });
-        server.on("/revertRelay", HTTP_POST, [this]()
-                  { handleRevertRelayRequest(); });
-        server.on("/turnOnRelay", HTTP_POST, [this]()
-                  { handleTurnOnRelayRequest(); });
-        server.on("/turnOffRelay", HTTP_POST, [this]()
-                  { handleTurnOffRelayRequest(); });
-        server.on("/devices", HTTP_GET, [this]()
-                  { handleDeviceListRequest(); });
+        String html = "<!DOCTYPE html><html lang='pt-BR'>";
+        html += "<head>";
+        html += "<meta charset='UTF-8'>";
+        html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+        html += "<title>Controle TTGO</title>";
+        html += "<style>";
+        html += "  * { box-sizing: border-box; }";
+        html += "  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; color: #333; }";
+        html += "  .container { max-width: 800px; margin: 0 auto; }";
+        html += "  header { text-align: center; margin-bottom: 30px; }";
+        html += "  h1 { color: #2c3e50; margin-bottom: 10px; }";
+        html += "  .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 25px; }";
+        html += "  h2 { color: #3498db; margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }";
+        html += "  .button-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }";
+        html += "  button { background: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.3s; flex: 1 1 120px; }";
+        html += "  button:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }";
+        html += "  button:active { transform: translateY(0); }";
+        html += "  #stateInfo { background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0; font-weight: bold; border-left: 4px solid #3498db; }";
+        html += "  .status { color: #7f8c8d; font-size: 14px; margin-top: 5px; }";
+        html += "  .btn-danger { background: #e74c3c; }";
+        html += "  .btn-danger:hover { background: #c0392b; }";
+        html += "  .btn-success { background: #2ecc71; }";
+        html += "  .btn-success:hover { background: #27ae60; }";
+        html += "  .btn-warning { background: #f39c12; }";
+        html += "  .btn-warning:hover { background: #d35400; }";
+        html += "  @media (max-width: 600px) {";
+        html += "    .button-group { flex-direction: column; }";
+        html += "    button { width: 100%; }";
+        html += "  }";
+        html += "</style>";
+        html += "</head>";
+        html += "<body>";
+        html += "<div class='container'>";
+        html += "  <header>";
+        html += "    <h1>Controle TTGO</h1>";
+        html += "    <p>Sistema de controle remoto</p>";
+        html += "  </header>";
+
+        html += "  <div class='card'>";
+        html += "    <h2>Controle do Relé</h2>";
+        html += "    <div class='button-group'>";
+        html += "      <button onclick='getState()' class='btn-info'>Atualizar Estado</button>";
+        html += "      <button onclick='turnOnRelay()' class='btn-success'>Ligar Relé</button>";
+        html += "      <button onclick='turnOffRelay()' class='btn-danger'>Desligar Relé</button>";
+        html += "      <button onclick='revertRelay()' class='btn-warning'>Inverter Relé</button>";
+        html += "    </div>";
+        html += "    <div id='stateInfo'>Estado atual: " + systemState.getState() + "</div>";
+        html += "    <div class='status'>Última atualização: " + systemState.getISOTime() + "</div>";
+        html += "    <div class='status'>RSSI Atual: " + String(LoRa.packetRssi()) + " dBm</div>";
+        html += "  </div>";
+
+        html += "  <div class='card'>";
+        html += "    <h2>Gerenciamento do Sistema</h2>";
+        html += "    <div class='button-group'>";
+        html += "      <a href='/update'><button class='btn-info'>Atualização OTA</button></a>";
+        html += "      <button onclick='location.reload()' class='btn-warning'>Recarregar Página</button>";
+        html += "      <a href='/devices'><button class='btn-info'>Lista de Dispositivos</button></a>";
+        html += "    </div>";
+        html += "  </div>";
+        html += "</div>";
+
+        html += "<script>";
+        html += "async function showAlert(message, isError = false) {";
+        html += "  const alertBox = document.createElement('div');";
+        html += "  alertBox.style.position = 'fixed';";
+        html += "  alertBox.style.top = '20px';";
+        html += "  alertBox.style.left = '50%';";
+        html += "  alertBox.style.transform = 'translateX(-50%)';";
+        html += "  alertBox.style.padding = '15px 25px';";
+        html += "  alertBox.style.background = isError ? '#e74c3c' : '#2ecc71';";
+        html += "  alertBox.style.color = 'white';";
+        html += "  alertBox.style.borderRadius = '5px';";
+        html += "  alertBox.style.boxShadow = '0 3px 10px rgba(0,0,0,0.2)';";
+        html += "  alertBox.style.zIndex = '1000';";
+        html += "  alertBox.textContent = message;";
+        html += "  document.body.appendChild(alertBox);";
+        html += "  setTimeout(() => alertBox.remove(), 3000);";
+        html += "}";
+
+        html += "async function fetchData(url, method = 'GET') {";
+        html += "  try {";
+        html += "    document.getElementById('stateInfo').textContent = 'Carregando...';";
+        html += "    const response = await fetch(url, { method });";
+        html += "    if (!response.ok) throw new Error('Erro na requisição');";
+        html += "    return await response.text();";
+        html += "  } catch (error) {";
+        html += "    showAlert(error.message, true);";
+        html += "    throw error;";
+        html += "  }";
+        html += "}";
+
+        html += "async function getState() {";
+        html += "  try {";
+        html += "    const state = await fetchData('/getState');";
+        html += "    document.getElementById('stateInfo').textContent = 'Estado atual: ' + state;";
+        html += "  } catch {}";
+        html += "}";
+
+        html += "async function turnOnRelay() {";
+        html += "  try {";
+        html += "    const message = await fetchData('/turnOnRelay', 'POST');";
+        html += "    showAlert('Relé ligado: ' + message);";
+        html += "    await getState();";
+        html += "  } catch {}";
+        html += "}";
+
+        html += "async function turnOffRelay() {";
+        html += "  try {";
+        html += "    const message = await fetchData('/turnOffRelay', 'POST');";
+        html += "    showAlert('Relé desligado: ' + message);";
+        html += "    await getState();";
+        html += "  } catch {}";
+        html += "}";
+
+        html += "async function revertRelay() {";
+        html += "  try {";
+        html += "    const message = await fetchData('/revertRelay', 'POST');";
+        html += "    showAlert('Relé invertido: ' + message);";
+        html += "    await getState();";
+        html += "  } catch {}";
+        html += "}";
+        html += "</script>";
+        html += "</body></html>";
+
+        return html;
     }
 
-    void Server::handleRootRequest()
+    void handleRootRequest()
     {
-        server.send(200, "text/html", generateControlPageHtml().c_str());
+        server.send(200, "text/html", generateHtmlPage());
     }
 
-    void Server::handleStateRequest()
+    void handleStateRequest()
     {
+        Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleStateRequest");
         LoRaCom::sendCommand("get", "status", 0xFF);
+
         uint32_t start = millis();
         while (millis() - start < Config::COMMAND_TIMEOUT)
         {
@@ -42,43 +160,78 @@ namespace HtmlServer
             {
                 break;
             }
+            // delay(100);
         }
-        server.send(200, "text/plain", systemState.getState().c_str());
+
+        server.send(200, "text/plain", systemState.getState());
+        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleStateRequest");
     }
 
-    void Server::handleRevertRelayRequest()
+    void handleRevertRelayRequest()
     {
+        Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleRevertRelayRequest");
         LoRaCom::sendCommand("gpio", "revert", 0xFF);
         server.send(200, "text/plain", "Comando de reversão enviado");
+        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleRevertRelayRequest");
     }
 
-    void Server::handleTurnOnRelayRequest()
+    void handleTurnOnRelayRequest()
     {
+        Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleTurnOnRelayRequest");
         LoRaCom::sendCommand("gpio", "on", 0xFF);
         server.send(200, "text/plain", "Comando para ligar o relé enviado");
+        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleTurnOnRelayRequest");
     }
 
-    void Server::handleTurnOffRelayRequest()
+    void handleTurnOffRelayRequest()
     {
+        Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleTurnOffRelayRequest");
         LoRaCom::sendCommand("gpio", "off", 0xFF);
         server.send(200, "text/plain", "Comando para desligar o relé enviado");
+        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleTurnOffRelayRequest");
     }
 
-    void Server::handleDeviceListRequest()
+    void handleDeviceListRequest()
     {
-        server.send(200, "text/html", generateDeviceListHtml().c_str());
+        server.send(200, "text/html", generateDeviceListHtml());
     }
 
-    std::string Server::generateControlPageHtml()
+    void initWebServer()
     {
-        // Implementation of the HTML generation logic for the control page
-        return "<html><body><h1>Controle TTGO</h1></body></html>";
+        Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initWebServer");
+        server.on("/", HTTP_GET, handleRootRequest);
+        server.on("/getState", HTTP_GET, handleStateRequest);
+        server.on("/revertRelay", HTTP_POST, handleRevertRelayRequest);
+        server.on("/turnOnRelay", HTTP_POST, handleTurnOnRelayRequest);
+        server.on("/turnOffRelay", HTTP_POST, handleTurnOffRelayRequest);
+        server.on("/devices", HTTP_GET, handleDeviceListRequest);
+
+        ElegantOTA.begin(&server);
+        server.begin();
+
+        Logger::log(LogLevel::INFO, "Servidor HTTP iniciado");
+        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initWebServer");
     }
 
-    std::string Server::generateDeviceListHtml()
+    // Function to generate the device list HTML
+    String generateDeviceListHtml()
     {
-        // Implementation of the HTML generation logic for the device list page
-        return "<html><body><h1>Lista de Dispositivos</h1></body></html>";
+        String html = "<!DOCTYPE html><html lang='pt-BR'><head><title>Lista de Dispositivos</title></head><body>";
+        html += "<h1>Dispositivos Registrados</h1>";
+        html += "<table border='1'><tr><th>ID</th><th>Última Mensagem</th></tr>";
+        for (const auto &device : deviceList)
+        {
+            html += "<tr><td>" + String(device.first) + "</td><td>" + device.second + "</td></tr>";
+        }
+        html += "</table>";
+        html += "<a href='/'>Voltar</a>";
+        html += "</body></html>";
+        return html;
+    }
+
+    void process()
+    {
+        server.handleClient();
     }
 
 } // namespace HtmlServer

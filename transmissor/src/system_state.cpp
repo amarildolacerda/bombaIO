@@ -4,6 +4,8 @@
 #include "config.h"
 #include "display_manager.h"
 
+SystemState systemState; // Define the global systemState object
+
 void SystemState::loraRcv(const String &message)
 {
     if (message.length() < sizeof(loraRcvMessage))
