@@ -2,13 +2,12 @@
 #include "logger.h"
 
 #ifdef TTGO
-#include <LoRa.h>
+#include "LoRaTTGO.h"
 
 #elif RF95
 #include <LoRaRF95.h>
+#include "LoRaRF95.h"
 
-#elif LORASERIAL
-#include <LoRaSerial.h>
 #endif
 
 #include "config.h"
@@ -16,6 +15,9 @@
 #include "display_manager.h"
 #include "device_info.h"
 #include <ArduinoJson.h>
+
+// Define the static member
+LoRaInterface *LoRaCom::loraInstance = nullptr;
 
 // Função chamada quando um pacote LoRa é recebido
 void onReceiveCallback(int packetSize)
@@ -27,24 +29,31 @@ void onReceiveCallback(int packetSize)
 // ========== LoRaCom Implementations ==========
 bool LoRaCom::initialize()
 {
-    LoRa.setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
-    LoRa.onReceive(onReceiveCallback);
-    bool rt = LoRa.begin(Config::LORA_BAND);
+#ifdef TTGO
+    setInstance(new LoRaTTGO());
+#elif RF95
+    setInstance(new LoRaRF95());
+#endif
+
+    loraInstance->setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
+    loraInstance->onReceive(onReceiveCallback);
+    bool rt = loraInstance->beginSetup(Config::LORA_BAND);
     if (!rt)
     {
         Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");
         return false;
     }
-    LoRa.setSyncWord(Config::TERMINAL_ID);
+    loraInstance->setHeaderFrom(Config::TERMINAL_ID);
 
-#ifdef TTGO
-    LoRa::receive();
-#else
-    LoRa.receive();
-#endif
+    loraInstance->endSetup();
     Logger::log(LogLevel::INFO, "LoRa inicializado com sucesso");
     systemState.setLoraStatus(true);
     return true;
+}
+
+void LoRaCom::handle()
+{
+    loraInstance->handle();
 }
 
 void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const char *value)
@@ -58,11 +67,9 @@ void LoRaCom::ack(bool ak, uint8_t tid)
 
     formatMessage(ackBuffer, tid, (ak) ? "ack" : "nak", "");
 
-    LoRa.beginPacket();
     String ackMessage = (String)ackBuffer;
-    sendHeaderTo(tid);
-    LoRa.print((ak) ? "ack" : "nak");
-    if (LoRa.endPacket() == 0)
+    bool rt = loraInstance->print((ak) ? "ack" : "nak");
+    if (rt)
     {
         Logger::log(LogLevel::ERROR, "Falha ao enviar ACK/NACK");
     }
@@ -96,7 +103,7 @@ void LoRaCom::sendHeaderTo(uint8_t tid)
 int LoRaCom::packedRssi()
 {
 
-    int8_t rssi = LoRa.packetRssi();
+    int8_t rssi = loraInstance->packetRssi();
     return rssi;
 }
 
@@ -111,11 +118,9 @@ void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
         snprintf(nStr, sizeof(nStr), "%u", attempt + 1);
         formatMessage(message, tid, "presentation", nStr);
 
-        LoRa.beginPacket();
-        // Serial.println(message);
-        sendHeaderTo(tid);
-        LoRa.print(message);
-        if (LoRa.endPacket() == 0)
+        loraInstance->setHeaderTo(tid);
+        bool rt = loraInstance->print(message);
+        if (rt)
         { // não pega ack se for broadcast por timeout  n == 1
             Logger::log(LogLevel::ERROR, "Falha ao enviar apresentação LoRa");
             return;
@@ -142,37 +147,33 @@ bool LoRaCom::waitAck()
                                          // delay(100);
 
         uint8_t tid = 0xFF;
-        if (LoRa.parsePacket())
+        char payload[Config::MESSAGE_LEN];
+        uint16_t index = 0;
+        int n = 0;
+        while (loraInstance->available() && index < sizeof(payload) - 1)
         {
-            char payload[Config::MESSAGE_LEN];
-            uint16_t index = 0;
-            int n = 0;
-            while (LoRa.available() && index < sizeof(payload) - 1)
-            {
-                uint8_t byte = LoRa.read();
-                n++;
-                if ((n == 1) || !(byte >= 32 && byte <= 126))
-                    tid = byte;
-                if (n < 5)
-                    continue;
-                payload[index] = static_cast<char>(byte);
-                index++;
-#ifdef RF95
-                LoRa.setHeaderTo(tid);
-#endif
-                if (static_cast<char>(byte) == '}')
-                    break;
-            }
-            payload[index] = '\0'; // Garante terminação
-
-            systemState.loraRcv(payload);
-
-            Logger::log(LogLevel::INFO, payload);
-            return true;
+            uint8_t byte = loraInstance->read();
+            n++;
+            if ((n == 1) || !(byte >= 32 && byte <= 126))
+                tid = byte;
+            if (n < 5)
+                continue;
+            payload[index] = static_cast<char>(byte);
+            index++;
+            loraInstance->setHeaderTo(tid);
+            if (static_cast<char>(byte) == '}')
+                break;
         }
+        payload[index] = '\0'; // Garante terminação
 
-        digitalWrite(LED_BUILTIN, LOW); // Turn off LED
+        systemState.loraRcv(payload);
+
+        Logger::log(LogLevel::INFO, payload);
+        return true;
     }
+
+    digitalWrite(LED_BUILTIN, LOW); // Turn off LED
+
     ack(false);
     return false;
 }
@@ -183,12 +184,10 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
     formatMessage(output, tid, event.c_str(), value.c_str());
     // Serial.println(output);
 
-    LoRa.beginPacket();
+    loraInstance->setHeaderTo(tid);
 
-    sendHeaderTo(tid);
-
-    LoRa.print(output);
-    if (LoRa.endPacket() == 0)
+    bool rt = loraInstance->print(output);
+    if (rt)
     {
         Logger::log(LogLevel::ERROR, "Falha ao enviar comando LoRa");
         return false;
@@ -213,25 +212,30 @@ void LoRaCom::sleep(unsigned int duration)
 void LoRaCom::processIncoming()
 {
 
-    if (LoRa.parsePacket())
+    String payload = "";
+    uint8_t tid = 0xFF; // no future, ler no pacote [1]
+    uint8_t pos = 0;
+    while (loraInstance->available())
     {
-        String payload = "";
-        uint8_t tid = 0xFF; // no future, ler no pacote [1]
-        uint8_t pos = 0;
-        while (LoRa.available())
+        char buf[241];
+        uint8_t len = sizeof(buf);
+        bool rt = loraInstance->receiveMessage(buf, len);
+        if (!rt)
+            return;
+        for (uint8_t i = 0; i < len; i++)
         {
-            uint8_t byte = LoRa.read();
+            uint8_t byte = buf[i];
             char cbyte = static_cast<char>(byte);
-            // Serial.print(" ");
-            // Serial.print(byte, HEX);
-            // Serial.print(":");
-            // Serial.print(cbyte);
-
-            if (pos++ == 1)
-                tid = byte;
-
-            if (pos < 5 || (byte == 0xFF) || !(byte >= 32 && byte <= 126)) // Ignora bytes de controle
+            if (cbyte == '{')
+                pos = 0;
+            if (pos < 5)
+            {
+                pos++;
                 continue;
+            }
+            if (!(byte >= 32 && byte <= 126)) // Ignora bytes de controle
+                continue;
+
             payload += cbyte;
             if (cbyte == '}')
                 break;
@@ -246,9 +250,8 @@ void LoRaCom::processIncoming()
 
         systemState.loraRcv(payload);
 
-        int rssi = LoRa.packetRssi();
-        float snr = LoRa.packetSnr();
-        // Logger::log(LogLevel::INFO, "RSSI: " + String(rssi) + ", SNR: " + String(snr));
+        int rssi = loraInstance->packetRssi();
+        float snr = loraInstance->packetSnr();
 
         if (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD)
         {
@@ -270,16 +273,9 @@ void LoRaCom::processIncoming()
 
         systemState.setLoraEvent(event, value); // Atualiza o estado do sistema
 
-        if (event != nullptr && String(event) == "presentation")
+        if (event != nullptr)
         {
             DeviceInfo::updateDeviceList(tid, payload);
-        }
-
-        // LoRaCom::ack(true, sid);
-
-        if (event == nullptr)
-        {
-            event = doc["state"]; // Formato alternativo
         }
 
         if (event != nullptr)
@@ -290,8 +286,8 @@ void LoRaCom::processIncoming()
                 systemState.updateState(String(value));
 
                 // Atualiza Tuya Cloud
-                unsigned char dp_id = 1;
-                unsigned char dp_value = (systemState.getState() == "LIGADO") ? 1 : 0;
+                // unsigned char dp_id = 1;
+                // unsigned char dp_value = (systemState.getState() == "LIGADO") ? 1 : 0;
                 // my_device.mcu_dp_update(dp_id, &dp_value, sizeof(dp_value));
                 ack(true, tid);
             }
@@ -320,8 +316,5 @@ void LoRaCom::processIncoming()
         {
             //  systemState.updateState((String)event + "=" + value);
         }
-    }
-    else
-    {
     }
 }

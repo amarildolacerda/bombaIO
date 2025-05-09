@@ -2,10 +2,12 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <map>
+#include <pgmspace.h> // Use pgmspace.h for ESP8266
 #elif ESP32
 #include <WiFi.h>
 #include <WebServer.h>
 #include <map>
+#include <pgmspace> // Use pgmspace for ESP32
 #endif
 
 #include "transmissor.h"
@@ -20,31 +22,39 @@
 // ========== Instâncias Globais ==========
 TuyaWifi my_device;
 
+// ========== PROGMEM Strings ==========
+const char logTuyaDesligar[] PROGMEM = "Comando Tuya: DESLIGAR";
+const char logTuyaLigar[] PROGMEM = "Comando Tuya: LIGAR";
+const char logTuyaReverter[] PROGMEM = "Comando Tuya: REVERTER";
+const char logTuyaStatus[] PROGMEM = "Comando Tuya: STATUS";
+const char logWiFiConnected[] PROGMEM = "WiFi conectado: ";
+const char logNTPFail[] PROGMEM = "Falha ao sincronizar com NTP. Tentando novamente em 1 minuto...";
+const char logNTPSuccess[] PROGMEM = "Sincronização com NTP bem-sucedida.";
+
 // ========== Implementações ==========
 
 // ========== Tuya Callback Implementation ==========
 unsigned char handleTuyaCommand(unsigned char dp_id, const unsigned char dp_data[], unsigned short dp_len)
 {
-    switch (dp_data[0])
+    static const char *const commands[] PROGMEM = {"desligar", "ligar", "revert", "status"};
+    static const char *const responses[] PROGMEM = {"OFF", "OK", "REVERTER", ""};
+    static const char *const logs[] PROGMEM = {
+        logTuyaDesligar,
+        logTuyaLigar,
+        logTuyaReverter,
+        logTuyaStatus};
+
+    if (dp_data[0] < 4)
     {
-    case 0:
-        LoRaCom::sendCommand("desligar", "OFF", dp_id);
-        Logger::log(LogLevel::INFO, "Comando Tuya: DESLIGAR");
-        break;
-    case 1:
-        LoRaCom::sendCommand("ligar", "OK", dp_id);
-        Logger::log(LogLevel::INFO, "Comando Tuya: LIGAR");
-        break;
-    case 2:
-        LoRaCom::sendCommand("revert", "REVERTER", dp_id);
-        Logger::log(LogLevel::INFO, "Comando Tuya: REVERTER");
-        break;
-    case 3:
-        LoRaCom::sendCommand("status", "", dp_id);
-        Logger::log(LogLevel::INFO, "Comando Tuya: STATUS");
-        break;
-    default:
-        //  Logger::log(LogLevel::WARNING, "Comando Tuya desconhecido: " + String(dp_data[0]));
+        char command[10];
+        char response[10];
+        strcpy_P(command, (PGM_P)pgm_read_ptr(&commands[dp_data[0]]));
+        strcpy_P(response, (PGM_P)pgm_read_ptr(&responses[dp_data[0]]));
+        LoRaCom::sendCommand(command, response, dp_id);
+        Logger::log(LogLevel::INFO, command); // Or use the appropriate variable if you want to log the command string
+    }
+    else
+    {
         return 0;
     }
     systemState.resetDisplayUpdate();
@@ -66,7 +76,10 @@ void initWiFi()
     }
 
     systemState.setWifiStatus(true);
-    // Logger::log(LogLevel::INFO, "WiFi conectado: " + WiFi.localIP().toString());
+    char ipBuffer[16]; // Buffer to store IP address as a string
+    snprintf(ipBuffer, sizeof(ipBuffer), "%s", WiFi.localIP().toString().c_str());
+    Logger::log(LogLevel::INFO, FPSTR(logWiFiConnected));
+    Logger::log(LogLevel::INFO, ipBuffer);
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initWiFi com sucesso");
 #else
     Logger::log(LogLevel::WARNING, "initWiFi não suportado neste dispositivo");
@@ -83,13 +96,12 @@ void initNTP()
 
     if (!getLocalTime(&timeinfo))
     {
-        Logger::log(LogLevel::WARNING, "Falha ao sincronizar com NTP. Tentando novamente em 1 minuto...");
+        Logger::log(LogLevel::WARNING, FPSTR(logNTPFail));
         Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initNTP com falha");
     }
     else
     {
-        Logger::log(LogLevel::INFO, "Sincronização com NTP bem-sucedida.");
-        // Logger::log(LogLevel::VERBOSE, "Horário sincronizado: " + String(asctime(&timeinfo)));
+        Logger::log(LogLevel::INFO, FPSTR(logNTPSuccess));
         Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initNTP com sucesso");
     }
 #else
@@ -157,13 +169,9 @@ void setup()
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: setup");
 }
 
-static uint32_t lastStateCheck = 0;
-static uint32_t lastPresentationTime = 0; // Adiciona um controle para o envio de Presentation
-
 void loop()
 {
-    //  LoRa.idle();
-    // LoRaCom::processIncoming();
+    LoRaCom::handle();
     my_device.uart_service();
 #ifndef __AVR__
     HtmlServer::process();
@@ -171,6 +179,8 @@ void loop()
     systemState.conditionalUpdateDisplay();
 
     // Verifica o estado a cada intervalo definido
+    static uint32_t lastStateCheck = 0;
+
     if (millis() - lastStateCheck > Config::STATE_CHECK_INTERVAL)
     {
         if (!systemState.isStateValid())
@@ -181,12 +191,4 @@ void loop()
         }
         lastStateCheck = millis();
     }
-
-    // Envia mensagem de Presentation a cada 1 minuto
-    if (millis() - lastPresentationTime > Config::PRESENTATION_INTERVAL) // 60000 ms = 1 minuto
-    {
-        LoRaCom::sendPresentation(0xFF, 1);
-        lastPresentationTime = millis();
-    }
-    //   LoRa.receive();
 }

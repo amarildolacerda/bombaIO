@@ -1,51 +1,121 @@
 #ifndef LORARF95_H
 #define LORARF95_H
 
-#ifdef ESP8266
+#include "config.h"
+#include "LoRaInterface.h"
+#include <RH_RF95.h>
+#include "logger.h"
 
-#elif avr
+#ifdef ESP8266
+RH_RF95 rf95(Serial);
+#elif __AVR__
 #include <SoftwareSerial.h>
 SoftwareSerial SSerial(10, 11);
 #define LoRaSerial SSerial
+
+RH_RF95<SoftwareSerial> rf95(LoRaSerial);
+
 #endif
 
-#include "config.h"
-
-class LoRaRF95
+class LoRaRF95 : public LoRaInterface
 {
 private:
-    uint8_t nHeaderId = 0;
-    uint8_t _tid = 0xFF;
-    uint8_t _tidTo = 0xFF;
-    // declarar callback aqui
-    void (*onReceiveCallBack)(int packetSize) = nullptr;
-
-protected:
 public:
-    bool begin(float frequency, bool promiscuous = true);
-    void sendMessage(uint8_t tid, const char *message);
-    bool receiveMessage(char *buffer, uint8_t &len);
-    int16_t packetRssi();
-    uint8_t packetSnr() { return 0; }
-    uint8_t genHeaderId();
-    void setPins(int cs, int reset, int irq) {}
-    void setSyncWord(const uint8_t tid);
-    void onReceive(void (*callback)(int packetSize))
+    bool beginSetup(float frequency, bool promiscuous = true) override
     {
-        onReceiveCallBack = callback;
+        if (!rf95.init())
+        {
+            Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
+            return false;
+        }
+        rf95.setFrequency(frequency);
+        rf95.setPromiscuous(promiscuous);
+        rf95.setTxPower(14);
+        Logger::log(LogLevel::INFO, "LoRa initialized successfully.");
+        return true;
     }
-    static void receive() {}
-    void print(const char *message);
-    bool beginPacket();
-    int endPacket();
-    bool parsePacket();
-    bool available();
-    byte read();
-    void setHeaderTo(uint8_t tid) { _tidTo = tid; }
-};
 
-#ifdef RF95
-extern LoRaRF95 LoRa;
-#endif
+    bool sendMessage(uint8_t tid, const char *message) override
+    {
+        rf95.setHeaderTo(tid);
+        rf95.setHeaderId(genHeaderId());
+        rf95.send((uint8_t *)message, strlen(message));
+        if (!rf95.waitPacketSent())
+        {
+            Logger::log(LogLevel::ERROR, "Failed to send message.");
+            return false;
+        }
+        else
+        {
+            Logger::log(LogLevel::DEBUG, message);
+            return true;
+        }
+    }
+
+    bool receiveMessage(char *buffer, uint8_t &len) override
+    {
+        if (rf95.available())
+        {
+            if (rf95.recv((uint8_t *)buffer, &len))
+            {
+                buffer[len] = '\0';
+                return true;
+            }
+        }
+        return false;
+    }
+
+    int packetRssi() override
+    {
+        return rf95.lastRssi();
+    }
+
+    void handle()
+    {
+        if (rf95.available() && onReceiveCallBack)
+        {
+            onReceiveCallBack(rf95.lastRssi());
+        }
+    }
+    void setHeaderTo(uint8_t tid) override
+    {
+        rf95.setHeaderTo(tid);
+    }
+    void setHeaderFrom(uint8_t tid) override
+    {
+        rf95.setHeaderFrom(tid);
+    }
+    void setPins(int cs, int reset, int irq) override
+    {
+        //   rf95.setPins(cs, reset, irq);
+    }
+    void endSetup() override
+    {
+    }
+    bool print(const char *message) override
+    {
+        return sendMessage(0xFF, message);
+    }
+    bool available() override
+    {
+        return rf95.available();
+    }
+    byte read() override
+    {
+        char buffer[1] = {0};
+        uint8_t len = sizeof(buffer);
+        bool rt = receiveMessage(buffer, len);
+        if (rt)
+        {
+            return buffer[0];
+        }
+        else
+            return 0;
+    }
+    int packetSnr() override
+    {
+        return 0;
+    }
+};
 
 #endif
