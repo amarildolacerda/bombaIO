@@ -13,6 +13,36 @@ namespace HtmlServer
 {
 
     // ========== Web Server Implementations ==========
+    String getCommonStyles()
+    {
+        String styles = "  * { box-sizing: border-box; }";
+        styles += "  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; color: #333; }";
+        styles += "  .container { max-width: 800px; margin: 0 auto; }";
+        styles += "  h1 { text-align: center; color: #2c3e50; margin-bottom: 20px; }";
+        styles += "  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }";
+        styles += "  th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }";
+        styles += "  th { background-color: #3498db; color: white; }";
+        styles += "  tr:hover { background-color: #f1f1f1; }";
+        styles += "  a { display: inline-block; padding: 10px 15px; background-color: #3498db; color: white; text-decoration: none; border-radius: 5px; text-align: center; }";
+        styles += "  a:hover { background-color: #2980b9; }";
+        styles += "  .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 25px; }";
+        styles += "  h2 { color: #3498db; margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }";
+        styles += "  .button-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }";
+        styles += "  button { background: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.3s; flex: 1 1 120px; }";
+        styles += "  button:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }";
+        styles += "  button:active { transform: translateY(0); }";
+        styles += "  #stateInfo { background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0; font-weight: bold; border-left: 4px solid #3498db; }";
+        styles += "  .status { color: #7f8c8d; font-size: 14px; margin-top: 5px; }";
+        styles += "  .btn-danger { background: #e74c3c; }";
+        styles += "  .btn-danger:hover { background: #c0392b; }";
+        styles += "  .btn-success { background: #2ecc71; }";
+        styles += "  .btn-success:hover { background: #27ae60; }";
+        styles += "  .btn-warning { background: #f39c12; }";
+        styles += "  .btn-warning:hover { background: #d35400; }";
+        styles += "  @media (max-width: 600px) { .button-group { flex-direction: column; } button { width: 100%; } }";
+        return styles;
+    }
+
     String generateHtmlPage()
     {
         String html = "<!DOCTYPE html><html lang='pt-BR'>";
@@ -21,29 +51,7 @@ namespace HtmlServer
         html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
         html += "<title>Controle TTGO</title>";
         html += "<style>";
-        html += "  * { box-sizing: border-box; }";
-        html += "  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; color: #333; }";
-        html += "  .container { max-width: 800px; margin: 0 auto; }";
-        html += "  header { text-align: center; margin-bottom: 30px; }";
-        html += "  h1 { color: #2c3e50; margin-bottom: 10px; }";
-        html += "  .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 25px; }";
-        html += "  h2 { color: #3498db; margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }";
-        html += "  .button-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }";
-        html += "  button { background: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.3s; flex: 1 1 120px; }";
-        html += "  button:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }";
-        html += "  button:active { transform: translateY(0); }";
-        html += "  #stateInfo { background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0; font-weight: bold; border-left: 4px solid #3498db; }";
-        html += "  .status { color: #7f8c8d; font-size: 14px; margin-top: 5px; }";
-        html += "  .btn-danger { background: #e74c3c; }";
-        html += "  .btn-danger:hover { background: #c0392b; }";
-        html += "  .btn-success { background: #2ecc71; }";
-        html += "  .btn-success:hover { background: #27ae60; }";
-        html += "  .btn-warning { background: #f39c12; }";
-        html += "  .btn-warning:hover { background: #d35400; }";
-        html += "  @media (max-width: 600px) {";
-        html += "    .button-group { flex-direction: column; }";
-        html += "    button { width: 100%; }";
-        html += "  }";
+        html += getCommonStyles();
         html += "</style>";
         html += "</head>";
         html += "<body>";
@@ -216,15 +224,27 @@ namespace HtmlServer
     // Function to generate the device list HTML
     String generateDeviceListHtml()
     {
-        String html = "<!DOCTYPE html><html lang='pt-BR'><head><title>Lista de Dispositivos</title></head><body>";
+        String html = "<!DOCTYPE html><html lang='pt-BR'>";
+        html += "<head>";
+        html += "<meta charset='UTF-8'>";
+        html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+        html += "<title>Lista de Dispositivos</title>";
+        html += "<style>";
+        html += getCommonStyles();
+        html += "</style>";
+        html += "</head>";
+        html += "<body>";
+        html += "<div class='container'>";
         html += "<h1>Dispositivos Registrados</h1>";
-        html += "<table border='1'><tr><th>ID</th><th>Última Mensagem</th></tr>";
+        html += "<table>";
+        html += "<tr><th>ID</th><th>Evento</th><th>Valor</th></tr>";
         for (const auto &device : deviceList)
         {
-            html += "<tr><td>" + String(device.first) + "</td><td>" + device.second + "</td></tr>";
+            html += "<tr><td>" + String(device.first) + "</td><td>" + device.second.first + "</td><td>" + device.second.second + "</td></tr>";
         }
         html += "</table>";
         html += "<a href='/'>Voltar</a>";
+        html += "</div>";
         html += "</body></html>";
         return html;
     }
