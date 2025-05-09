@@ -6,6 +6,8 @@
 #include "device_info.h"
 #include "LoRaCom.h"
 
+#ifndef __AVR__
+
 #ifdef ESP32
 #include "update.h"
 #endif
@@ -13,7 +15,7 @@
 // Add the correct external declaration for the server object
 #ifdef ESP32
 WebServer server(Config::WEBSERVER_PORT);
-#else
+#elif ESP8266
 ESP8266WebServer server(Config::WEBSERVER_PORT);
 #endif
 
@@ -348,3 +350,4 @@ namespace HtmlServer
     }
 
 } // namespace HtmlServer
+#endif

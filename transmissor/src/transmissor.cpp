@@ -1,14 +1,15 @@
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-#else
+#include <map>
+#elif ESP32
 #include <WiFi.h>
 #include <WebServer.h>
+#include <map>
 #endif
 
 #include "transmissor.h"
 #include "logger.h"
-#include <map>
 #include "config.h"
 #include "html_server.h"
 #include "LoRaCom.h"
@@ -53,6 +54,7 @@ unsigned char handleTuyaCommand(unsigned char dp_id, const unsigned char dp_data
 // ========== Network Functions Implementations ==========
 void initWiFi()
 {
+#if defined(ESP8266) || defined(ESP32)
     Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initWiFi");
     WiFiManager wifiManager;
     wifiManager.setTimeout(Config::WIFI_TIMEOUT_S);
@@ -66,10 +68,14 @@ void initWiFi()
     systemState.setWifiStatus(true);
     // Logger::log(LogLevel::INFO, "WiFi conectado: " + WiFi.localIP().toString());
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initWiFi com sucesso");
+#else
+    Logger::log(LogLevel::WARNING, "initWiFi não suportado neste dispositivo");
+#endif
 }
 
 void initNTP()
 {
+#if defined(ESP8266) || defined(ESP32)
     Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initNTP");
     configTime(Config::GMT_OFFSET_SEC, Config::DAYLIGHT_OFFSET_SEC, Config::NTP_SERVER);
     Logger::log(LogLevel::INFO, "Sincronizando com NTP...");
@@ -86,6 +92,9 @@ void initNTP()
         // Logger::log(LogLevel::VERBOSE, "Horário sincronizado: " + String(asctime(&timeinfo)));
         Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initNTP com sucesso");
     }
+#else
+    Logger::log(LogLevel::WARNING, "initNTP não suportado neste dispositivo");
+#endif
 }
 
 // ========== Tuya Initialization ==========
@@ -106,7 +115,7 @@ void setup()
     Serial.begin(Config::SERIAL_BAUD);
     Logger::log(LogLevel::INFO, "Iniciando sistema...");
 
-#ifdef ESP8266
+#if defined(ESP8266) || defined(__AVR__)
     Logger::log(LogLevel::INFO, "ESP8266 não possui display. Ignorando inicialização do display.");
 #else
     if (display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS))
@@ -131,19 +140,20 @@ void setup()
     if (!LoRaCom::initialize())
     {
         Logger::log(LogLevel::ERROR, "Falha crítica no LoRa - reiniciando");
-        ESP.restart();
+        // ESP.restart();
     }
 
     initTuya();
+#if defined(ESP32) || defined(ESP8266)
     HtmlServer::initWebServer();
+#endif
 
 #ifdef ESP8266
     Logger::log(LogLevel::INFO, "ESP8266 não possui suporte para DisplayManager. Ignorando inicialização do DisplayManager.");
-#else
+#elif ESP32
     DisplayManager::updateDisplay();
 #endif
 
-    LoRa.receive();
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: setup");
 }
 
@@ -155,8 +165,9 @@ void loop()
     //  LoRa.idle();
     // LoRaCom::processIncoming();
     my_device.uart_service();
+#ifndef __AVR__
     HtmlServer::process();
-
+#endif
     systemState.conditionalUpdateDisplay();
 
     // Verifica o estado a cada intervalo definido

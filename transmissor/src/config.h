@@ -6,16 +6,30 @@
 // Platform: The project is designed to run on the ESP32 platform.
 // Libraries: The project uses the ESP32 Arduino core libraries and other related libraries for LoRa, OLED display, and Wi-Fi functionalities.
 #include <Arduino.h>
+
+#ifdef __AVR__
+#define D5 5
+#define D6 6
+#endif
 // ========== Configurações do Sistema ==========
 namespace Config
 {
+#if defined(RF95) || defined(LORASERIAL)
+
+    constexpr uint8_t LORA_RX_PIN = D5; // RX pin for RF95
+    constexpr uint8_t LORA_TX_PIN = D6; // TX pin for RF95
+#endif
     constexpr int TERMINAL_ID = 0x00;
     constexpr int MESSAGE_LEN = 128;
     // Hardware - Pinos LoRa (TTGO LoRa32 v1)
     constexpr uint8_t LORA_CS_PIN = 18;    // GPIO18 - Chip Select
     constexpr uint8_t LORA_RESET_PIN = 14; // GPIO14 - Reset
     constexpr uint8_t LORA_IRQ_PIN = 26;   // GPIO26 - Interrupção
-    constexpr uint32_t LORA_BAND = 868E6;  // Banda para América do Sul
+#ifdef TTGTO
+    constexpr uint32_t LORA_BAND = 868E6; // Banda para América do Sul
+#else
+    constexpr uint32_t LORA_BAND = 868E6; // Banda para América do Norte
+#endif
     constexpr uint16_t LORA_SYNC_WORD = 0xF3;
 
     constexpr int MIN_RSSI_THRESHOLD = -120; // ajuste conforme necessário
@@ -39,8 +53,8 @@ namespace Config
     // Sistema
     constexpr uint32_t SERIAL_BAUD = 115200;
     constexpr uint32_t STATE_TIMEOUT_MS = 300000 / 5; // 5 minutos (status automático)
-    constexpr uint32_t STATE_CHECK_INTERVAL = 10000;
-    constexpr uint32_t PRESENTATION_INTERVAL = 15000;
+    constexpr uint32_t STATE_CHECK_INTERVAL = 1000;
+    constexpr uint32_t PRESENTATION_INTERVAL = 1500;
     constexpr uint32_t COMMAND_TIMEOUT = 3000;
 
     // Tuya IoT

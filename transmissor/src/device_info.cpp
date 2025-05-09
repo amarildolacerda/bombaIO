@@ -18,7 +18,8 @@ void DeviceInfo::updateDeviceList(uint8_t deviceId, const String &message)
     // Extract "event" and "value" from the JSON
     String event = doc["event"].as<String>();
     String value = doc["value"].as<String>();
-
+#ifndef __AVR__
     // Update the device list with the event and value pair
     deviceList[deviceId] = std::make_pair(event, value);
+#endif
 }

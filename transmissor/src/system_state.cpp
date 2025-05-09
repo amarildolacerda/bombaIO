@@ -72,6 +72,10 @@ bool SystemState::isStateValid() const
 
 String SystemState::getISOTime()
 {
+#ifdef __AVR__
+    return "1970-01-01T00:00:00Z"; // Fallback for AVR
+#else
+
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo))
     {
@@ -82,6 +86,7 @@ String SystemState::getISOTime()
     char timeStr[25];
     strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
     return String(timeStr);
+#endif
 }
 
 void SystemState::conditionalUpdateDisplay()

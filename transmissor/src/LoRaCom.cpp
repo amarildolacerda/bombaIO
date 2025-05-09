@@ -1,8 +1,16 @@
 #include "LoRaCom.h"
 #include "logger.h"
+
 #ifdef TTGO
 #include <LoRa.h>
+
+#elif RF95
+#include <LoRaRF95.h>
+
+#elif LORASERIAL
+#include <LoRaSerial.h>
 #endif
+
 #include "config.h"
 #include "system_state.h"
 #include "display_manager.h"
@@ -19,24 +27,20 @@ void onReceiveCallback(int packetSize)
 // ========== LoRaCom Implementations ==========
 bool LoRaCom::initialize()
 {
-#ifdef TTGO
     LoRa.setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
-    // #define SS 18
-    // #define RST 14
-    // #define DIO0 26
-    //     LoRa.setPins(SS, RST, DIO0);
     LoRa.onReceive(onReceiveCallback);
-    if (!LoRa.begin(Config::LORA_BAND))
+    bool rt = LoRa.begin(Config::LORA_BAND);
+    if (!rt)
     {
         Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");
         return false;
     }
-    LoRa.setSyncWord(Config::LORA_SYNC_WORD);
-    // LoRa.setTxPower(14);            // Potência máxima
-    // LoRa.setSpreadingFactor(10);    // Spreading Factor
-    // LoRa.setSignalBandwidth(125E3); // Bandwidth
-    // LoRa.setCodingRate4(5);         // Coding Rate 4/5
+    LoRa.setSyncWord(Config::TERMINAL_ID);
 
+#ifdef TTGO
+    LoRa::receive();
+#else
+    LoRa.receive();
 #endif
     Logger::log(LogLevel::INFO, "LoRa inicializado com sucesso");
     systemState.setLoraStatus(true);
@@ -45,7 +49,7 @@ bool LoRaCom::initialize()
 
 void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const char *value)
 {
-    sprintf(message, "{\"dtype\":\"gateway\",\"event\":\"%s\",\"value\":\"%s\"}\0", event, value);
+    sprintf(message, "{\"dtype\":\"gateway\",\"event\":\"%s\",\"value\":\"%s\"}", event, value);
 }
 
 void LoRaCom::ack(bool ak, uint8_t tid)
@@ -54,7 +58,6 @@ void LoRaCom::ack(bool ak, uint8_t tid)
 
     formatMessage(ackBuffer, tid, (ak) ? "ack" : "nak", "");
 
-#ifdef TTGO
     LoRa.beginPacket();
     String ackMessage = (String)ackBuffer;
     sendHeaderTo(tid);
@@ -67,7 +70,6 @@ void LoRaCom::ack(bool ak, uint8_t tid)
     {
         // Logger::log(LogLevel::INFO, "ACK/NACK enviado: " + ackMessage);
     }
-#endif
 }
 
 uint8_t nHeaderId = 0;
@@ -80,23 +82,22 @@ uint8_t LoRaCom::genHeaderId()
 
 void LoRaCom::sendHeaderTo(uint8_t tid)
 {
+
+#ifdef TTGO
     char msg[4];
     msg[0] = tid;
     msg[1] = Config::TERMINAL_ID;
     msg[2] = LoRaCom::genHeaderId();
     msg[3] = 0xFF;
-#ifdef TTGO
     LoRa.print(msg);
 #endif
 }
 
 int LoRaCom::packedRssi()
 {
-#ifdef TTGO
+
     int8_t rssi = LoRa.packetRssi();
     return rssi;
-#endif
-    return 0;
 }
 
 void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
@@ -110,7 +111,6 @@ void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
         snprintf(nStr, sizeof(nStr), "%u", attempt + 1);
         formatMessage(message, tid, "presentation", nStr);
 
-#ifdef TTGO
         LoRa.beginPacket();
         // Serial.println(message);
         sendHeaderTo(tid);
@@ -120,7 +120,7 @@ void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
             Logger::log(LogLevel::ERROR, "Falha ao enviar apresentação LoRa");
             return;
         }
-#endif
+
         Logger::info("Presentation");
         Logger::log(LogLevel::DEBUG, String((String)message + " (tentativa " + String(attempt + 1) + ")").c_str());
     }
@@ -138,15 +138,14 @@ bool LoRaCom::waitAck()
             lastCheck = millis();
             // Verifica se há pacote disponível
         }
-        digitalWrite(BUILTIN_LED, HIGH); // Indicate waiting for ACK
+        digitalWrite(LED_BUILTIN, HIGH); // Indicate waiting for ACK
                                          // delay(100);
 
-#ifdef TTGO
         uint8_t tid = 0xFF;
         if (LoRa.parsePacket())
         {
             char payload[Config::MESSAGE_LEN];
-            int index = 0;
+            uint16_t index = 0;
             int n = 0;
             while (LoRa.available() && index < sizeof(payload) - 1)
             {
@@ -158,6 +157,9 @@ bool LoRaCom::waitAck()
                     continue;
                 payload[index] = static_cast<char>(byte);
                 index++;
+#ifdef RF95
+                LoRa.setHeaderTo(tid);
+#endif
                 if (static_cast<char>(byte) == '}')
                     break;
             }
@@ -169,8 +171,7 @@ bool LoRaCom::waitAck()
             return true;
         }
 
-#endif
-        digitalWrite(BUILTIN_LED, LOW); // Turn off LED
+        digitalWrite(LED_BUILTIN, LOW); // Turn off LED
     }
     ack(false);
     return false;
@@ -182,7 +183,6 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
     formatMessage(output, tid, event.c_str(), value.c_str());
     // Serial.println(output);
 
-#ifdef TTGO
     LoRa.beginPacket();
 
     sendHeaderTo(tid);
@@ -193,7 +193,7 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
         Logger::log(LogLevel::ERROR, "Falha ao enviar comando LoRa");
         return false;
     }
-#endif
+
     Logger::info("Enviou");
     Logger::log(LogLevel::DEBUG, String(output).c_str());
 
@@ -213,7 +213,6 @@ void LoRaCom::sleep(unsigned int duration)
 void LoRaCom::processIncoming()
 {
 
-#ifdef TTGO
     if (LoRa.parsePacket())
     {
         String payload = "";
@@ -325,5 +324,4 @@ void LoRaCom::processIncoming()
     else
     {
     }
-#endif
 }
