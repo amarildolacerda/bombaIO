@@ -1,9 +1,8 @@
 #include "transmissor.h"
 #include "logger.h"
 #include <map>
-
+#include "config.h"
 // ========== Instâncias Globais ==========
-Adafruit_SSD1306 display(Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT, &Wire, -1);
 TuyaWifi my_device;
 WebServer server(Config::WEBSERVER_PORT);
 SystemState systemState;
@@ -33,131 +32,6 @@ String generateDeviceListHtml()
     html += "<a href='/'>Voltar</a>";
     html += "</body></html>";
     return html;
-}
-
-// ========== SystemState Implementations ==========
-void SystemState::updateState(const String &newState)
-{
-    if (relayState != newState)
-    {
-        relayState = (newState == "on" ? "LIGADO" : "DESLIGADO");
-        lastUpdate = millis();
-        // Logger::log(LogLevel::INFO, "Estado atualizado para: " + newState);
-        updateDisplay();
-    }
-}
-
-void SystemState::setWifiStatus(bool connected)
-{
-    wifiConnected = connected;
-    updateDisplay();
-}
-
-void SystemState::setLoraStatus(bool initialized)
-{
-    loraInitialized = initialized;
-    updateDisplay();
-}
-
-void SystemState::setLoraEvent(const String &event, const String &value)
-{
-    loraRcvEvent = event;
-    loraRcvValue = value;
-    updateDisplay();
-}
-
-void SystemState::resetDisplayUpdate()
-{
-    lastDisplayUpdate = millis();
-}
-
-String SystemState::getState() const { return relayState; }
-bool SystemState::isWifiConnected() const { return wifiConnected; }
-bool SystemState::isLoraInitialized() const { return loraInitialized; }
-
-bool SystemState::isStateValid() const
-{
-    return (millis() - lastUpdate) < Config::STATE_TIMEOUT_MS;
-}
-
-String SystemState::getISOTime()
-{
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo))
-    {
-        Logger::log(LogLevel::WARNING, "Falha ao obter horário NTP");
-        return "1970-01-01T00:00:00Z";
-    }
-
-    char timeStr[25];
-    strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
-    return String(timeStr);
-}
-
-void SystemState::loraRcv(const String &message)
-{
-    if (message.length() < sizeof(loraRcvMessage))
-    {
-        strncpy(loraRcvMessage, message.c_str(), sizeof(loraRcvMessage) - 1);
-        loraRcvMessage[sizeof(loraRcvMessage) - 1] = '\0'; // Garante terminação
-    }
-    Logger::log(LogLevel::DEBUG, String("RCV: " + message).c_str());
-}
-
-static long ultimoBaixo = 0;
-void SystemState::updateDisplay()
-{
-    display.clearDisplay();
-    display.setCursor(0, 0);
-
-    display.print("WiFi: ");
-    display.println(wifiConnected ? WiFi.localIP().toString() : "DESCONECTADO");
-
-    int rssi = LoRa.packetRssi();
-    float snr = LoRa.packetSnr();
-
-    bool baixo = (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD);
-    if (baixo && (millis() - ultimoBaixo > 30000))
-    {
-        Logger::log(LogLevel::WARNING, String("Sinal LoRa baixo: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
-        ultimoBaixo = millis();
-    }
-
-    display.print("Radio: ");
-    display.print(loraInitialized ? (baixo) ? "Baixo" : "OK" : "FALHA");
-    display.print(" (");
-    display.print(rssi);
-    display.println(")");
-
-    display.print("Estado: ");
-    display.println(relayState);
-
-    display.print("Atualizado: ");
-    display.println(getISOTime().substring(11, 19)); // Mostra apenas HH:MM:SS
-
-    if (loraRcvEvent.length() > 0)
-    {
-        display.print("Evento: ");
-        display.println(loraRcvEvent);
-        display.print("Value: ");
-        display.println(loraRcvValue);
-    }
-    else
-    {
-        display.print("Evento: NENHUM");
-    }
-
-    display.display();
-}
-
-void SystemState::conditionalUpdateDisplay()
-{
-    uint32_t currentMillis = millis();
-    if (currentMillis - lastDisplayUpdate >= Config::DISPLAY_UPDATE_INTERVAL)
-    {
-        updateDisplay();
-        lastDisplayUpdate = currentMillis;
-    }
 }
 
 // Função chamada quando um pacote LoRa é recebido
@@ -433,18 +307,7 @@ void LoRaCom::processIncoming()
         if (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD)
         {
             Logger::log(LogLevel::WARNING, "Qualidade do link baixa. Tentando ajustar...");
-
-            // mostrar no display
-            display.clearDisplay();
-            display.setCursor(0, 0);
-            display.println("Qualidade LoRa baixa!");
-            display.print("RSSI: ");
-            display.println(rssi);
-            display.print("SNR: ");
-            display.println(snr, 1);
-            display.display();
-
-            // Ajuste parâmetros do rádio, se necessário
+            DisplayManager::displayLowQualityLink(rssi, snr);
         }
         StaticJsonDocument<256> doc;
         if (deserializeJson(doc, payload.c_str()))
@@ -830,7 +693,7 @@ void setup()
     initTuya();
     initWebServer();
 
-    systemState.updateDisplay();
+    DisplayManager::updateDisplay();
     LoRa.receive();
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: setup");
 }
