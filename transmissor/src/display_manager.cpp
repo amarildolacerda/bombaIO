@@ -122,4 +122,13 @@ namespace DisplayManager
         display.println(snr);
         display.display();
     }
+
+    void eventEnviado(const String &event)
+    {
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.println("enviado:");
+        display.println(event);
+        display.display();
+    }
 }

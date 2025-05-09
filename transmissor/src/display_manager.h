@@ -22,6 +22,8 @@ namespace DisplayManager
     void displayLoraRcvMessage(const String &message);
     void displayTime(const String &time);
     void displayLowQualityLink(int rssi, float snr);
+    void eventEnviado(const String &event);
+
 }
 
 #endif // DISPLAY_MANAGER_H

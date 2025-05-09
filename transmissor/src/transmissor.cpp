@@ -147,6 +147,7 @@ void loop()
         if (!systemState.isStateValid())
         {
             LoRaCom::sendCommand("get", "status", 0xFF);
+            DisplayManager::eventEnviado("get status");
             systemState.resetDisplayUpdate();
         }
         lastStateCheck = millis();
