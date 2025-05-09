@@ -316,7 +316,7 @@ namespace HtmlServer
         html += "</style>";
         html += "</head>";
         html += "<body>";
-        html += "<div class='container'>";
+        html += "<div class='card'>";
         html += "<h1>Dispositivos Registrados</h1>";
         html += "<table>";
         html += "<tr><th>ID</th><th>Evento</th><th>Valor</th></tr>";
