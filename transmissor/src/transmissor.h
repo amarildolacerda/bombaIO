@@ -5,14 +5,19 @@
 #include <ArduinoJson.h>
 #include <LoRa.h>
 #include <Wire.h>
+#ifdef ESP32
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_GFX.h>
+#include <WebServer.h>
+#include "display_manager.h"
+#include <Update.h>
+#else
+#include "ESP8266WebServer.h"
+#include "ESP8266WiFi.h"
+#include "ESP8266httpUpdate.h"
+#endif
 #include <WiFiManager.h>
 #include <time.h>
-#include <WebServer.h>
-#include <ElegantOTA.h>
-#include <Update.h>
-#include "display_manager.h"
 #include "LoRaCom.h"
 
 // ========== Callback Tuya ==========

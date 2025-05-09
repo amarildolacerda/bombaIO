@@ -1,3 +1,11 @@
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#else
+#include <WiFi.h>
+#include <WebServer.h>
+#endif
+
 #include "transmissor.h"
 #include "logger.h"
 #include <map>
@@ -6,6 +14,7 @@
 #include "LoRaCom.h"
 #include "device_info.h"
 #include "system_state.h"
+#include "display_manager.h"
 
 // ========== Instâncias Globais ==========
 TuyaWifi my_device;
@@ -97,6 +106,9 @@ void setup()
     Serial.begin(Config::SERIAL_BAUD);
     Logger::log(LogLevel::INFO, "Iniciando sistema...");
 
+#ifdef ESP8266
+    Logger::log(LogLevel::INFO, "ESP8266 não possui display. Ignorando inicialização do display.");
+#else
     if (display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS))
     {
         display.setTextSize(1);
@@ -111,6 +123,7 @@ void setup()
     {
         Logger::log(LogLevel::ERROR, "Falha ao iniciar display OLED");
     }
+#endif
 
     initWiFi();
     initNTP();
@@ -124,7 +137,12 @@ void setup()
     initTuya();
     HtmlServer::initWebServer();
 
+#ifdef ESP8266
+    Logger::log(LogLevel::INFO, "ESP8266 não possui suporte para DisplayManager. Ignorando inicialização do DisplayManager.");
+#else
     DisplayManager::updateDisplay();
+#endif
+
     LoRa.receive();
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: setup");
 }

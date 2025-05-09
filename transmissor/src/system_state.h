@@ -2,7 +2,6 @@
 #define SYSTEM_STATE_H
 
 #include <Arduino.h>
-#include <Adafruit_SSD1306.h>
 
 class SystemState
 {

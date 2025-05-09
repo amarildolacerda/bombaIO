@@ -1,6 +1,8 @@
 #include "LoRaCom.h"
 #include "logger.h"
+#ifdef TTGO
 #include <LoRa.h>
+#endif
 #include "config.h"
 #include "system_state.h"
 #include "display_manager.h"
@@ -11,54 +13,31 @@
 void onReceiveCallback(int packetSize)
 {
     Logger::verbose("onReceiveCallback");
-    // if (packetSize == 0)
-    //     return; // Se não há pacote, ignora
-
-    // Serial.print("Pacote recebido (" + String(packetSize) + " bytes): ");
-
     LoRaCom::processIncoming();
-
-    /*
-        // Lê os dados do pacote
-        while (LoRa.available())
-        {
-            String data = LoRa.readString();
-            Serial.println(data);
-        }
-    */
-    // Exibe RSSI (força do sinal)
-    // Serial.println("RSSI: " + String(LoRa.packetRssi()) + " dBm");
 }
 
 // ========== LoRaCom Implementations ==========
 bool LoRaCom::initialize()
 {
+#ifdef TTGO
     LoRa.setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
     // #define SS 18
     // #define RST 14
     // #define DIO0 26
     //     LoRa.setPins(SS, RST, DIO0);
-
     LoRa.onReceive(onReceiveCallback);
     if (!LoRa.begin(Config::LORA_BAND))
     {
         Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");
         return false;
     }
+    LoRa.setSyncWord(Config::LORA_SYNC_WORD);
+    // LoRa.setTxPower(14);            // Potência máxima
+    // LoRa.setSpreadingFactor(10);    // Spreading Factor
+    // LoRa.setSignalBandwidth(125E3); // Bandwidth
+    // LoRa.setCodingRate4(5);         // Coding Rate 4/5
 
-    //  LoRa.setSyncWord(Config::LORA_SYNC_WORD);
-    LoRa.setTxPower(14);            // Potência máxima
-    LoRa.setSpreadingFactor(10);    // Spreading Factor
-    LoRa.setSignalBandwidth(125E3); // Bandwidth
-    LoRa.setCodingRate4(5);         // Coding Rate 4/5
-    //  LoRa.setPreambleLength(8);
-    //  LoRa.setCodingRate4(4);
-    // LoRa.setSpreadingFactor(7);     // SF7 (mais rápido)
-    // LoRa.setSignalBandwidth(500e3); // BW = 500 kHz (maior largura = mais velocidade)
-    // LoRa.setCodingRate4(4);         // CR = 4/5 (sem redundância extra)
-    //  LoRa.setTxPower(5); // TX Power baixo (5 dBm)
-    // LoRa.enableCrc();               // CRC ativado para segurança
-
+#endif
     Logger::log(LogLevel::INFO, "LoRa inicializado com sucesso");
     systemState.setLoraStatus(true);
     return true;
@@ -75,6 +54,7 @@ void LoRaCom::ack(bool ak, uint8_t tid)
 
     formatMessage(ackBuffer, tid, (ak) ? "ack" : "nak", "");
 
+#ifdef TTGO
     LoRa.beginPacket();
     String ackMessage = (String)ackBuffer;
     sendHeaderTo(tid);
@@ -87,6 +67,7 @@ void LoRaCom::ack(bool ak, uint8_t tid)
     {
         // Logger::log(LogLevel::INFO, "ACK/NACK enviado: " + ackMessage);
     }
+#endif
 }
 
 uint8_t nHeaderId = 0;
@@ -104,9 +85,21 @@ void LoRaCom::sendHeaderTo(uint8_t tid)
     msg[1] = Config::TERMINAL_ID;
     msg[2] = LoRaCom::genHeaderId();
     msg[3] = 0xFF;
+#ifdef TTGO
     LoRa.print(msg);
+#endif
 }
-void LoRaCom::sendPresentation(uint8_t tid, uint8_t n)
+
+int LoRaCom::packedRssi()
+{
+#ifdef TTGO
+    int8_t rssi = LoRa.packetRssi();
+    return rssi;
+#endif
+    return 0;
+}
+
+void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
 {
     char message[Config::MESSAGE_LEN];
     char nStr[8];
@@ -117,6 +110,7 @@ void LoRaCom::sendPresentation(uint8_t tid, uint8_t n)
         snprintf(nStr, sizeof(nStr), "%u", attempt + 1);
         formatMessage(message, tid, "presentation", nStr);
 
+#ifdef TTGO
         LoRa.beginPacket();
         // Serial.println(message);
         sendHeaderTo(tid);
@@ -126,23 +120,10 @@ void LoRaCom::sendPresentation(uint8_t tid, uint8_t n)
             Logger::log(LogLevel::ERROR, "Falha ao enviar apresentação LoRa");
             return;
         }
+#endif
         Logger::info("Presentation");
         Logger::log(LogLevel::DEBUG, String((String)message + " (tentativa " + String(attempt + 1) + ")").c_str());
-        /*   ackReceived = waitAck();
-           if (!ackReceived)
-           {
-               Logger::log(LogLevel::WARNING, "Tentando reenviar apresentação...");
-           } */
     }
-    /*
-    if (!ackReceived)
-    {
-        Logger::log(LogLevel::ERROR, "Falha ao receber ACK para apresentação LoRa");
-    }
-    else
-    {
-        Logger::log(LogLevel::INFO, "ACK recebido para apresentação LoRa");
-    }*/
 }
 
 bool LoRaCom::waitAck()
@@ -150,7 +131,6 @@ bool LoRaCom::waitAck()
     // Wait for acknowledgment
     unsigned long start = millis();
     unsigned long lastCheck = millis();
-    uint8_t tid = 0xFF;
     while (millis() - start < Config::ACK_TIMEOUT_MS)
     {
         if (millis() - lastCheck >= 100)
@@ -159,7 +139,10 @@ bool LoRaCom::waitAck()
             // Verifica se há pacote disponível
         }
         digitalWrite(BUILTIN_LED, HIGH); // Indicate waiting for ACK
-        // delay(100);
+                                         // delay(100);
+
+#ifdef TTGO
+        uint8_t tid = 0xFF;
         if (LoRa.parsePacket())
         {
             char payload[Config::MESSAGE_LEN];
@@ -185,15 +168,10 @@ bool LoRaCom::waitAck()
             Logger::log(LogLevel::INFO, payload);
             return true;
         }
-        else
-        {
-            digitalWrite(BUILTIN_LED, LOW);
-            // delay(100);
-        }
 
+#endif
         digitalWrite(BUILTIN_LED, LOW); // Turn off LED
     }
-    // Serial.println("ACK not received within timeout.");
     ack(false);
     return false;
 }
@@ -204,6 +182,7 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
     formatMessage(output, tid, event.c_str(), value.c_str());
     // Serial.println(output);
 
+#ifdef TTGO
     LoRa.beginPacket();
 
     sendHeaderTo(tid);
@@ -214,19 +193,10 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
         Logger::log(LogLevel::ERROR, "Falha ao enviar comando LoRa");
         return false;
     }
+#endif
     Logger::info("Enviou");
     Logger::log(LogLevel::DEBUG, String(output).c_str());
 
-    /*
-    // Feedback visual
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.println("Comando enviado:");
-    display.println(event);
-    display.display();
-    */
-    // Aguarda ~1 segundo sem bloquear, permitindo background
-    // sleep(100);
     return true;
 }
 
@@ -243,6 +213,7 @@ void LoRaCom::sleep(unsigned int duration)
 void LoRaCom::processIncoming()
 {
 
+#ifdef TTGO
     if (LoRa.parsePacket())
     {
         String payload = "";
@@ -354,4 +325,5 @@ void LoRaCom::processIncoming()
     else
     {
     }
+#endif
 }

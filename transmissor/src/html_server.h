@@ -1,28 +1,30 @@
 #ifndef HTML_SERVER_H
 #define HTML_SERVER_H
 
-#include <WebServer.h>
-#include <map>
-#include <string>
-
 namespace HtmlServer
 {
 
     // ========== Web Server Implementations ==========
-    String generateHtmlPage();
+    void generateHtmlPage();
+    void generateDeviceListHtmlPage();
     void handleRootRequest();
     void handleStateRequest();
     void handleRevertRelayRequest();
     void handleTurnOnRelayRequest();
     void handleTurnOffRelayRequest();
     void handleDeviceListRequest();
-    String generateDeviceListHtml();
     void initWebServer();
-    String generateDeviceListHtml();
 
     void process();
 
 } // namespace HtmlServer
 
+#ifdef ESP32
+#include <WebServer.h>
 extern WebServer server;
+#else
+#include <ESP8266WebServer.h>
+extern ESP8266WebServer server;
+#endif
+
 #endif // HTML_SERVER_H

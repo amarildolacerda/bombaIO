@@ -1,13 +1,21 @@
 #include "html_server.h"
 #include "logger.h"
-#include "transmissor.h"
 #include <Arduino.h>
 #include "config.h"
 #include "system_state.h"
 #include "device_info.h"
+#include "LoRaCom.h"
+
+#ifdef ESP32
+#include "update.h"
+#endif
 
 // Add the correct external declaration for the server object
+#ifdef ESP32
 WebServer server(Config::WEBSERVER_PORT);
+#else
+ESP8266WebServer server(Config::WEBSERVER_PORT);
+#endif
 
 namespace HtmlServer
 {
@@ -43,7 +51,7 @@ namespace HtmlServer
         return styles;
     }
 
-    String generateHtmlPage()
+    void generateHtmlPage()
     {
         String html = "<!DOCTYPE html><html lang='pt-BR'>";
         html += "<head>";
@@ -71,7 +79,7 @@ namespace HtmlServer
         html += "    </div>";
         html += "    <div id='stateInfo'>Estado atual: " + systemState.getState() + "</div>";
         html += "    <div class='status'>Última atualização: " + systemState.getISOTime() + "</div>";
-        html += "    <div class='status'>RSSI Atual: " + String(LoRa.packetRssi()) + " dBm</div>";
+        html += "    <div class='status'>RSSI Atual: " + String(LoRaCom::packedRssi()) + " dBm</div>";
         html += "  </div>";
 
         html += "  <div class='card'>";
@@ -147,12 +155,12 @@ namespace HtmlServer
         html += "</script>";
         html += "</body></html>";
 
-        return html;
+        server.send(200, "text/html", html.c_str());
     }
 
     void handleRootRequest()
     {
-        server.send(200, "text/html", generateHtmlPage());
+        generateHtmlPage();
     }
 
     void handleStateRequest()
@@ -201,7 +209,7 @@ namespace HtmlServer
 
     void handleDeviceListRequest()
     {
-        server.send(200, "text/html", generateDeviceListHtml());
+        generateDeviceListHtmlPage();
     }
 
     void handleOtaPageRequest()
@@ -247,11 +255,12 @@ namespace HtmlServer
         html += "</script>";
         html += "</body></html>";
 
-        server.send(200, "text/html", html);
+        server.send(200, "text/html", html.c_str());
     }
 
     void handleFirmwareUpload()
     {
+#ifdef ESP32
         HTTPUpload &upload = server.upload();
 
         if (upload.status == UPLOAD_FILE_START)
@@ -280,6 +289,7 @@ namespace HtmlServer
                 Update.printError(Serial);
             }
         }
+#endif
     }
 
     void initWebServer()
@@ -304,7 +314,7 @@ namespace HtmlServer
     }
 
     // Function to generate the device list HTML
-    String generateDeviceListHtml()
+    void generateDeviceListHtmlPage()
     {
         String html = "<!DOCTYPE html><html lang='pt-BR'>";
         html += "<head>";
@@ -328,7 +338,8 @@ namespace HtmlServer
         html += "<a href='/'>Voltar</a>";
         html += "</div>";
         html += "</body></html>";
-        return html;
+
+        server.send(200, "text/html", html.c_str());
     }
 
     void process()
