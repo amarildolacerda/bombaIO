@@ -20,8 +20,8 @@
 #include "display_manager.h"
 
 // ========== Instâncias Globais ==========
+#ifdef TUYA
 TuyaWifi my_device;
-
 // ========== PROGMEM Strings ==========
 const char logTuyaDesligar[] PROGMEM = "Comando Tuya: DESLIGAR";
 const char logTuyaLigar[] PROGMEM = "Comando Tuya: LIGAR";
@@ -38,12 +38,12 @@ unsigned char handleTuyaCommand(unsigned char dp_id, const unsigned char dp_data
 {
     static const char *const commands[] PROGMEM = {"desligar", "ligar", "revert", "status"};
     static const char *const responses[] PROGMEM = {"OFF", "OK", "REVERTER", ""};
-    static const char *const logs[] PROGMEM = {
-        logTuyaDesligar,
-        logTuyaLigar,
-        logTuyaReverter,
-        logTuyaStatus};
-
+    /*  static const char *const logs[] PROGMEM = {
+          logTuyaDesligar,
+          logTuyaLigar,
+          logTuyaReverter,
+          logTuyaStatus};
+  */
     if (dp_data[0] < 4)
     {
         char command[10];
@@ -60,11 +60,12 @@ unsigned char handleTuyaCommand(unsigned char dp_id, const unsigned char dp_data
     systemState.resetDisplayUpdate();
     return 1;
 }
+#endif
 
 // ========== Network Functions Implementations ==========
+#if defined(ESP8266) || defined(ESP32)
 void initWiFi()
 {
-#if defined(ESP8266) || defined(ESP32)
     Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initWiFi");
     WiFiManager wifiManager;
     wifiManager.setTimeout(Config::WIFI_TIMEOUT_S);
@@ -81,14 +82,12 @@ void initWiFi()
     Logger::log(LogLevel::INFO, FPSTR(logWiFiConnected));
     Logger::log(LogLevel::INFO, ipBuffer);
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initWiFi com sucesso");
-#else
-    Logger::log(LogLevel::WARNING, "initWiFi não suportado neste dispositivo");
-#endif
 }
+#endif
 
+#if defined(ESP8266) || defined(ESP32)
 void initNTP()
 {
-#if defined(ESP8266) || defined(ESP32)
     Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initNTP");
     configTime(Config::GMT_OFFSET_SEC, Config::DAYLIGHT_OFFSET_SEC, Config::NTP_SERVER);
     Logger::log(LogLevel::INFO, "Sincronizando com NTP...");
@@ -104,11 +103,10 @@ void initNTP()
         Logger::log(LogLevel::INFO, FPSTR(logNTPSuccess));
         Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initNTP com sucesso");
     }
-#else
-    Logger::log(LogLevel::WARNING, "initNTP não suportado neste dispositivo");
-#endif
 }
+#endif
 
+#ifdef TUYA
 // ========== Tuya Initialization ==========
 void initTuya()
 {
@@ -118,6 +116,7 @@ void initTuya()
     Logger::log(LogLevel::INFO, "Tuya inicializado");
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initTuya");
 }
+#endif
 
 // ========== Main Setup and Loop ==========
 void setup()
@@ -146,8 +145,10 @@ void setup()
     }
 #endif
 
+#if defined(ESP32) || defined(ESP8266)
     initWiFi();
     initNTP();
+#endif
 
     if (!LoRaCom::initialize())
     {
@@ -155,7 +156,9 @@ void setup()
         // ESP.restart();
     }
 
+#ifdef TUYA
     initTuya();
+#endif
 #if defined(ESP32) || defined(ESP8266)
     HtmlServer::initWebServer();
 #endif
@@ -171,12 +174,19 @@ void setup()
 
 void loop()
 {
-    LoRaCom::handle();
+    static uint32_t lastLoRaHandle = 0;
+    if (millis() - lastLoRaHandle > 1000) {
+        LoRaCom::handle();
+        lastLoRaHandle = millis();
+    }
+#ifdef TUYA
     my_device.uart_service();
+#endif
+
 #ifndef __AVR__
     HtmlServer::process();
-#endif
     systemState.conditionalUpdateDisplay();
+#endif
 
     // Verifica o estado a cada intervalo definido
     static uint32_t lastStateCheck = 0;

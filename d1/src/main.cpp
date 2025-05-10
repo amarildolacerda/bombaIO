@@ -35,10 +35,18 @@ void setup()
 
 void loop()
 {
-    uint8_t buf[RH_RF95_MAX_MESSAGE_LEN] = "Hello, LoRa!";
+    static unsigned long lastMillis = 0;
+    if (millis() - lastMillis < 1000)
+    {
+        return;
+    }
+    lastMillis = millis();
+
+    uint8_t buf[RH_RF95_MAX_MESSAGE_LEN] = "{\"event\":\"status\",\"value\":\"on\"}";
     uint8_t len = sizeof(buf);
     // rf95.printBuffer("Hello, LoRa!", buf, len);
-
+    rf95.setHeaderTo(0x00);
+    rf95.setHeaderFrom(101);
     rf95.send(buf, sizeof(buf));
     rf95.waitPacketSent();
     Serial.println("Message sent!");

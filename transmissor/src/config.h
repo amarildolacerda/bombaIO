@@ -8,16 +8,16 @@
 #include <Arduino.h>
 
 #ifdef __AVR__
-#define D5 5
-#define D6 6
+#define Dx 10
+#define Dt 11
 #endif
 // ========== Configurações do Sistema ==========
 namespace Config
 {
 #if defined(RF95) || defined(LORASERIAL)
 
-    constexpr uint8_t LORA_RX_PIN = D5; // RX pin for RF95
-    constexpr uint8_t LORA_TX_PIN = D6; // TX pin for RF95
+    constexpr uint8_t LORA_RX_PIN = Dx; // RX pin for RF95
+    constexpr uint8_t LORA_TX_PIN = Dt; // TX pin for RF95
 #endif
     constexpr int TERMINAL_ID = 0x00;
     constexpr int MESSAGE_LEN = 128;
@@ -28,7 +28,7 @@ namespace Config
 #ifdef TTGTO
     constexpr uint32_t LORA_BAND = 868E6; // Banda para América do Sul
 #else
-    constexpr uint32_t LORA_BAND = 868E6; // Banda para América do Norte
+    constexpr uint32_t LORA_BAND = 868.0; // Banda para América do Norte
 #endif
     constexpr uint16_t LORA_SYNC_WORD = 0xF3;
 

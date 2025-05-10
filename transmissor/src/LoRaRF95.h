@@ -10,7 +10,7 @@
 RH_RF95 rf95(Serial);
 #elif __AVR__
 #include <SoftwareSerial.h>
-SoftwareSerial SSerial(10, 11);
+SoftwareSerial SSerial(Config::LORA_RX_PIN, Config::LORA_TX_PIN);
 #define LoRaSerial SSerial
 
 RH_RF95<SoftwareSerial> rf95(LoRaSerial);
@@ -29,31 +29,30 @@ public:
             return false;
         }
         rf95.setFrequency(frequency);
-        rf95.setPromiscuous(promiscuous);
+        rf95.setPromiscuous(true); // (promiscuous);
         rf95.setTxPower(14);
-        Logger::log(LogLevel::INFO, "LoRa initialized successfully.");
+        Logger::log(LogLevel::INFO, "LoRa initialized successfully (RF95).");
         return true;
     }
 
     bool sendMessage(uint8_t tid, const char *message) override
     {
+
+        if (!message)
+            return false;
         rf95.setHeaderTo(tid);
         rf95.setHeaderId(genHeaderId());
+        rf95.setHeaderFrom(Config::TERMINAL_ID);
+
         rf95.send((uint8_t *)message, strlen(message));
-        if (!rf95.waitPacketSent())
-        {
-            Logger::log(LogLevel::ERROR, "Failed to send message.");
-            return false;
-        }
-        else
-        {
-            Logger::log(LogLevel::DEBUG, message);
-            return true;
-        }
+        Logger::verbose(message);
+        return rf95.waitPacketSent();
     }
 
     bool receiveMessage(char *buffer, uint8_t &len) override
     {
+        if (!buffer || len > Config::MESSAGE_LEN)
+            return false;
         if (rf95.available())
         {
             if (rf95.recv((uint8_t *)buffer, &len))
@@ -72,7 +71,7 @@ public:
 
     void handle()
     {
-        if (rf95.available() && onReceiveCallBack)
+        if (rf95.available()) //&& onReceiveCallBack)
         {
             onReceiveCallBack(rf95.lastRssi());
         }
@@ -114,7 +113,7 @@ public:
     }
     int packetSnr() override
     {
-        return 0;
+        return 0; // rf95.lastSNR(); indefined
     }
 };
 

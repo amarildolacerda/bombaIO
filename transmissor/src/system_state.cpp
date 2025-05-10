@@ -67,7 +67,7 @@ bool SystemState::isLoraInitialized() const
 
 bool SystemState::isStateValid() const
 {
-    return (millis() - lastUpdate) < 300000; // 5 minutes timeout
+    return (millis() - lastUpdate) < Config::STATE_CHECK_INTERVAL; // 5 minutes timeout
 }
 
 String SystemState::getISOTime()

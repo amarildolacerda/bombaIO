@@ -186,8 +186,8 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
 
     loraInstance->setHeaderTo(tid);
 
-    bool rt = loraInstance->print(output);
-    if (rt)
+    bool rt = loraInstance->sendMessage(tid, output);
+    if (!rt)
     {
         Logger::log(LogLevel::ERROR, "Falha ao enviar comando LoRa");
         return false;
