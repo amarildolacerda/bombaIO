@@ -119,6 +119,7 @@ void initTuya()
 #endif
 
 // ========== Main Setup and Loop ==========
+#ifndef TEST
 void setup()
 {
     Logger::setLogLevel(LogLevel::VERBOSE);
@@ -172,10 +173,14 @@ void setup()
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: setup");
 }
 
+#endif
+
+#ifndef TEST
 void loop()
 {
     static uint32_t lastLoRaHandle = 0;
-    if (millis() - lastLoRaHandle > 1000) {
+    if (millis() - lastLoRaHandle > 1000)
+    {
         LoRaCom::handle();
         lastLoRaHandle = millis();
     }
@@ -202,3 +207,4 @@ void loop()
         lastStateCheck = millis();
     }
 }
+#endif

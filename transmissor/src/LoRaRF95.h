@@ -10,10 +10,10 @@
 RH_RF95 rf95(Serial);
 #elif __AVR__
 #include <SoftwareSerial.h>
-SoftwareSerial SSerial(Config::LORA_RX_PIN, Config::LORA_TX_PIN);
-#define LoRaSerial SSerial
+static SoftwareSerial SSerial(Config::LORA_RX_PIN, Config::LORA_TX_PIN);
+// #define LoRaSerial SSerial
 
-RH_RF95<SoftwareSerial> rf95(LoRaSerial);
+static RH_RF95<SoftwareSerial> rf95(SSerial);
 
 #endif
 
@@ -39,7 +39,10 @@ public:
     {
 
         if (!message)
+        {
+            Logger::error("Message is null");
             return false;
+        }
         rf95.setHeaderTo(tid);
         rf95.setHeaderId(genHeaderId());
         rf95.setHeaderFrom(Config::TERMINAL_ID);
