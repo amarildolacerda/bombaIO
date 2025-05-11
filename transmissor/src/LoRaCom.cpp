@@ -185,6 +185,9 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
         Logger::log(LogLevel::ERROR, F("Falha ao enviar comando LoRa"));
         return false;
     }
+#ifdef DEBUG_ON
+    Logger::verbose(output);
+#endif
 
     return true;
 }

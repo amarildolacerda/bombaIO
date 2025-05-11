@@ -128,12 +128,12 @@ void setup()
 #ifdef DEBUG_ON
     Logger::setLogLevel(LogLevel::VERBOSE);
 #endif
-    Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: setup");
+    Logger::log(LogLevel::VERBOSE, F("Entrando no procedimento: setup"));
     Serial.begin(Config::SERIAL_BAUD);
-    Logger::log(LogLevel::INFO, "Iniciando sistema...");
+    Logger::log(LogLevel::INFO, F("Iniciando sistema..."));
 
 #if defined(ESP8266) || defined(__AVR__)
-    Logger::log(LogLevel::INFO, "ESP8266 não possui display. Ignorando inicialização do display.");
+    Logger::log(LogLevel::WARNING, F("ESP8266 não possui display."));
 #else
     if (display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS))
     {
@@ -158,7 +158,7 @@ void setup()
 
     if (!LoRaCom::initialize())
     {
-        Logger::log(LogLevel::ERROR, "Falha crítica no LoRa - reiniciando");
+        Logger::log(LogLevel::ERROR, F("Falha crítica no LoRa - reiniciando"));
         // ESP.restart();
     }
     LoRaCom::setReceiveCallback(processIncoming);
@@ -177,15 +177,21 @@ void setup()
 #endif
 
 #ifdef DEBUG_ON
-    Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: setup");
+    Logger::log(LogLevel::VERBOSE, F("Saindo do procedimento: setup"));
 #endif
 }
 
 #endif
 
 #ifndef TEST
+static bool primeiraVez = true;
 void loop()
 {
+    if (primeiraVez)
+    {
+        Logger::log(LogLevel::VERBOSE, F("Loop iniciado"));
+    }
+
     LoRaCom::handle(); // precisa pedir leitura rapida
 #ifdef TUYA
     my_device.uart_service();
@@ -211,11 +217,16 @@ void loop()
         }
         lastStateCheck = millis();
     }
+
+    if (primeiraVez)
+    {
+        Logger::log(LogLevel::VERBOSE, F("Loop finalizado"));
+        primeiraVez = false;
+    }
 }
 
 void processIncoming(LoRaInterface *loraInstance)
 {
-
     while (loraInstance->available())
     {
 #ifdef DEBUG_ON
