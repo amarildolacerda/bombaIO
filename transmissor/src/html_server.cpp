@@ -323,15 +323,31 @@ namespace HtmlServer
         html += "<head>";
         html += "<meta charset='UTF-8'>";
         html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
-        html += "<meta http-equiv='refresh' content='1'>"; // Refresh every 1000 milliseconds
         html += "<title>Lista de Dispositivos</title>";
         html += "<style>";
         html += getCommonStyles();
         html += "</style>";
+        html += "<script>";
+        html += "function toggleRefresh(checkbox) {";
+        html += "  localStorage.setItem('refreshEnabled', checkbox.checked);";
+        html += "  if (checkbox.checked) {";
+        html += "    setInterval(() => { location.reload(); }, 5000);";
+        html += "  }";
+        html += "}";
+        html += "window.onload = function() {";
+        html += "  const refreshEnabled = localStorage.getItem('refreshEnabled') === 'true';";
+        html += "  const checkbox = document.getElementById('refreshCheckbox');";
+        html += "  checkbox.checked = refreshEnabled;";
+        html += "  if (refreshEnabled) {";
+        html += "    setInterval(() => { location.reload(); }, 5000);";
+        html += "  }";
+        html += "}";
+        html += "</script>";
         html += "</head>";
         html += "<body>";
         html += "<div class='card'>";
         html += "<h1>Dispositivos Registrados</h1>";
+        html += "<label><input type='checkbox' id='refreshCheckbox' onclick='toggleRefresh(this)'> Atualizar automaticamente a cada 5 segundos</label>";
         html += "<table>";
         html += "<tr><th>Hora</th> <th>ID</th><th>Evento</th><th>Valor</th><th>RSSI</th></tr>";
         for (const auto &device : DeviceInfo::deviceList)
