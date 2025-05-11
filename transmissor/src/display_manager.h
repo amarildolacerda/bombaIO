@@ -23,7 +23,9 @@ private:
     bool loraInitialized;
     String relayState;
     String loraRcvMessage;
-
+    String ver = "1.0.0";
+    int dispCount = 0;
+    void showFooter();
 public:
     int rssi = 0;
     float snr = 0;
@@ -54,6 +56,14 @@ public:
     void resetDisplayUpdate()
     {
         lastUpdate = millis();
+    }
+    void setVersion(String v)
+    {
+        ver = v;
+    }
+    void setDispCount(int cnt)
+    {
+        dispCount = cnt;
     }
 };
 

@@ -47,6 +47,7 @@ bool LoRaCom::initialize()
         return false;
     }
     loraInstance->setHeaderFrom(Config::TERMINAL_ID);
+    displayManager.setVersion(Config::LMCU_VER);
 
     loraInstance->endSetup();
     Logger::log(LogLevel::INFO, F("LoRa inicializado com sucesso"));

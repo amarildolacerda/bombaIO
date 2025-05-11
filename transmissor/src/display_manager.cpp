@@ -47,9 +47,6 @@ void DisplayManager::updateDisplay()
     display.print("Estado: ");
     display.println(relayState);
 
-    display.print("Atualizado: ");
-    display.println(DeviceInfo::getISOTime().substring(11, 19)); // Mostra apenas HH:MM:SS
-
     if (loraRcvEvent.length() > 0)
     {
         display.print("Terminal: ");
@@ -61,10 +58,25 @@ void DisplayManager::updateDisplay()
     }
     else
     {
-        display.print("Evento: NENHUM");
+        display.println("Evento: NENHUM");
     }
-
+    showFooter();
     display.display();
+}
+void DisplayManager::showFooter()
+{
+    display.setTextColor(SSD1306_WHITE);
+    display.fillRect(0, Config::SCREEN_HEIGHT - 10, Config::SCREEN_WIDTH,
+                     10, SSD1306_WHITE);
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(0, Config::SCREEN_HEIGHT - 8);
+    display.print("D:");
+    display.print(dispCount);
+    display.print(" v:");
+    display.print(ver);
+    display.setCursor(Config::SCREEN_WIDTH - 49, Config::SCREEN_HEIGHT - 8);
+    display.println(DeviceInfo::getISOTime().substring(11, 19)); // Mostra apenas HH:MM:SS
+    display.setTextColor(WHITE, BLACK);
 }
 
 void DisplayManager::handle()
@@ -79,6 +91,7 @@ void DisplayManager::message(const String &event)
     display.setCursor(0, 0);
     display.println("Enviou:");
     display.println(event);
+    showFooter();
     display.display();
     lastUpdate = millis();
 }
