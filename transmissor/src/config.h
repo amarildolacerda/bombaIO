@@ -24,7 +24,7 @@ namespace Config
 #elif RF95
     constexpr uint32_t LORA_BAND = 868.0; // usado RF95
 #endif
-    constexpr uint16_t LORA_SYNC_WORD = 0xF3;
+    constexpr uint16_t LORA_SYNC_WORD = 0x12;
 
     constexpr int MIN_RSSI_THRESHOLD = -120; // ajuste conforme necessário
     constexpr float MIN_SNR_THRESHOLD = -20.0;

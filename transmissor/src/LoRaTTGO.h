@@ -10,28 +10,28 @@
 class LoRaTTGO : public LoRaInterface
 {
 private:
-    uint8_t tid = 0xFF;
-    uint8_t tidTo = 0xFF;
+    uint8_t _tid = 0xFF;
+    uint8_t _tidTo = 0xFF;
     long lastAvailable = 0;
 
 public:
     bool beginSetup(float frequency, bool promiscuous = true) override
     {
         LoRa.begin(frequency);
-        // LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
-        // LoRa.setSignalBandwidth(125E3); // 125kHz
-        // LoRa.setCodingRate4(5);         // 4/5 coding rate
+        LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
+        LoRa.setSignalBandwidth(125E3); // 125kHz
+        LoRa.setCodingRate4(5);         // 4/5 coding rate
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
-        // LoRa.setTxPower(14);
-        // LoRa.setPreambleLength(8);
+        LoRa.setTxPower(14);
+        LoRa.setPreambleLength(8);
         return true;
     }
 
-    bool sendMessage(uint8_t tid, const char *message) override
+    bool sendMessage(uint8_t tidTo, const char *message) override
     {
         char m[251] = {0}; // Reduzido para evitar uso excessivo de memória
-        m[0] = tid;
-        m[1] = tid > -1 ? tid : tidTo;
+        m[0] = tidTo > -1 ? tidTo : _tidTo;
+        m[1] = _tid;
         m[2] = genHeaderId();
         m[3] = 0xFF;                            // 0x00 = no future
         strncpy(m + 4, message, sizeof(m) - 5); // Usar strncpy para evitar buffer overflow
@@ -69,13 +69,13 @@ public:
     {
         return sendMessage(0xFF, message);
     }
-    void setHeaderTo(uint8_t tid) override
+    void setHeaderTo(uint8_t tidTo) override
     {
-        tidTo = tid;
+        _tidTo = tidTo;
     }
     void setHeaderFrom(uint8_t tid) override
     {
-        this->tid = tid;
+        _tid = tid;
     }
 
     void setPins(int cs, int reset, int irq) override
@@ -102,18 +102,19 @@ public:
 
     bool available() override
     {
-        if (millis() - lastAvailable < 50)
+        if (millis() - lastAvailable < 20)
         {
             return false;
         }
-        // Serial.print("check available: ");
-        // Serial.print(LoRa.available());
-        // Serial.println("");
+        int b = LoRa.parsePacket();
+        int a = LoRa.available();
+        Serial.print("check available: ");
+        Serial.print(a);
+        Serial.print(" packet ");
+        Serial.print(b);
+        Serial.println("");
         lastAvailable = millis();
-        if (LoRa.parsePacket())
-            return LoRa.available() > 0;
-
-        return false;
+        return (b > 0 || a > 0);
     }
     int headerFrom() override { return 0; }
     int headerTo() override { return 0; }
