@@ -31,7 +31,7 @@ public:
     static void sleep(unsigned int duration);
     static uint8_t genHeaderId();
     static void sendHeaderTo(uint8_t tid);
-    static int packedRssi();
+    static int packetRssi();
 };
 
 #endif // LORACOM_H

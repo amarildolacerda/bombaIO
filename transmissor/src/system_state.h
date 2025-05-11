@@ -6,29 +6,31 @@
 class SystemState
 {
 private:
-protected:
-public:
-    String loraRcvEvent = "";
-    String loraRcvValue = "";
-    char loraRcvMessage[256] = ""; // Buffer for received messages
-    String relayState = "DESCONHECIDO";
-    uint32_t lastUpdate = 0;
     bool wifiConnected = false;
     bool loraInitialized = false;
-    uint32_t lastDisplayUpdate = 0;
+    uint8_t _tid = 0;
+    String relayState = "DESLIGADO";
 
+protected:
+public:
     void loraRcv(const String &message);
-    void resetDisplayUpdate();
     void updateState(const String &newState);
     void setWifiStatus(bool connected);
-    void setLoraStatus(bool initialized);
-    void setLoraEvent(const String &event, const String &value);
-    String getState() const;
-    bool isWifiConnected() const;
-    bool isLoraInitialized() const;
-    bool isStateValid() const;
-    String getISOTime();
-    void conditionalUpdateDisplay();
+    void setLoraStatus(bool initialized)
+    {
+        loraInitialized = initialized;
+    }
+    void relayStatus(const String st)
+    {
+        relayState = st;
+    }
+    String getState();
+    bool isWifiConnected();
+    bool isLoraInitialized();
+    bool isStateValid();
+    void resetStateValid();
+
+    void handle();
 };
 
 extern SystemState systemState;

@@ -12,6 +12,7 @@ class DeviceInfo
 {
 public:
     static void updateDeviceList(uint8_t deviceId, const String &message);
+    static String getISOTime();
 };
 
 #ifndef __AVR__

@@ -72,8 +72,14 @@ void LoRaCom::handle()
     }
     else
     {
-#ifdef DEBUG_ON
-        // Logger::log(LogLevel::DEBUG, "LoRaCom::handle - Nenhum pacote disponível");
+#ifdef TTGO
+        static uint32_t ultimoRssi = 0;
+        if (millis() - ultimoRssi > 1000)
+        {
+            displayManager.rssi = loraInstance->packetRssi();
+            displayManager.snr = loraInstance->packetSnr();
+            ultimoRssi = millis();
+        }
 #endif
     }
 }
@@ -120,7 +126,7 @@ void LoRaCom::sendHeaderTo(uint8_t tid)
     loraInstance->setHeaderTo(tid);
 }
 
-int LoRaCom::packedRssi()
+int LoRaCom::packetRssi()
 {
 
     int8_t rssi = loraInstance->packetRssi();

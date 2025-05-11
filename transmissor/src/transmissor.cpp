@@ -17,7 +17,9 @@
 #include "LoRaCom.h"
 #include "device_info.h"
 #include "system_state.h"
+#ifdef TTGO
 #include "display_manager.h"
+#endif
 #include "LoRaInterface.h"
 
 void processIncoming(LoRaInterface *loraInstance);
@@ -60,7 +62,6 @@ unsigned char handleTuyaCommand(unsigned char dp_id, const unsigned char dp_data
     {
         return 0;
     }
-    systemState.resetDisplayUpdate();
     return 1;
 }
 #endif
@@ -172,8 +173,8 @@ void setup()
 
 #ifdef ESP8266
     Logger::log(LogLevel::INFO, "ESP8266 não possui suporte para DisplayManager. Ignorando inicialização do DisplayManager.");
-#elif ESP32
-    DisplayManager::updateDisplay();
+#elif TTGO
+    displayManager.updateDisplay();
 #endif
 
 #ifdef DEBUG_ON
@@ -199,24 +200,23 @@ void loop()
 
 #ifndef __AVR__
     HtmlServer::process();
-    systemState.conditionalUpdateDisplay();
+
 #endif
 
-    // Verifica o estado a cada intervalo definido
-    static uint32_t lastStateCheck = 0;
+    systemState.handle();
 
-    if (millis() - lastStateCheck > Config::STATE_CHECK_INTERVAL)
+    if (!systemState.isStateValid())
     {
-        if (!systemState.isStateValid())
-        {
-            LoRaCom::sendCommand("get", "status", 0xFF);
-            DisplayManager::eventEnviado("get status");
-#ifndef __AVR__
-            systemState.resetDisplayUpdate();
+        LoRaCom::sendCommand("get", "status", 0xFF);
+        systemState.resetStateValid();
+#ifdef TTGO
+        displayManager.message("get status");
 #endif
-        }
-        lastStateCheck = millis();
     }
+
+#ifdef TTGO
+    displayManager.handle();
+#endif
 
     if (primeiraVez)
     {
@@ -258,11 +258,22 @@ void processIncoming(LoRaInterface *loraInstance)
         Logger::log(LogLevel::ERROR, error.c_str()); // Log detalhado do erro
         return;
     }
+    static String event;
+    if (doc.containsKey("event"))
+        event = doc["event"].as<String>();
+    static String value = "";
+    if (doc.containsKey("value"))
+        value = doc["value"].as<String>();
     // Agora 'doc' contém o JSON parseado de 'buf'
-    if (doc["event"] == "status")
+    if (event)
     {
-        // doc["value"]
-        // atualizar o TUYA a mudança de estado
+#ifdef TTGO
+        displayManager.setEvent(loraInstance->headerFrom(), event, value);
+#endif
+    if (event.compareTo("status")){
+        systemState.updateState(value);
+    }
+
     }
     Serial.println((char *)buf);
     LoRaCom::ack(true, loraInstance->headerFrom());

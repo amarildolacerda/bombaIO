@@ -23,3 +23,22 @@ void DeviceInfo::updateDeviceList(uint8_t deviceId, const String &message)
     deviceList[deviceId] = std::make_pair(event, value);
 #endif
 }
+
+String DeviceInfo::getISOTime()
+{
+#ifdef __AVR__
+    return "1970-01-01T00:00:00Z"; // Fallback for AVR
+#else
+
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo))
+    {
+        // Logger::log(LogLevel::WARNING, "Failed to get NTP time");
+        return "1970-01-01T00:00:00Z";
+    }
+
+    char timeStr[25];
+    strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+    return String(timeStr);
+#endif
+}

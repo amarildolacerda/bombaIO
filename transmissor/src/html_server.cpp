@@ -80,8 +80,8 @@ namespace HtmlServer
         html += "      <button onclick='revertRelay()' class='btn-warning'>Inverter Relé</button>";
         html += "    </div>";
         html += "    <div id='stateInfo'>Estado atual: " + systemState.getState() + "</div>";
-        html += "    <div class='status'>Última atualização: " + systemState.getISOTime() + "</div>";
-        html += "    <div class='status'>RSSI Atual: " + String(LoRaCom::packedRssi()) + " dBm</div>";
+        html += "    <div class='status'>Última atualização: " + DeviceInfo::getISOTime() + "</div>";
+        html += "    <div class='status'>RSSI Atual: " + String(LoRaCom::packetRssi()) + " dBm</div>";
         html += "  </div>";
 
         html += "  <div class='card'>";

@@ -12,84 +12,49 @@ void SystemState::loraRcv(const String &message)
     Logger::log(LogLevel::DEBUG, message.c_str());
 }
 
-void SystemState::resetDisplayUpdate()
-{
-    lastDisplayUpdate = millis();
-}
-
+long lastUpdate = 0;
+String relayState = "DESCONHECIDO";
 void SystemState::updateState(const String &newState)
 {
-    if (relayState != newState)
-    {
-        relayState = (newState == "on" ? "LIGADO" : "DESLIGADO");
-        lastUpdate = millis();
-        DisplayManager::updateDisplay();
-    }
+
+    relayState = (newState == "on" ? "LIGADO" : "DESLIGADO");
 }
 
 void SystemState::setWifiStatus(bool connected)
 {
     wifiConnected = connected;
-    DisplayManager::updateDisplay();
 }
 
-void SystemState::setLoraStatus(bool initialized)
-{
-    loraInitialized = initialized;
-    DisplayManager::updateDisplay();
-}
-
-void SystemState::setLoraEvent(const String &event, const String &value)
-{
-    loraRcvEvent = event;
-    loraRcvValue = value;
-    DisplayManager::updateDisplay();
-}
-
-String SystemState::getState() const
+String SystemState::getState()
 {
     return relayState;
 }
 
-bool SystemState::isWifiConnected() const
+bool SystemState::isWifiConnected()
 {
     return wifiConnected;
 }
 
-bool SystemState::isLoraInitialized() const
+bool SystemState::isLoraInitialized()
 {
     return loraInitialized;
 }
 
-bool SystemState::isStateValid() const
+bool SystemState::isStateValid()
 {
     return (millis() - lastUpdate) < Config::STATE_CHECK_INTERVAL; // 5 minutes timeout
 }
 
-String SystemState::getISOTime()
+void SystemState::resetStateValid()
 {
-#ifdef __AVR__
-    return "1970-01-01T00:00:00Z"; // Fallback for AVR
-#else
-
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo))
-    {
-        Logger::log(LogLevel::WARNING, "Failed to get NTP time");
-        return "1970-01-01T00:00:00Z";
-    }
-
-    char timeStr[25];
-    strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
-    return String(timeStr);
-#endif
+    lastUpdate = millis();
 }
 
-void SystemState::conditionalUpdateDisplay()
+void SystemState::handle()
 {
-    if (millis() - lastDisplayUpdate >= 1000)
-    { // Update every second
-        DisplayManager::updateDisplay();
-        lastDisplayUpdate = millis();
-    }
+#ifdef TTGO
+    displayManager.wifiStatus(wifiConnected);
+    displayManager.loraStatus(loraInitialized);
+    displayManager.relayStatus(relayState);
+#endif
 }
