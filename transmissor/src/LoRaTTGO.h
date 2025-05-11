@@ -1,6 +1,8 @@
 #ifndef LORATTGO_H
 #define LORATTGO_H
 
+#ifdef TTGO
+
 #include "LoRaInterface.h"
 #include <Arduino.h>
 #include <LoRa.h>
@@ -15,36 +17,39 @@ public:
     bool beginSetup(float frequency, bool promiscuous = true) override
     {
         LoRa.begin(frequency);
-        LoRa.setTxPower(14);
-        LoRa.setPreambleLength(8);
+        LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
+        LoRa.setSignalBandwidth(125E3); // 125kHz
+        LoRa.setCodingRate4(5);         // 4/5 coding rate
+        LoRa.setSyncWord(0x12);
+        // LoRa.setTxPower(14);
+        // LoRa.setPreambleLength(8);
         return true;
-    }
-    void sendHeader(uint8_t _tidTo = -1)
-    {
-        LoRa.write(_tidTo > -1 ? _tidTo : tidTo);
-        LoRa.write(tid);
-        LoRa.write(genHeaderId());
-        LoRa.write(0xFF); // 0x00 = no future
     }
 
     bool sendMessage(uint8_t tid, const char *message) override
     {
-        tidTo = tid;
+        char m[251] = {0}; // Reduzido para evitar uso excessivo de memória
+        m[0] = tid;
+        m[1] = tid > -1 ? tid : tidTo;
+        m[2] = genHeaderId();
+        m[3] = 0xFF;                            // 0x00 = no future
+        strncpy(m + 4, message, sizeof(m) - 5); // Usar strncpy para evitar buffer overflow
+
         LoRa.beginPacket();
-        sendHeader(tid);
-        LoRa.print(message);
-        return LoRa.endPacket() > 0;
+        LoRa.write((uint8_t *)m, strlen(m));
+        bool rt = LoRa.endPacket() > 0;
+        return rt;
     }
-    bool receiveMessage(char *buffer, uint8_t &len) override
+
+    bool receiveMessage(uint8_t *buffer, uint8_t &len) override
     {
         int packetSize = LoRa.parsePacket();
         if (packetSize)
         {
             len = 0;
-            while (LoRa.available())
+            while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
             {
-                char c = (char)LoRa.read();
-                buffer[len++] = c;
+                buffer[len++] = (char)LoRa.read();
             }
             buffer[len] = '\0';
             return true;
@@ -67,14 +72,11 @@ public:
 
     void setPins(int cs, int reset, int irq) override
     {
+        Logger::info(String("Configuração do LoRa com CS: " + String(cs) + ", RESET: " + String(reset) + ", IRQ: " + String(irq)).c_str());
         LoRa.setPins(cs, reset, irq);
     }
     void endSetup() override
     {
-    }
-    void handle() override
-    {
-        // usa o call back
     }
     byte read() override
     {
@@ -92,8 +94,9 @@ public:
 
     bool available() override
     {
-        return LoRa.available();
+        return LoRa.packetSize() > 0;
     }
 };
 
 #endif // LORATTGO_H
+#endif

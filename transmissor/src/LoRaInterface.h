@@ -8,7 +8,6 @@ class LoRaInterface
 {
 protected:
     uint8_t nHeaderId = 0;
-    void (*onReceiveCallBack)(int packetSize) = nullptr;
 
 public:
     // [setup]
@@ -26,21 +25,18 @@ public:
         return nHeaderId++;
     }
     // [receive]
-    virtual bool receiveMessage(char *buffer, uint8_t &len) = 0;
+    virtual bool receiveMessage(uint8_t *buffer, uint8_t &len) = 0;
     virtual int packetRssi() = 0;
     virtual int packetSnr() = 0;
-    void onReceive(void (*callback)(int packetSize))
-    {
-        onReceiveCallBack = callback;
-    }
     virtual bool available() = 0;
     virtual byte read() = 0;
 
     // [config]
     virtual void setHeaderTo(uint8_t tid) = 0;
     virtual void setHeaderFrom(uint8_t tid) = 0;
-    // [loop]
-    virtual void handle() = 0;
+    virtual int headerFrom() = 0;
+    virtual int headerTo() = 0;
+    virtual int headerId() = 0;
 
     virtual ~LoRaInterface() {}
 };

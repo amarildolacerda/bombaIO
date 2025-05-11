@@ -1,42 +1,113 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <SoftwareSerial.h>
-#include "RH_RF95_UART.h"
 #include "RH_RF95.h"
+#include <WiFiManager.h>
+#include <WebSocketsServer.h>
 
 // Configuração do Hardware
-#define LORA_RX D1          //
-#define LORA_TX D2          //
-#define TERMINAL_ID 0x01    // ID deste dispositivo
+#define LORA_RX D7          //
+#define LORA_TX D8          //
+#define TERMINAL_ID 100     // ID deste dispositivo
 #define DESTINATION_ID 0x00 // ID do terminal destino
 
-EspSoftwareSerial::UART loraUART(LORA_RX, LORA_TX);
-RH_RF95_UART<EspSoftwareSerial::UART> rf95(loraUART);
+// EspSoftwareSerial::UART loraUART(LORA_RX, LORA_TX);
+// RH_RF95_UART<EspSoftwareSerial::UART> rf95(loraUART);
+
+RH_RF95 rf95(Serial);
+
+// Configuração do WebSocket
+WebSocketsServer webSocket(81);
+
+// Configuração da rede Wi-Fi
+const char *ssid = "kcasa";
+const char *password = "3938373635";
 
 // Contador de pacotes
 uint16_t packetCounter = 0;
 
+void RfPrint(String msg)
+{
+    uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
+    uint8_t len = msg.length();
+    memcpy(buf, msg.c_str(), len);
+    buf[len] = '\0'; // Null-terminate
+    rf95.send(buf, len);
+    rf95.waitPacketSent();
+}
+
+void debug(String msg)
+{
+}
+void debugln(String msg)
+{
+}
+
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
+{
+    if (type == WStype_TEXT)
+    {
+        /*  debug("[WebSocket] Mensagem recebida de ");
+          debug((String)num);
+          debug(": ");
+          debugln((char *)payload);
+          */
+    }
+}
+
+void sendWebSocketDebug(const String &message)
+{
+    webSocket.broadcastTXT(message.c_str());
+}
+
+void connectToWiFi()
+{
+    WiFiManager wifiManager;
+
+    // wifiManager.erase();
+    wifiManager.setDebugOutput(true);
+    // Inicia o WiFiManager e tenta conectar
+    if (!wifiManager.autoConnect("AutoConnectAP"))
+    {
+        Serial.print("Falha ao conectar ao Wi-Fi e sem configuração salva.");
+        ESP.restart();
+    }
+
+    Serial.println("Conectado ao Wi-Fi!");
+    Serial.print("Endereço IP: ");
+    String ip = WiFi.localIP().toString();
+    Serial.println(ip);
+}
+
 void setup()
 {
     Serial.begin(115200);
+    connectToWiFi();
+
+    webSocket.begin();
+    webSocket.onEvent(webSocketEvent);
+
+    Serial.swap(); // Troca os pinos RX e TX
+    Serial.begin(9600);
     while (!Serial)
         ; // Espera Serial no debug
 
-    // Inicializa LoRa
-    loraUART.begin(9600);
-
     if (!rf95.init())
     {
-        Serial.println("Falha na inicialização do LoRa!");
-        while (1)
-            ;
+        String errorMsg = "Falha na inicialização do LoRa!";
+        debugln(errorMsg);
+        // ESP.reset();
+        //  while (1)
+        //      ;
     }
 
-    rf95.setFrequency(915.0);
+    rf95.setFrequency(868.0);
     rf95.setTxPower(14);
     rf95.setThisAddress(TERMINAL_ID);
+    rf95.setPromiscuous(true);
 
-    Serial.println("LoRa JSON Sender/RECEIVER pronto!");
+    String readyMsg = "LoRa JSON Sender/RECEIVER pronto!";
+    debugln(readyMsg);
 }
 
 void sendJsonPacket()
@@ -57,11 +128,9 @@ void sendJsonPacket()
     rf95.setHeaderFrom(TERMINAL_ID);
     rf95.setHeaderId(packetCounter);
 
-    Serial.print("Enviando: ");
-    Serial.println(jsonStr);
-
-    rf95.send((uint8_t *)jsonStr.c_str(), jsonStr.length());
-    rf95.waitPacketSent();
+    debug("Enviando: ");
+    // debugln(jsonStr);
+    RfPrint(jsonStr);
 }
 
 void checkIncomingMessages()
@@ -75,10 +144,11 @@ void checkIncomingMessages()
         {
             buf[len] = '\0'; // Null-terminate
 
-            Serial.print("Recebido [RSSI:");
-            Serial.print(rf95.lastRssi());
-            Serial.print("dBm]: ");
-            Serial.println((char *)buf);
+            String receivedMsg = String((char *)buf);
+            debug("Recebido [RSSI:");
+            debug((String)rf95.lastRssi());
+            debug("dBm]: ");
+            debug(receivedMsg);
 
             // Processa JSON recebido
             StaticJsonDocument<200> doc;
@@ -86,20 +156,24 @@ void checkIncomingMessages()
 
             if (!error)
             {
-                Serial.print("Mensagem de: ");
-                Serial.println(doc["device"].as<String>());
+                String sender = doc["device"].as<String>();
+                debug("Mensagem de: ");
+                debugln(sender);
             }
             else
             {
-                Serial.print("Erro no JSON: ");
-                Serial.println(error.c_str());
+                String errorMsg = "Erro no JSON: " + String(error.c_str());
+                debugln(errorMsg);
             }
+            RfPrint("ACK"); // Envia ACK de volta
         }
     }
 }
 
 void loop()
 {
+    webSocket.loop();
+
     static unsigned long lastSend = 0;
 
     // Envia a cada 1000ms

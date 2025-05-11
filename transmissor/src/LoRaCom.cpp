@@ -19,12 +19,8 @@
 // Define the static member
 LoRaInterface *LoRaCom::loraInstance = nullptr;
 
-// Função chamada quando um pacote LoRa é recebido
-void onReceiveCallback(int packetSize)
-{
-    Logger::verbose("onReceiveCallback");
-    LoRaCom::processIncoming();
-}
+// Define the static receiveCallback pointer
+void (*LoRaCom::onReceiveCallback)(LoRaInterface *) = nullptr;
 
 // ========== LoRaCom Implementations ==========
 bool LoRaCom::initialize()
@@ -35,25 +31,30 @@ bool LoRaCom::initialize()
     setInstance(new LoRaRF95());
 #endif
 
+#ifdef TTGO
     loraInstance->setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
-    loraInstance->onReceive(onReceiveCallback);
+#endif
     bool rt = loraInstance->beginSetup(Config::LORA_BAND);
     if (!rt)
     {
-        Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");
+        Logger::log(LogLevel::ERROR, F("Falha ao iniciar LoRa"));
         return false;
     }
     loraInstance->setHeaderFrom(Config::TERMINAL_ID);
 
     loraInstance->endSetup();
-    Logger::log(LogLevel::INFO, "LoRa inicializado com sucesso");
+    Logger::log(LogLevel::INFO, F("LoRa inicializado com sucesso"));
     systemState.setLoraStatus(true);
     return true;
 }
 
 void LoRaCom::handle()
 {
-    loraInstance->handle();
+    if (loraInstance->available())
+    {
+        if (onReceiveCallback)
+            onReceiveCallback(loraInstance);
+    }
 }
 
 void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const char *value)
@@ -71,7 +72,7 @@ void LoRaCom::ack(bool ak, uint8_t tid)
     bool rt = loraInstance->print((ak) ? "ack" : "nak");
     if (rt)
     {
-        Logger::log(LogLevel::ERROR, "Falha ao enviar ACK/NACK");
+        Logger::log(LogLevel::ERROR, F("Falha ao enviar ACK/NACK"));
     }
     else
     {
@@ -89,15 +90,7 @@ uint8_t LoRaCom::genHeaderId()
 
 void LoRaCom::sendHeaderTo(uint8_t tid)
 {
-
-#ifdef TTGO
-    char msg[4];
-    msg[0] = tid;
-    msg[1] = Config::TERMINAL_ID;
-    msg[2] = LoRaCom::genHeaderId();
-    msg[3] = 0xFF;
-    LoRa.print(msg);
-#endif
+    loraInstance->setHeaderTo(tid);
 }
 
 int LoRaCom::packedRssi()
@@ -122,7 +115,7 @@ void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
         bool rt = loraInstance->print(message);
         if (rt)
         { // não pega ack se for broadcast por timeout  n == 1
-            Logger::log(LogLevel::ERROR, "Falha ao enviar apresentação LoRa");
+            Logger::log(LogLevel::ERROR, F("Falha ao enviar apresentação LoRa"));
             return;
         }
 
@@ -189,12 +182,9 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
     bool rt = loraInstance->sendMessage(tid, output);
     if (!rt)
     {
-        Logger::log(LogLevel::ERROR, "Falha ao enviar comando LoRa");
+        Logger::log(LogLevel::ERROR, F("Falha ao enviar comando LoRa"));
         return false;
     }
-
-    Logger::info("Enviou");
-    Logger::log(LogLevel::DEBUG, String(output).c_str());
 
     return true;
 }
@@ -206,115 +196,5 @@ void LoRaCom::sleep(unsigned int duration)
     {
         yield(); // Permite que outras tarefas sejam executadas
         delay(10);
-    }
-}
-
-void LoRaCom::processIncoming()
-{
-
-    String payload = "";
-    uint8_t tid = 0xFF; // no future, ler no pacote [1]
-    uint8_t pos = 0;
-    while (loraInstance->available())
-    {
-        char buf[241];
-        uint8_t len = sizeof(buf);
-        bool rt = loraInstance->receiveMessage(buf, len);
-        if (!rt)
-            return;
-        for (uint8_t i = 0; i < len; i++)
-        {
-            uint8_t byte = buf[i];
-            char cbyte = static_cast<char>(byte);
-            if (cbyte == '{')
-                pos = 0;
-            if (pos < 5)
-            {
-                pos++;
-                continue;
-            }
-            if (!(byte >= 32 && byte <= 126)) // Ignora bytes de controle
-                continue;
-
-            payload += cbyte;
-            if (cbyte == '}')
-                break;
-        }
-        // Serial.println("");
-        if (payload.length() == 0)
-        {
-            Logger::log(LogLevel::WARNING, "Payload LoRa vazio");
-            // LoRa.idle();
-            return;
-        }
-
-        systemState.loraRcv(payload);
-
-        int rssi = loraInstance->packetRssi();
-        float snr = loraInstance->packetSnr();
-
-        if (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD)
-        {
-            Logger::log(LogLevel::WARNING, "Qualidade do link baixa. Tentando ajustar...");
-            DisplayManager::displayLowQualityLink(rssi, snr);
-        }
-        StaticJsonDocument<256> doc;
-        if (deserializeJson(doc, payload.c_str()))
-        {
-            Logger::log(LogLevel::WARNING, "Payload LoRa inválido");
-            LoRaCom::ack(false);
-            return;
-        }
-
-        // Compatibilidade com ambos os formatos
-        const char *event = doc["event"]; // Formato do receptor
-        const char *value = doc["value"]; // Formato do receptor
-                                          // const uint8_t sid = doc["sid"];   // Formato do receptor
-
-        systemState.setLoraEvent(event, value); // Atualiza o estado do sistema
-
-        if (event != nullptr)
-        {
-            DeviceInfo::updateDeviceList(tid, payload);
-        }
-
-        if (event != nullptr)
-        {
-            if (String(event) == "status")
-            {
-                // Apenas atualiza o estado sem acionar comandos extras
-                systemState.updateState(String(value));
-
-                // Atualiza Tuya Cloud
-                // unsigned char dp_id = 1;
-                // unsigned char dp_value = (systemState.getState() == "LIGADO") ? 1 : 0;
-                // my_device.mcu_dp_update(dp_id, &dp_value, sizeof(dp_value));
-                ack(true, tid);
-            }
-            if (String(event) == "presentation")
-            {
-                // Envia apresentação para o dispositivo
-                // registra o dispostitvo na whitelist
-                LoRaCom::ack(true, 0xFF);
-            }
-            else if (String(event) == "ack")
-            {
-                // Processa ACK
-                // Logger::log(LogLevel::INFO, "ACK recebido: " + String(value));
-            }
-            else if (String(event) == "nak")
-            {
-                // Processa NACK
-                // Logger::log(LogLevel::ERROR, "NACK recebido: " + String(value));
-            }
-            else
-            {
-                // systemState.updateState((String)event + "=" + value);
-            }
-        }
-        else
-        {
-            //  systemState.updateState((String)event + "=" + value);
-        }
     }
 }

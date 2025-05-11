@@ -5,10 +5,7 @@
 #include <RH_RF95.h>
 // #include <EspSoftwareSerial.h>
 
-// EspSoftwareSerial::UART mySerial(5, 6); // RX, TX
-// Serial1.begin(9600);
 
-// EspSoftwareSerial::UART::Config config;
 RH_RF95 rf95(Serial);
 
 void setup()

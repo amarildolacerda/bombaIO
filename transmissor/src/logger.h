@@ -8,12 +8,8 @@ enum class LogLevel
     ERROR,
     WARNING,
     INFO,
-#if defined(ENABLE_DEBUG)
-    DEBUG,
-#endif
-#if defined(ENABLE_VERBOSE)
+    DEBUG, // Substituir DEBUG por DEBUG_ON
     VERBOSE
-#endif
 };
 
 class Logger
@@ -34,7 +30,7 @@ public:
     }
     static void debug(const char *message)
     {
-        log(LogLevel::DEBUG, message);
+        log(LogLevel::DEBUG, message); // Atualizar para DEBUG_ON
     }
     static void verbose(const char *message)
     {
@@ -42,6 +38,7 @@ public:
     }
 
     static void log(LogLevel level, const char *message);
+    static void log(LogLevel level, const __FlashStringHelper *message);
 
 private:
     static LogLevel currentLogLevel;

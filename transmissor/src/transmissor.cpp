@@ -7,7 +7,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <map>
-#include <pgmspace> // Use pgmspace for ESP32
+// #include <pgmspace> // Use pgmspace for ESP32
 #endif
 
 #include "transmissor.h"
@@ -18,6 +18,9 @@
 #include "device_info.h"
 #include "system_state.h"
 #include "display_manager.h"
+#include "LoRaInterface.h"
+
+void processIncoming(LoRaInterface *loraInstance);
 
 // ========== Instâncias Globais ==========
 #ifdef TUYA
@@ -79,7 +82,7 @@ void initWiFi()
     systemState.setWifiStatus(true);
     char ipBuffer[16]; // Buffer to store IP address as a string
     snprintf(ipBuffer, sizeof(ipBuffer), "%s", WiFi.localIP().toString().c_str());
-    Logger::log(LogLevel::INFO, FPSTR(logWiFiConnected));
+    // Logger::log(LogLevel::INFO, FPSTR(logWiFiConnected));
     Logger::log(LogLevel::INFO, ipBuffer);
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initWiFi com sucesso");
 }
@@ -95,12 +98,12 @@ void initNTP()
 
     if (!getLocalTime(&timeinfo))
     {
-        Logger::log(LogLevel::WARNING, FPSTR(logNTPFail));
+        // Logger::log(LogLevel::WARNING, FPSTR(logNTPFail));
         Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initNTP com falha");
     }
     else
     {
-        Logger::log(LogLevel::INFO, FPSTR(logNTPSuccess));
+        // Logger::log(LogLevel::INFO, FPSTR(logNTPSuccess));
         Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initNTP com sucesso");
     }
 }
@@ -122,7 +125,9 @@ void initTuya()
 #ifndef TEST
 void setup()
 {
+#ifdef DEBUG_ON
     Logger::setLogLevel(LogLevel::VERBOSE);
+#endif
     Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: setup");
     Serial.begin(Config::SERIAL_BAUD);
     Logger::log(LogLevel::INFO, "Iniciando sistema...");
@@ -156,6 +161,7 @@ void setup()
         Logger::log(LogLevel::ERROR, "Falha crítica no LoRa - reiniciando");
         // ESP.restart();
     }
+    LoRaCom::setReceiveCallback(processIncoming);
 
 #ifdef TUYA
     initTuya();
@@ -170,7 +176,9 @@ void setup()
     DisplayManager::updateDisplay();
 #endif
 
+#ifdef DEBUG_ON
     Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: setup");
+#endif
 }
 
 #endif
@@ -178,12 +186,7 @@ void setup()
 #ifndef TEST
 void loop()
 {
-    static uint32_t lastLoRaHandle = 0;
-    if (millis() - lastLoRaHandle > 1000)
-    {
-        LoRaCom::handle();
-        lastLoRaHandle = millis();
-    }
+    LoRaCom::handle(); // precisa pedir leitura rapida
 #ifdef TUYA
     my_device.uart_service();
 #endif
@@ -202,9 +205,72 @@ void loop()
         {
             LoRaCom::sendCommand("get", "status", 0xFF);
             DisplayManager::eventEnviado("get status");
+#ifndef __AVR__
             systemState.resetDisplayUpdate();
+#endif
         }
         lastStateCheck = millis();
     }
 }
+
+void processIncoming(LoRaInterface *loraInstance)
+{
+
+    while (loraInstance->available())
+    {
+#ifdef DEBUG_ON
+        Logger::log(LogLevel::VERBOSE, F("processIncoming"));
+#endif
+        uint8_t buf[Config::MESSAGE_LEN + 1] = {0}; // +1 para garantir espaço para null-terminator
+        uint8_t len = Config::MESSAGE_LEN;
+        bool rt = loraInstance->receiveMessage(buf, len);
+        if (!rt)
+        {
+            return;
+        }
+        buf[len] = '\0'; // Garante null-terminator para uso como string
+
+#ifdef DEBUG_ON
+        // Log detalhado do buffer e comprimento
+        Logger::log(LogLevel::DEBUG, F("Conteúdo do buffer antes do JSON:"));
+        Logger::log(LogLevel::DEBUG, (const char *)buf);
+        Logger::log(LogLevel::DEBUG, String(len).c_str());
+#endif
+
+        // Remove caracteres não imprimíveis antes de desserializar
+        for (uint8_t i = 0; i < len; i++)
+        {
+            if (buf[i] < 32 || buf[i] > 126)
+            {
+                buf[i] = ' '; // Substitui caracteres inválidos por espaço
+            }
+        }
+
+#ifdef DEBUG_ON
+        // Log detalhado do buffer após limpeza
+        Logger::log(LogLevel::DEBUG, F("Conteúdo do buffer após limpeza de caracteres inválidos:"));
+        Logger::log(LogLevel::DEBUG, (const char *)buf);
+#endif
+
+        // Substituir DynamicJsonDocument por StaticJsonDocument para evitar alocação dinâmica
+        StaticJsonDocument<256> doc;                                          // Reduzido para 256 bytes
+        DeserializationError error = deserializeJson(doc, (const char *)buf); // Removido o uso de `len`
+        if (error)
+        {
+            Logger::log(LogLevel::ERROR, F("Falha ao converter buf em JSON"));
+            Logger::log(LogLevel::ERROR, (const char *)buf);
+            Logger::log(LogLevel::ERROR, error.c_str()); // Log detalhado do erro
+            return;
+        }
+        // Agora 'doc' contém o JSON parseado de 'buf'
+        if (doc["event"] == "status")
+        {
+            // doc["value"]
+            // atualizar o TUYA a mudança de estado
+        }
+
+        LoRaCom::ack(true, loraInstance->headerFrom());
+    }
+}
+
 #endif

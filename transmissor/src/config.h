@@ -14,7 +14,7 @@
 // ========== Configurações do Sistema ==========
 namespace Config
 {
-#if defined(RF95) || defined(LORASERIAL)
+#if defined(RF95) || defined(LORASERIAL) || defined(ESP8266)
 
     constexpr uint8_t LORA_RX_PIN = Dx; // RX pin for RF95
     constexpr uint8_t LORA_TX_PIN = Dt; // TX pin for RF95
@@ -25,10 +25,10 @@ namespace Config
     constexpr uint8_t LORA_CS_PIN = 18;    // GPIO18 - Chip Select
     constexpr uint8_t LORA_RESET_PIN = 14; // GPIO14 - Reset
     constexpr uint8_t LORA_IRQ_PIN = 26;   // GPIO26 - Interrupção
-#ifdef TTGTO
-    constexpr uint32_t LORA_BAND = 868E6; // Banda para América do Sul
-#else
-    constexpr uint32_t LORA_BAND = 868.0; // Banda para América do Norte
+#ifdef TTGO
+    constexpr uint32_t LORA_BAND = 868E6; // usado esp32 TTGO LoRa32 v1
+#elif RF95
+    constexpr uint32_t LORA_BAND = 868.0; // usado RF95
 #endif
     constexpr uint16_t LORA_SYNC_WORD = 0xF3;
 
@@ -53,8 +53,8 @@ namespace Config
     // Sistema
     constexpr uint32_t SERIAL_BAUD = 115200;
     constexpr uint32_t STATE_TIMEOUT_MS = 300000 / 5; // 5 minutos (status automático)
-    constexpr uint32_t STATE_CHECK_INTERVAL = 1000;
-    constexpr uint32_t PRESENTATION_INTERVAL = 1500;
+    constexpr uint32_t STATE_CHECK_INTERVAL = 5000;
+    constexpr uint32_t PRESENTATION_INTERVAL = 15000;
     constexpr uint32_t COMMAND_TIMEOUT = 3000;
 
     // Tuya IoT

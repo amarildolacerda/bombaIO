@@ -30,7 +30,7 @@ public:
         }
         rf95.setFrequency(frequency);
         rf95.setPromiscuous(true); // (promiscuous);
-        rf95.setTxPower(14);
+        rf95.setTxPower(23, false);
         Logger::log(LogLevel::INFO, "LoRa initialized successfully (RF95).");
         return true;
     }
@@ -46,21 +46,63 @@ public:
         rf95.setHeaderTo(tid);
         rf95.setHeaderId(genHeaderId());
         rf95.setHeaderFrom(Config::TERMINAL_ID);
-
         rf95.send((uint8_t *)message, strlen(message));
-        Logger::verbose(message);
         return rf95.waitPacketSent();
     }
 
-    bool receiveMessage(char *buffer, uint8_t &len) override
+    bool receiveMessage(uint8_t *buffer, uint8_t &len) override
     {
-        if (!buffer || len > Config::MESSAGE_LEN)
+        if (!buffer || len == 0 || len > Config::MESSAGE_LEN)
             return false;
         if (rf95.available())
         {
-            if (rf95.recv((uint8_t *)buffer, &len))
+            uint8_t recvLen = len;
+            if (rf95.recv(buffer, &recvLen))
             {
-                buffer[len] = '\0';
+                Logger::verbose(String(recvLen).c_str());
+
+                // Busca o último caractere '}' e ajusta o tamanho da mensagem
+                int lastBrace = -1;
+                for (uint8_t i = 0; i < recvLen; i++)
+                {
+                    if (buffer[i] == '}')
+                        lastBrace = i;
+                }
+
+                if (lastBrace >= 0)
+                {
+                    // Garante null-termination logo após o último '}'
+                    if (lastBrace + 1 < len)
+                        buffer[lastBrace + 1] = '\0';
+                    else if (len > 0)
+                        buffer[len - 1] = '\0';
+                    recvLen = lastBrace + 1;
+                }
+                else
+                {
+                    // Não encontrou '}', faz null-termination padrão
+                    if (recvLen > 0 && recvLen < len)
+                        buffer[recvLen] = '\0';
+                    else if (len > 0)
+                        buffer[len - 1] = '\0';
+                }
+
+                // Filtra caracteres inválidos no buffer
+                for (uint8_t i = 0; i < recvLen; i++)
+                {
+                    if (buffer[i] < 32 || buffer[i] > 126)
+                    {
+                        buffer[i] = ' ';
+                    }
+                }
+
+#ifdef DEBUG_ON
+                char msg[64];
+                snprintf(msg, sizeof(msg), "From: %d To: %d id: %d", rf95.headerFrom(), rf95.headerTo(), rf95.headerId());
+                Logger::info(msg);
+                Logger::log(LogLevel::INFO, reinterpret_cast<const char *>(buffer));
+#endif
+                len = recvLen;
                 return true;
             }
         }
@@ -72,13 +114,6 @@ public:
         return rf95.lastRssi();
     }
 
-    void handle()
-    {
-        if (rf95.available()) //&& onReceiveCallBack)
-        {
-            onReceiveCallBack(rf95.lastRssi());
-        }
-    }
     void setHeaderTo(uint8_t tid) override
     {
         rf95.setHeaderTo(tid);
@@ -104,7 +139,7 @@ public:
     }
     byte read() override
     {
-        char buffer[1] = {0};
+        uint8_t buffer[1] = {0};
         uint8_t len = sizeof(buffer);
         bool rt = receiveMessage(buffer, len);
         if (rt)
@@ -117,6 +152,18 @@ public:
     int packetSnr() override
     {
         return 0; // rf95.lastSNR(); indefined
+    }
+    int headerFrom() override
+    {
+        return rf95.headerFrom();
+    }
+    int headerTo() override
+    {
+        return rf95.headerTo();
+    }
+    int headerId() override
+    {
+        return rf95.headerId();
     }
 };
 

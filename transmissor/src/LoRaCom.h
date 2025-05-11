@@ -1,7 +1,7 @@
 #ifndef LORACOM_H
 #define LORACOM_H
 
-#include <Arduino.h>
+// #include <Arduino.h>
 #include "LoRaInterface.h"
 
 class LoRaCom
@@ -9,7 +9,14 @@ class LoRaCom
 private:
     static LoRaInterface *loraInstance;
 
+protected:
+    static void (*onReceiveCallback)(LoRaInterface *);
+
 public:
+    static void setReceiveCallback(void (*callback)(LoRaInterface *))
+    {
+        onReceiveCallback = callback;
+    }
     static void setInstance(LoRaInterface *instance)
     {
         loraInstance = instance;
@@ -25,7 +32,6 @@ public:
     static uint8_t genHeaderId();
     static void sendHeaderTo(uint8_t tid);
     static int packedRssi();
-    static void processIncoming();
 };
 
 #endif // LORACOM_H

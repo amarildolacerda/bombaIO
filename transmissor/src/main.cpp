@@ -52,9 +52,8 @@ void loop()
         {
             Serial.println("Mensagem enviada com sucesso");
         }
+        delay(3000);
     }
-
-    delay(1000);
 }
 
 #else

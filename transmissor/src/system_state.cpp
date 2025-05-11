@@ -8,12 +8,8 @@ SystemState systemState; // Define the global systemState object
 
 void SystemState::loraRcv(const String &message)
 {
-    if (message.length() < sizeof(loraRcvMessage))
-    {
-        strncpy(loraRcvMessage, message.c_str(), sizeof(loraRcvMessage) - 1);
-        loraRcvMessage[sizeof(loraRcvMessage) - 1] = '\0';
-    }
-    Logger::log(LogLevel::DEBUG, String("RCV: " + message).c_str());
+
+    Logger::log(LogLevel::DEBUG, message.c_str());
 }
 
 void SystemState::resetDisplayUpdate()
