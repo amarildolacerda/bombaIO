@@ -2,6 +2,7 @@
 #include "Arduino.h"
 #include <RH_RF95.h>
 #include "logger.h"
+#include "config.h"
 
 #ifdef __AVR__
 #include <SoftwareSerial.h>
@@ -27,7 +28,6 @@ const long STATUS_INTERVAL = 5000;
 const long PRESENTATION_INTERVAL = 10000;
 unsigned long previousMillis = 0;
 volatile bool pinStateChanged = false;
-const int TERMINAL_ID = 0x01;
 volatile int lastPinState = HIGH;
 bool mustPresentation = true;
 
@@ -161,7 +161,7 @@ void setup()
 
     lastPinState = digitalRead(RELAY_PIN);
 
-    if (!lora.initialize(868.0, TERMINAL_ID))
+    if (!lora.initialize(Config::BAND, Config::TERMINAL_ID, Config::PROMISCUOS))
     {
         Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
     }
