@@ -274,6 +274,14 @@ void processIncoming(LoRaInterface *loraInstance)
         {
             systemState.updateState(value);
         }
+        DeviceInfoData data;
+        data.tid = loraInstance->headerFrom();
+        data.event = event;
+        data.value = value;
+        data.name = doc["dtype"].as<String>();
+        data.lastSeenISOTime = DeviceInfo::getISOTime();
+        data.rssi = loraInstance->packetRssi();
+        DeviceInfo::updateDeviceList(data.tid, data);
     }
     Serial.println((char *)buf);
     LoRaCom::ack(true, loraInstance->headerFrom());

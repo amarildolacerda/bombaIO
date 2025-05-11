@@ -6,18 +6,20 @@
 #include "device_info.h"
 #include "LoRaCom.h"
 
-#ifndef __AVR__
+#ifndef __AVR__ // Start of AVR check
 
-#ifdef ESP32
+#ifdef ESP32 // Start of ESP32-specific code
 #include "update.h"
-#endif
+#endif // End of ESP32-specific code
+
+#undef DISPLAY // Avoid macro redefinition warning
 
 // Add the correct external declaration for the server object
-#ifdef ESP32
+#ifdef ESP32 // Start of ESP32-specific server declaration
 WebServer server(Config::WEBSERVER_PORT);
 #elif ESP8266
 ESP8266WebServer server(Config::WEBSERVER_PORT);
-#endif
+#endif // End of ESP32-specific server declaration
 
 namespace HtmlServer
 {
@@ -321,6 +323,7 @@ namespace HtmlServer
         html += "<head>";
         html += "<meta charset='UTF-8'>";
         html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+        html += "<meta http-equiv='refresh' content='1'>"; // Refresh every 1000 milliseconds
         html += "<title>Lista de Dispositivos</title>";
         html += "<style>";
         html += getCommonStyles();
@@ -330,10 +333,11 @@ namespace HtmlServer
         html += "<div class='card'>";
         html += "<h1>Dispositivos Registrados</h1>";
         html += "<table>";
-        html += "<tr><th>ID</th><th>Evento</th><th>Valor</th></tr>";
-        for (const auto &device : deviceList)
+        html += "<tr><th>Hora</th> <th>ID</th><th>Evento</th><th>Valor</th><th>RSSI</th></tr>";
+        for (const auto &device : DeviceInfo::deviceList)
         {
-            html += "<tr><td>" + String(device.first) + "</td><td>" + device.second.first + "</td><td>" + device.second.second + "</td></tr>";
+            DeviceInfoData data = device.second.second;
+            html += "<tr><td>" + data.lastSeenISOTime + "</td> <td>" + String(data.tid) + "</td><td>" + String(data.event.c_str()) + "</td><td>" + String(data.value.c_str()) + "</td><td>" + String(data.rssi) + "</td></tr>";
         }
         html += "</table>";
         html += "<a href='/'>Voltar</a>";
@@ -349,4 +353,4 @@ namespace HtmlServer
     }
 
 } // namespace HtmlServer
-#endif
+#endif // End of AVR check

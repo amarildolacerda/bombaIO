@@ -1,26 +1,14 @@
 #include "device_info.h"
 #include <ArduinoJson.h>
 
-// Define the static member
+// Define o membro estático corretamente
+std::map<uint8_t, std::pair<String, DeviceInfoData>> DeviceInfo::deviceList;
 
-void DeviceInfo::updateDeviceList(uint8_t deviceId, const String &message)
+void DeviceInfo::updateDeviceList(uint8_t deviceId, const DeviceInfoData data)
 {
-    // Parse the JSON message
-    StaticJsonDocument<200> doc;
-    DeserializationError error = deserializeJson(doc, message);
-
-    if (error)
-    {
-        Serial.println("Failed to parse JSON message");
-        return;
-    }
-
-    // Extract "event" and "value" from the JSON
-    String event = doc["event"].as<String>();
-    String value = doc["value"].as<String>();
 #ifndef __AVR__
-    // Update the device list with the event and value pair
-    deviceList[deviceId] = std::make_pair(event, value);
+    // Atualiza a lista de dispositivos com um par de String e DeviceInfoData
+    deviceList[deviceId] = std::make_pair(data.event, data);
 #endif
 }
 
