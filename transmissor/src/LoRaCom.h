@@ -13,10 +13,10 @@ protected:
     static void (*onReceiveCallback)(LoRaInterface *);
 
 public:
-    static void setReceiveCallback(void (*callback)(LoRaInterface *))
-    {
-        onReceiveCallback = callback;
-    }
+    static void setReceiveCallback(void (*callback)(LoRaInterface *));
+    //{
+    //    onReceiveCallback = callback;
+    // }
     static void setInstance(LoRaInterface *instance)
     {
         loraInstance = instance;

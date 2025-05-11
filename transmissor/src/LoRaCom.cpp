@@ -205,3 +205,8 @@ void LoRaCom::sleep(unsigned int duration)
         delay(10);
     }
 }
+
+void LoRaCom::setReceiveCallback(void (*callback)(LoRaInterface *))
+{
+    onReceiveCallback = callback;
+}
