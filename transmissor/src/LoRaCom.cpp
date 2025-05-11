@@ -52,10 +52,29 @@ void LoRaCom::handle()
 {
     if (loraInstance->available())
     {
+#ifdef DEBUG_ON
+        Logger::log(LogLevel::DEBUG, "LoRaCom::handle - Pacote disponível");
+#endif
         if (onReceiveCallback)
+        {
+#ifdef DEBUG_ON
+            Logger::log(LogLevel::DEBUG, "LoRaCom::handle - Callback definido, chamando callback");
+#endif
             onReceiveCallback(loraInstance);
+        }
         else
-            Serial.println(F("Não definiou callback para receber os dados"));
+        {
+#ifdef DEBUG_ON
+            Logger::log(LogLevel::DEBUG, "LoRaCom::handle - Callback não definido");
+#endif
+            Serial.println(F("Não definiu callback para receber os dados"));
+        }
+    }
+    else
+    {
+#ifdef DEBUG_ON
+        // Logger::log(LogLevel::DEBUG, "LoRaCom::handle - Nenhum pacote disponível");
+#endif
     }
 }
 
@@ -81,6 +100,10 @@ void LoRaCom::ack(bool ak, uint8_t tid)
     if (!rt)
     {
         Logger::log(LogLevel::ERROR, F("Falha ao enviar ACK/NACK"));
+    }
+    else
+    {
+        Logger::info((ak) ? "ack" : "nak");
     }
 }
 

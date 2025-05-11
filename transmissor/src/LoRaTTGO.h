@@ -42,32 +42,48 @@ public:
         LoRa.beginPacket();
         LoRa.write((uint8_t *)m, strlen(m));
         bool rt = LoRa.endPacket() > 0;
+
+        delay(10);
         return rt;
     }
 
     bool receiveMessage(uint8_t *buffer, uint8_t &len) override
     {
-        int packetSize = LoRa.parsePacket();
-        Serial.print("Receive ");
-        Serial.println(packetSize);
-        if (packetSize > 0)
+        // int packetSize = LoRa.parsePacket();
+        // Serial.print("Receive ");
+        // Serial.println(packetSize);
+        // if (packetSize > 0)
+        // {
+        len = 0;
+        while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
         {
-            len = 0;
-            while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
-            {
-                buffer[len++] = (char)LoRa.read();
-            }
-            buffer[len] = '\0';
-            Serial.println((char *)buffer);
+            buffer[len++] = (char)LoRa.read();
+        }
+        buffer[len] = '\0';
+        if (len > 4)
+        {
+            hTo = buffer[0];
+            hFrom = buffer[1];
+            hId = buffer[2];
+        }
+        // Remove os 4 primeiros bytes de controle do buffer
+        for (uint8_t i = 0; i < len - 4; ++i)
+        {
+            buffer[i] = buffer[i + 4];
+        }
+        len = len > 4 ? len - 4 : 0;
+        buffer[len] = '\0';
+
+        Serial.println((char *)buffer);
 #ifdef DEBUG_ON
-            char msg[64];
-            snprintf(msg, sizeof(msg), "From: %d To: %d id: %d", headerFrom(), headerTo(), headerId());
-            Logger::info(msg);
+        char msg[64];
+        snprintf(msg, sizeof(msg), "From: %d To: %d id: %d", headerFrom(), headerTo(), headerId());
+        Logger::info(msg);
 #endif
 
-            return true;
-        }
-        return false;
+        return true;
+        //}
+        // return false;
     }
 
     bool print(const char *message) override
@@ -112,11 +128,11 @@ public:
             return false;
         }
         int b = LoRa.parsePacket();
-        int a = LoRa.available();
+        // int a = LoRa.available();
         if (b > 0)
         {
-            Serial.print("check available: ");
-            Serial.print(a);
+            //  Serial.print("check available: ");
+            //  Serial.print(a);
             Serial.print(" packet ");
             Serial.print(b);
             Serial.println("");

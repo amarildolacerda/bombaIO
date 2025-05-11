@@ -227,46 +227,46 @@ void loop()
 
 void processIncoming(LoRaInterface *loraInstance)
 {
-    while (loraInstance->available())
+    // while (loraInstance->available())
+    // {
+    uint8_t buf[Config::MESSAGE_LEN + 1] = {0}; // +1 para garantir espaço para null-terminator
+    uint8_t len = Config::MESSAGE_LEN;
+    bool rt = loraInstance->receiveMessage(buf, len);
+    if (!rt)
     {
-        uint8_t buf[Config::MESSAGE_LEN + 1] = {0}; // +1 para garantir espaço para null-terminator
-        uint8_t len = Config::MESSAGE_LEN;
-        bool rt = loraInstance->receiveMessage(buf, len);
-        if (!rt)
-        {
-            Serial.println(F("Não pegou os dados"));
-            return;
-        }
-        buf[len] = '\0'; // Garante null-terminator para uso como string
-
-        // Remove caracteres não imprimíveis antes de desserializar
-        for (uint8_t i = 0; i < len; i++)
-        {
-            if (buf[i] < 32 || buf[i] > 126)
-            {
-                buf[i] = ' '; // Substitui caracteres inválidos por espaço
-            }
-        }
-
-        // Substituir DynamicJsonDocument por StaticJsonDocument para evitar alocação dinâmica
-        StaticJsonDocument<128> doc;                                          // Reduzido para 256 bytes
-        DeserializationError error = deserializeJson(doc, (const char *)buf); // Removido o uso de `len`
-        if (error)
-        {
-            Logger::log(LogLevel::ERROR, F("Falha ao converter buf em JSON"));
-            Logger::log(LogLevel::ERROR, (const char *)buf);
-            Logger::log(LogLevel::ERROR, error.c_str()); // Log detalhado do erro
-            return;
-        }
-        // Agora 'doc' contém o JSON parseado de 'buf'
-        if (doc["event"] == "status")
-        {
-            // doc["value"]
-            // atualizar o TUYA a mudança de estado
-        }
-        Serial.println((char *)buf);
-        LoRaCom::ack(true, loraInstance->headerFrom());
+        Serial.println(F("Não pegou os dados"));
+        return;
     }
+    buf[len] = '\0'; // Garante null-terminator para uso como string
+
+    // Remove caracteres não imprimíveis antes de desserializar
+    for (uint8_t i = 0; i < len; i++)
+    {
+        if (buf[i] < 32 || buf[i] > 126)
+        {
+            buf[i] = ' '; // Substitui caracteres inválidos por espaço
+        }
+    }
+
+    // Substituir DynamicJsonDocument por StaticJsonDocument para evitar alocação dinâmica
+    StaticJsonDocument<128> doc;                                          // Reduzido para 256 bytes
+    DeserializationError error = deserializeJson(doc, (const char *)buf); // Removido o uso de `len`
+    if (error)
+    {
+        Logger::log(LogLevel::ERROR, F("Falha ao converter buf em JSON"));
+        Logger::log(LogLevel::ERROR, (const char *)buf);
+        Logger::log(LogLevel::ERROR, error.c_str()); // Log detalhado do erro
+        return;
+    }
+    // Agora 'doc' contém o JSON parseado de 'buf'
+    if (doc["event"] == "status")
+    {
+        // doc["value"]
+        // atualizar o TUYA a mudança de estado
+    }
+    Serial.println((char *)buf);
+    LoRaCom::ack(true, loraInstance->headerFrom());
+    // }
 }
 
 #endif
