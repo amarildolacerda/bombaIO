@@ -110,7 +110,7 @@ void sendPresentation(uint8_t n)
     for (int attempt = 0; attempt < n && !ackReceived; ++attempt)
     {
         String attemptMessage = String(attempt + 1);
-        sendFormattedMessage(2, "presentation", ("RSSI:" + String(lora.getLastRssi())).c_str());
+        sendFormattedMessage(0, "presentation", ("RSSI:" + String(lora.getLastRssi())).c_str());
         Logger::info("Presentation");
     }
 }

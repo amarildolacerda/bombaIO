@@ -270,7 +270,7 @@ void processIncoming(LoRaInterface *loraInstance)
 #ifdef TTGO
         displayManager.setEvent(loraInstance->headerFrom(), event, value);
 #endif
-        if (event.compareTo("status"))
+        if (event == "status")
         {
             systemState.updateState(value);
         }

@@ -80,16 +80,14 @@ public:
         Serial.println((char *)buffer);
 #ifdef DEBUG_ON
         char msg[64];
-        snprintf(msg, sizeof(msg), "From: %d To: %d id: %d", headerFrom(), headerTo(), headerId());
+        snprintf(msg, sizeof(msg), "(%d) From: %d To: %d id: %d", _tid, headerFrom(), headerTo(), headerId());
         Logger::info(msg);
 #endif
 
         if (!inPromiscuous)
         {
-            Logger::verbose(String("To: " + hTo).c_str());
-            if (!((hTo = 0xFF) || (hTo = _tid)))
+            if (hTo != 0xFF && hTo != _tid)
             {
-                Logger::log(LogLevel::INFO, F("Descartado"));
                 return false;
             }
         }
