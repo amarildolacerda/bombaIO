@@ -21,12 +21,12 @@ public:
     bool beginSetup(float frequency, bool promiscuous = true) override
     {
         LoRa.begin(frequency);
-        LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
-        LoRa.setSignalBandwidth(125E3); // 125kHz
-        LoRa.setCodingRate4(5);         // 4/5 coding rate
+        // LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
+        // LoRa.setSignalBandwidth(125E3); // 125kHz
+        // LoRa.setCodingRate4(5);         // 4/5 coding rate
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
-        LoRa.setTxPower(14);
-        LoRa.setPreambleLength(8);
+        // LoRa.setTxPower(14);
+        // LoRa.setPreambleLength(8);
         return true;
     }
 
