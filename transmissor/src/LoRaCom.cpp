@@ -34,7 +34,13 @@ bool LoRaCom::initialize()
 #ifdef TTGO
     loraInstance->setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
 #endif
-    bool rt = loraInstance->beginSetup(Config::LORA_BAND);
+    bool rt = loraInstance->beginSetup(Config::LORA_BAND,
+#ifdef TTGO
+                                       false
+#else
+                                       true
+#endif
+    );
     if (!rt)
     {
         Logger::log(LogLevel::ERROR, F("Falha ao iniciar LoRa"));

@@ -234,7 +234,7 @@ void processIncoming(LoRaInterface *loraInstance)
     bool rt = loraInstance->receiveMessage(buf, len);
     if (!rt)
     {
-        Serial.println(F("Não pegou os dados"));
+        Logger::log(LogLevel::INFO, F("Não pegou ou descartou"));
         return;
     }
     buf[len] = '\0'; // Garante null-terminator para uso como string
@@ -270,10 +270,10 @@ void processIncoming(LoRaInterface *loraInstance)
 #ifdef TTGO
         displayManager.setEvent(loraInstance->headerFrom(), event, value);
 #endif
-    if (event.compareTo("status")){
-        systemState.updateState(value);
-    }
-
+        if (event.compareTo("status"))
+        {
+            systemState.updateState(value);
+        }
     }
     Serial.println((char *)buf);
     LoRaCom::ack(true, loraInstance->headerFrom());

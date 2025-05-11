@@ -31,7 +31,7 @@ public:
             return false;
         }
         rf95.setFrequency(frequency);
-        rf95.setPromiscuous(true); // (promiscuous);
+        rf95.setPromiscuous(promiscuous); // (promiscuous);
         rf95.setTxPower(23, false);
         Logger::log(LogLevel::INFO, "LoRa initialized successfully (RF95).");
         return true;

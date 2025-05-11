@@ -16,6 +16,7 @@ private:
     uint8_t hTo = 0;
     uint8_t hFrom = 0;
     uint8_t hId = 0;
+    bool inPromiscuous = false;
 
 public:
     bool beginSetup(float frequency, bool promiscuous = true) override
@@ -27,6 +28,7 @@ public:
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
         // LoRa.setTxPower(14);
         // LoRa.setPreambleLength(8);
+        inPromiscuous = promiscuous;
         return true;
     }
 
@@ -66,6 +68,7 @@ public:
             hFrom = buffer[1];
             hId = buffer[2];
         }
+
         // Remove os 4 primeiros bytes de controle do buffer
         for (uint8_t i = 0; i < len - 4; ++i)
         {
@@ -80,6 +83,15 @@ public:
         snprintf(msg, sizeof(msg), "From: %d To: %d id: %d", headerFrom(), headerTo(), headerId());
         Logger::info(msg);
 #endif
+
+        if (!inPromiscuous)
+        {
+            if (!((hTo = 0xFF) || (hTo = _tid)))
+            {
+                Logger::log(LogLevel::INFO, F("Descartado"));
+                return false;
+            }
+        }
 
         return true;
         //}
