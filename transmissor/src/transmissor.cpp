@@ -227,13 +227,14 @@ void loop()
 
 void processIncoming(LoRaInterface *loraInstance)
 {
-    if (loraInstance->available())
+    while (loraInstance->available())
     {
         uint8_t buf[Config::MESSAGE_LEN + 1] = {0}; // +1 para garantir espaço para null-terminator
         uint8_t len = Config::MESSAGE_LEN;
         bool rt = loraInstance->receiveMessage(buf, len);
         if (!rt)
         {
+            Serial.println(F("Não pegou os dados"));
             return;
         }
         buf[len] = '\0'; // Garante null-terminator para uso como string

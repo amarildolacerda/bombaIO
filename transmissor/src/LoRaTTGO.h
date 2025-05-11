@@ -13,6 +13,9 @@ private:
     uint8_t _tid = 0xFF;
     uint8_t _tidTo = 0xFF;
     long lastAvailable = 0;
+    uint8_t hTo = 0;
+    uint8_t hFrom = 0;
+    uint8_t hId = 0;
 
 public:
     bool beginSetup(float frequency, bool promiscuous = true) override
@@ -45,7 +48,9 @@ public:
     bool receiveMessage(uint8_t *buffer, uint8_t &len) override
     {
         int packetSize = LoRa.parsePacket();
-        if (packetSize)
+        Serial.print("Receive ");
+        Serial.println(packetSize);
+        if (packetSize > 0)
         {
             len = 0;
             while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
@@ -108,17 +113,20 @@ public:
         }
         int b = LoRa.parsePacket();
         int a = LoRa.available();
-        Serial.print("check available: ");
-        Serial.print(a);
-        Serial.print(" packet ");
-        Serial.print(b);
-        Serial.println("");
+        if (b > 0)
+        {
+            Serial.print("check available: ");
+            Serial.print(a);
+            Serial.print(" packet ");
+            Serial.print(b);
+            Serial.println("");
+        }
         lastAvailable = millis();
-        return (b > 0 || a > 0);
+        return (b > 0);
     }
-    int headerFrom() override { return 0; }
-    int headerTo() override { return 0; }
-    int headerId() override { return 0; }
+    int headerFrom() override { return hFrom; }
+    int headerTo() override { return hTo; }
+    int headerId() override { return hId; }
 };
 
 #endif // LORATTGO_H

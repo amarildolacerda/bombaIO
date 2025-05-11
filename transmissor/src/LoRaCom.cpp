@@ -54,6 +54,8 @@ void LoRaCom::handle()
     {
         if (onReceiveCallback)
             onReceiveCallback(loraInstance);
+        else
+            Serial.println(F("Não definiou callback para receber os dados"));
     }
 }
 
