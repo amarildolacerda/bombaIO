@@ -86,6 +86,7 @@ public:
 
         if (!inPromiscuous)
         {
+            Logger::verbose(String("To: " + hTo).c_str());
             if (!((hTo = 0xFF) || (hTo = _tid)))
             {
                 Logger::log(LogLevel::INFO, F("Descartado"));

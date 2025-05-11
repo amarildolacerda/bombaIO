@@ -1,96 +1,86 @@
-// #ifdef LORARF95_H
-// #define LORARF95_H
-#include <RH_RF95.h>
+#ifndef LORARF95_H
+#define LORARF95_H
+
+#include "RH_RF95.h"
 #include "logger.h"
 
-template <typename T>
-class LoraRF95 : public RH_RF95<T>
-{
-private:
-    RH_RF95<T> rf95;
-    uint8_t _rxPin;
-    uint8_t _txPin;
-    uint8_t _irqPin;
-    void (*_onReceive)(int);
+#ifdef __AVR__
+#include <SoftwareSerial.h>
+SoftwareSerial SSerial(10, 11); // RX, TX
+#define COMSerial SSerial
+#define ShowSerial Serial
+#endif
 
+class LoRaRF95
+{
 public:
-    void setPins(uint8_t rxPin, uint8_t txPin, uint8_t irqPin)
+    LoRaRF95() : rf95(COMSerial) {}
+
+    bool initialize(float frequency, uint8_t terminalId, bool promiscuous = true)
+
     {
-        _rxPin = rxPin;
-        _txPin = txPin;
-        _irqPin = irqPin;
-        pinMode(_rxPin, INPUT);
-        pinMode(_txPin, OUTPUT);
-    }
-    void setTxPower(int level, )
-    {
-        rf95.setTxPower(level, false);
-    }
-    void begin(int band)
-    {
-        rf95.init();
-        rf95.setFrequency(band);
-    }
-    bool parsePacket()
-    {
-        return rf95.available();
-    }
-    int read()
-    {
-        uint8_t buf;
-        uint8_t len = 1;
-        if (!rf95.recv(buf, len))
+        if (!rf95.init())
         {
-            -1;
+            Logger::log(LogLevel::INFO, "LoRa initialization failed!");
+            return false;
+        }
+        COMSerial.setTimeout(0);
+        rf95.setFrequency(frequency);
+        rf95.setPromiscuous(promiscuous);
+        rf95.setHeaderTo(0xFF);
+        rf95.setHeaderFrom(terminalId);
+        rf95.setTxPower(14);
+        rf95.setHeaderFlags(0, RH_FLAGS_NONE);
+        Logger::log(LogLevel::INFO, "LoRa Server Ready");
+        return true;
+    }
+
+    void sendMessage(uint8_t tid, const char *message)
+    {
+        rf95.setHeaderTo(tid);
+        rf95.setHeaderId(genHeaderId());
+        rf95.send((uint8_t *)message, strlen(message));
+        if (!rf95.waitPacketSent())
+        {
+            Logger::log(LogLevel::ERROR, "Failed to send message");
         }
         else
         {
-            return buf;
+            Logger::log(LogLevel::DEBUG, message);
         }
     }
-    int packetRssi()
+
+    bool receiveMessage(char *buffer, uint8_t &len)
+    {
+        if (rf95.available())
+        {
+            if (rf95.recv((uint8_t *)buffer, &len))
+            {
+                buffer[len] = '\0';
+                return true;
+            }
+        }
+        return false;
+    }
+
+    int getLastRssi()
     {
         return rf95.lastRssi();
     }
 
-    bool print(const char *message)
-    {
-        return rf95.send((uint8_t *)message, strlen(message));
-    }
-    uint8_t endPacket()
-    {
-        return rf95.waitPacketSent();
-    }
-    void onReceive(void (*callback)(int))
-    {
-        _onReceive = callback;
+private:
+    RH_RF95<decltype(COMSerial)> rf95;
+    uint8_t nHeaderId = 0;
 
-        if (callback)
-        {
-            pinMode(_irqPin, INPUT);
-#ifdef SPI_HAS_NOTUSINGINTERRUPT
-            SPI.usingInterrupt(digitalPinToInterrupt(_irqPin));
-#endif
-            attachInterrupt(digitalPinToInterrupt(_irqPin), LoRaClass::onDio0Rise, RISING);
-        }
-        else
-        {
-            detachInterrupt(digitalPinToInterrupt(_irqPin));
-#ifdef SPI_HAS_NOTUSINGINTERRUPT
-            SPI.notUsingInterrupt(digitalPinToInterrupt(_irqPin));
-#endif
-        }
-    }
-    void handle()
+    uint8_t genHeaderId()
     {
-        if (rf95.available())
-        {
-            if (_onReceive)
-            {
-                _onReceive(1);
-            }
-        }
+        if (nHeaderId >= 255)
+            nHeaderId = 0;
+        return nHeaderId++;
     }
 };
 
-// #endif
+// Global instance of LoRaRF95
+LoRaRF95 lora;
+
+#endif
