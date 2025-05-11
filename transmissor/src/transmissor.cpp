@@ -227,7 +227,7 @@ void loop()
 
 void processIncoming(LoRaInterface *loraInstance)
 {
-    while (loraInstance->available())
+    if (loraInstance->available())
     {
         uint8_t buf[Config::MESSAGE_LEN + 1] = {0}; // +1 para garantir espaço para null-terminator
         uint8_t len = Config::MESSAGE_LEN;
@@ -263,7 +263,7 @@ void processIncoming(LoRaInterface *loraInstance)
             // doc["value"]
             // atualizar o TUYA a mudança de estado
         }
-
+        Serial.println((char *)buf);
         LoRaCom::ack(true, loraInstance->headerFrom());
     }
 }

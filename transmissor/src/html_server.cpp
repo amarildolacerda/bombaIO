@@ -173,12 +173,11 @@ namespace HtmlServer
         uint32_t start = millis();
         while (millis() - start < Config::COMMAND_TIMEOUT)
         {
-            LoRaCom::processIncoming();
+            LoRaCom::handle();
             if (systemState.getState() != "DESCONHECIDO")
             {
                 break;
             }
-            // delay(100);
         }
 
         server.send(200, "text/plain", systemState.getState());

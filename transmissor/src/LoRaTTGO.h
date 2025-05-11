@@ -4,7 +4,7 @@
 #ifdef TTGO
 
 #include "LoRaInterface.h"
-#include <Arduino.h>
+#include "config.h"
 #include <LoRa.h>
 
 class LoRaTTGO : public LoRaInterface
@@ -12,15 +12,16 @@ class LoRaTTGO : public LoRaInterface
 private:
     uint8_t tid = 0xFF;
     uint8_t tidTo = 0xFF;
+    long lastAvailable = 0;
 
 public:
     bool beginSetup(float frequency, bool promiscuous = true) override
     {
         LoRa.begin(frequency);
-        LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
-        LoRa.setSignalBandwidth(125E3); // 125kHz
-        LoRa.setCodingRate4(5);         // 4/5 coding rate
-        LoRa.setSyncWord(0x12);
+        // LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
+        // LoRa.setSignalBandwidth(125E3); // 125kHz
+        // LoRa.setCodingRate4(5);         // 4/5 coding rate
+        LoRa.setSyncWord(Config::LORA_SYNC_WORD);
         // LoRa.setTxPower(14);
         // LoRa.setPreambleLength(8);
         return true;
@@ -52,6 +53,13 @@ public:
                 buffer[len++] = (char)LoRa.read();
             }
             buffer[len] = '\0';
+            Serial.println((char *)buffer);
+#ifdef DEBUG_ON
+            char msg[64];
+            snprintf(msg, sizeof(msg), "From: %d To: %d id: %d", headerFrom(), headerTo(), headerId());
+            Logger::info(msg);
+#endif
+
             return true;
         }
         return false;
@@ -94,8 +102,22 @@ public:
 
     bool available() override
     {
-        return LoRa.packetSize() > 0;
+        if (millis() - lastAvailable < 50)
+        {
+            return false;
+        }
+        // Serial.print("check available: ");
+        // Serial.print(LoRa.available());
+        // Serial.println("");
+        lastAvailable = millis();
+        if (LoRa.parsePacket())
+            return LoRa.available() > 0;
+
+        return false;
     }
+    int headerFrom() override { return 0; }
+    int headerTo() override { return 0; }
+    int headerId() override { return 0; }
 };
 
 #endif // LORATTGO_H

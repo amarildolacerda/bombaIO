@@ -59,7 +59,11 @@ void LoRaCom::handle()
 
 void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const char *value)
 {
-    sprintf(message, "{\"dtype\":\"gateway\",\"event\":\"%s\",\"value\":\"%s\"}", event, value);
+    String name = "gateway";
+#ifdef TTGO
+    name = "ttgo";
+#endif
+    sprintf(message, "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}", name, event, value);
 }
 
 void LoRaCom::ack(bool ak, uint8_t tid)

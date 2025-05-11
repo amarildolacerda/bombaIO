@@ -7,18 +7,12 @@
 // Libraries: The project uses the ESP32 Arduino core libraries and other related libraries for LoRa, OLED display, and Wi-Fi functionalities.
 #include <Arduino.h>
 
-#ifdef __AVR__
-#define Dx 10
-#define Dt 11
-#endif
 // ========== Configurações do Sistema ==========
 namespace Config
 {
-#if defined(RF95) || defined(LORASERIAL) || defined(ESP8266)
 
-    constexpr uint8_t LORA_RX_PIN = Dx; // RX pin for RF95
-    constexpr uint8_t LORA_TX_PIN = Dt; // TX pin for RF95
-#endif
+    constexpr uint8_t LORA_RX_PIN = 10; // RX pin for RF95
+    constexpr uint8_t LORA_TX_PIN = 11; // TX pin for RF95
     constexpr int TERMINAL_ID = 0x00;
     constexpr int MESSAGE_LEN = 128;
     // Hardware - Pinos LoRa (TTGO LoRa32 v1)
