@@ -69,14 +69,12 @@ void LoRaCom::ack(bool ak, uint8_t tid)
     formatMessage(ackBuffer, tid, (ak) ? "ack" : "nak", "");
 
     String ackMessage = (String)ackBuffer;
+    loraInstance->setHeaderTo(tid);
+
     bool rt = loraInstance->print((ak) ? "ack" : "nak");
-    if (rt)
+    if (!rt)
     {
         Logger::log(LogLevel::ERROR, F("Falha ao enviar ACK/NACK"));
-    }
-    else
-    {
-        // Logger::log(LogLevel::INFO, "ACK/NACK enviado: " + ackMessage);
     }
 }
 

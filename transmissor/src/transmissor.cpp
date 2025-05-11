@@ -229,9 +229,6 @@ void processIncoming(LoRaInterface *loraInstance)
 {
     while (loraInstance->available())
     {
-#ifdef DEBUG_ON
-        Logger::log(LogLevel::VERBOSE, F("processIncoming"));
-#endif
         uint8_t buf[Config::MESSAGE_LEN + 1] = {0}; // +1 para garantir espaço para null-terminator
         uint8_t len = Config::MESSAGE_LEN;
         bool rt = loraInstance->receiveMessage(buf, len);
@@ -240,13 +237,6 @@ void processIncoming(LoRaInterface *loraInstance)
             return;
         }
         buf[len] = '\0'; // Garante null-terminator para uso como string
-
-#ifdef DEBUG_ON
-        // Log detalhado do buffer e comprimento
-        Logger::log(LogLevel::DEBUG, F("Conteúdo do buffer antes do JSON:"));
-        Logger::log(LogLevel::DEBUG, (const char *)buf);
-        Logger::log(LogLevel::DEBUG, String(len).c_str());
-#endif
 
         // Remove caracteres não imprimíveis antes de desserializar
         for (uint8_t i = 0; i < len; i++)
@@ -257,14 +247,8 @@ void processIncoming(LoRaInterface *loraInstance)
             }
         }
 
-#ifdef DEBUG_ON
-        // Log detalhado do buffer após limpeza
-        Logger::log(LogLevel::DEBUG, F("Conteúdo do buffer após limpeza de caracteres inválidos:"));
-        Logger::log(LogLevel::DEBUG, (const char *)buf);
-#endif
-
         // Substituir DynamicJsonDocument por StaticJsonDocument para evitar alocação dinâmica
-        StaticJsonDocument<256> doc;                                          // Reduzido para 256 bytes
+        StaticJsonDocument<128> doc;                                          // Reduzido para 256 bytes
         DeserializationError error = deserializeJson(doc, (const char *)buf); // Removido o uso de `len`
         if (error)
         {

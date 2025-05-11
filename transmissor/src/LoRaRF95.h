@@ -20,6 +20,8 @@ static RH_RF95<SoftwareSerial> rf95(SSerial);
 class LoRaRF95 : public LoRaInterface
 {
 private:
+    uint8_t _tid = 0xFF;
+
 public:
     bool beginSetup(float frequency, bool promiscuous = true) override
     {
@@ -47,6 +49,7 @@ public:
         rf95.setHeaderId(genHeaderId());
         rf95.setHeaderFrom(Config::TERMINAL_ID);
         rf95.send((uint8_t *)message, strlen(message));
+        // Serial.print(message);
         return rf95.waitPacketSent();
     }
 
@@ -59,8 +62,6 @@ public:
             uint8_t recvLen = len;
             if (rf95.recv(buffer, &recvLen))
             {
-                Logger::verbose(String(recvLen).c_str());
-
                 // Busca o último caractere '}' e ajusta o tamanho da mensagem
                 int lastBrace = -1;
                 for (uint8_t i = 0; i < recvLen; i++)
@@ -87,20 +88,31 @@ public:
                         buffer[len - 1] = '\0';
                 }
 
-                // Filtra caracteres inválidos no buffer
+                // Filtra caracteres inválidos no buffer sem alterar o conteúdo válido
                 for (uint8_t i = 0; i < recvLen; i++)
                 {
                     if (buffer[i] < 32 || buffer[i] > 126)
                     {
-                        buffer[i] = ' ';
+                        buffer[i] = ' '; // Substitui caracteres inválidos por espaço
                     }
+                }
+
+                // Log detalhado do buffer após limpeza
+
+                // Garante null-termination no final do buffer
+                if (recvLen < len)
+                {
+                    buffer[recvLen] = '\0';
+                }
+                else if (len > 0)
+                {
+                    buffer[len - 1] = '\0';
                 }
 
 #ifdef DEBUG_ON
                 char msg[64];
                 snprintf(msg, sizeof(msg), "From: %d To: %d id: %d", rf95.headerFrom(), rf95.headerTo(), rf95.headerId());
                 Logger::info(msg);
-                Logger::log(LogLevel::INFO, reinterpret_cast<const char *>(buffer));
 #endif
                 len = recvLen;
                 return true;
@@ -116,6 +128,7 @@ public:
 
     void setHeaderTo(uint8_t tid) override
     {
+        _tid = tid;
         rf95.setHeaderTo(tid);
     }
     void setHeaderFrom(uint8_t tid) override
@@ -131,7 +144,7 @@ public:
     }
     bool print(const char *message) override
     {
-        return sendMessage(0xFF, message);
+        return sendMessage(_tid, message);
     }
     bool available() override
     {
