@@ -169,7 +169,7 @@ namespace HtmlServer
 
     void handleStateRequest()
     {
-        Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleStateRequest");
+        // Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleStateRequest");
         LoRaCom::sendCommand("get", "status", 0xFF);
 
         uint32_t start = millis();
@@ -183,31 +183,31 @@ namespace HtmlServer
         }
 
         server.send(200, "text/plain", systemState.getState());
-        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleStateRequest");
+        // Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleStateRequest");
     }
 
     void handleRevertRelayRequest()
     {
-        Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleRevertRelayRequest");
-        LoRaCom::sendCommand("gpio", "revert", 0xFF);
+        //  Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleRevertRelayRequest");
+        LoRaCom::sendCommand("gpio", "toogle", 0xFF);
         server.send(200, "text/plain", "Comando de reversão enviado");
-        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleRevertRelayRequest");
+        //  Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleRevertRelayRequest");
     }
 
     void handleTurnOnRelayRequest()
     {
-        Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleTurnOnRelayRequest");
+        //  Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleTurnOnRelayRequest");
         LoRaCom::sendCommand("gpio", "on", 0xFF);
         server.send(200, "text/plain", "Comando para ligar o relé enviado");
-        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleTurnOnRelayRequest");
+        //  Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleTurnOnRelayRequest");
     }
 
     void handleTurnOffRelayRequest()
     {
-        Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleTurnOffRelayRequest");
+        // Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleTurnOffRelayRequest");
         LoRaCom::sendCommand("gpio", "off", 0xFF);
         server.send(200, "text/plain", "Comando para desligar o relé enviado");
-        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleTurnOffRelayRequest");
+        //  Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleTurnOffRelayRequest");
     }
 
     void handleDeviceListRequest()

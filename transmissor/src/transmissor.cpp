@@ -70,7 +70,6 @@ unsigned char handleTuyaCommand(unsigned char dp_id, const unsigned char dp_data
 #if defined(ESP8266) || defined(ESP32)
 void initWiFi()
 {
-    Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initWiFi");
     WiFiManager wifiManager;
     wifiManager.setTimeout(Config::WIFI_TIMEOUT_S);
 
@@ -83,29 +82,20 @@ void initWiFi()
     systemState.setWifiStatus(true);
     char ipBuffer[16]; // Buffer to store IP address as a string
     snprintf(ipBuffer, sizeof(ipBuffer), "%s", WiFi.localIP().toString().c_str());
-    // Logger::log(LogLevel::INFO, FPSTR(logWiFiConnected));
     Logger::log(LogLevel::INFO, ipBuffer);
-    Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initWiFi com sucesso");
 }
 #endif
 
 #if defined(ESP8266) || defined(ESP32)
 void initNTP()
 {
-    Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initNTP");
     configTime(Config::GMT_OFFSET_SEC, Config::DAYLIGHT_OFFSET_SEC, Config::NTP_SERVER);
     Logger::log(LogLevel::INFO, "Sincronizando com NTP...");
     struct tm timeinfo;
 
     if (!getLocalTime(&timeinfo))
     {
-        // Logger::log(LogLevel::WARNING, FPSTR(logNTPFail));
-        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initNTP com falha");
-    }
-    else
-    {
-        // Logger::log(LogLevel::INFO, FPSTR(logNTPSuccess));
-        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initNTP com sucesso");
+        return;
     }
 }
 #endif
@@ -114,11 +104,9 @@ void initNTP()
 // ========== Tuya Initialization ==========
 void initTuya()
 {
-    Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initTuya");
     my_device.init((unsigned char *)Config::LPID, (unsigned char *)Config::LMCU_VER);
     my_device.dp_process_func_register(handleTuyaCommand);
     Logger::log(LogLevel::INFO, "Tuya inicializado");
-    Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initTuya");
 }
 #endif
 
@@ -129,7 +117,6 @@ void setup()
 #ifdef DEBUG_ON
     Logger::setLogLevel(LogLevel::VERBOSE);
 #endif
-    Logger::log(LogLevel::VERBOSE, F("Entrando no procedimento: setup"));
     Serial.begin(Config::SERIAL_BAUD);
     Logger::log(LogLevel::INFO, F("Iniciando sistema..."));
 
@@ -160,7 +147,6 @@ void setup()
     if (!LoRaCom::initialize())
     {
         Logger::log(LogLevel::ERROR, F("Falha crítica no LoRa - reiniciando"));
-        // ESP.restart();
     }
     LoRaCom::setReceiveCallback(processIncoming);
 
@@ -175,10 +161,6 @@ void setup()
     Logger::log(LogLevel::INFO, "ESP8266 não possui suporte para DisplayManager. Ignorando inicialização do DisplayManager.");
 #elif TTGO
     displayManager.updateDisplay();
-#endif
-
-#ifdef DEBUG_ON
-    Logger::log(LogLevel::VERBOSE, F("Saindo do procedimento: setup"));
 #endif
 }
 

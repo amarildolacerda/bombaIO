@@ -93,22 +93,8 @@ void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const
 
 void LoRaCom::ack(bool ak, uint8_t tid)
 {
-    char ackBuffer[Config::MESSAGE_LEN];
-
-    formatMessage(ackBuffer, tid, (ak) ? "ack" : "nak", "");
-
-    String ackMessage = (String)ackBuffer;
     loraInstance->setHeaderTo(tid);
-
     bool rt = loraInstance->print((ak) ? "ack" : "nak");
-    if (!rt)
-    {
-        Logger::log(LogLevel::ERROR, F("Falha ao enviar ACK/NACK"));
-    }
-    else
-    {
-        Logger::info((ak) ? "ack" : "nak");
-    }
 }
 
 uint8_t nHeaderId = 0;

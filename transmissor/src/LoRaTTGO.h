@@ -16,6 +16,7 @@ private:
     uint8_t hTo = 0;
     uint8_t hFrom = 0;
     uint8_t hId = 0;
+    uint8_t hFlag = 0;
     bool inPromiscuous = false;
 
     void TxMode()
@@ -61,29 +62,14 @@ public:
 
         int snd = LoRa.print(message);
         bool rt = LoRa.endPacket() > 0;
-
+        Logger::log(LogLevel::SEND, message);
         LoRa.receive();
-#ifdef DEBUG_ON
-        Serial.print("Enviou: ");
-        Serial.print(message);
-        Serial.print(" Rst: ");
-        Serial.print(rt);
-        Serial.print(" sent: ");
-        Serial.println(snd);
-#endif
-        //      delay(10);
 
         return rt;
     }
 
     bool receiveMessage(uint8_t *buffer, uint8_t &len) override
     {
-        // int packetSize = LoRa.parsePacket();
-        // Serial.print("Receive ");
-        // Serial.println(packetSize);
-        // if (packetSize > 0)
-        // {
-
         len = 0;
         while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
         {
@@ -95,6 +81,7 @@ public:
             hTo = buffer[0];
             hFrom = buffer[1];
             hId = buffer[2];
+            hFlag = buffer[3];
         }
 
         // Remove os 4 primeiros bytes de controle do buffer
@@ -105,11 +92,11 @@ public:
         len = len > 4 ? len - 4 : 0;
         buffer[len] = '\0';
 
-        Serial.println((char *)buffer);
 #ifdef DEBUG_ON
         char msg[64];
-        snprintf(msg, sizeof(msg), "(%d) From: %d To: %d id: %d", _tid, headerFrom(), headerTo(), headerId());
-        Logger::info(msg);
+        snprintf(msg, sizeof(msg), "(%d) From: %d To: %d id: %d Flag: %d", _tid, headerFrom(), headerTo(), headerId(), hFlag);
+        Logger::log(LogLevel::RECEIVE, msg);
+        Logger::log(LogLevel::RECEIVE, (char *)buffer);
 #endif
 
         if (!inPromiscuous)
