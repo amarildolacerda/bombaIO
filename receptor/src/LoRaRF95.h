@@ -63,6 +63,11 @@ public:
             {
                 buffer[len] = '\0';
                 len = rf95.headerFlags();
+                char msg[64];
+                printf(msg, "From: %d To: %d id: %d Frag: %d",
+                       rf95.headerFrom(),
+                       rf95.headerTo(), rf95.headerId(), len);
+                Logger::log(LogLevel::RECEIVE, msg);
                 Logger::log(LogLevel::RECEIVE, (char *)buffer);
                 return true;
             }

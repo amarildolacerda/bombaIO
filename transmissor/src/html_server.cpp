@@ -169,8 +169,8 @@ namespace HtmlServer
 
     void handleStateRequest()
     {
-        // Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleStateRequest");
-        LoRaCom::sendCommand("get", "status", 0xFF);
+        uint8_t targetTid = server.hasArg("tid") ? server.arg("tid").toInt() : 0xFF;
+        LoRaCom::sendCommand("get", "status", targetTid);
 
         uint32_t start = millis();
         while (millis() - start < Config::COMMAND_TIMEOUT)
@@ -183,31 +183,27 @@ namespace HtmlServer
         }
 
         server.send(200, "text/plain", systemState.getState());
-        // Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleStateRequest");
     }
 
     void handleRevertRelayRequest()
     {
-        //  Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleRevertRelayRequest");
-        LoRaCom::sendCommand("gpio", "toogle", 0xFF);
+        uint8_t targetTid = server.hasArg("tid") ? server.arg("tid").toInt() : 0xFF;
+        LoRaCom::sendCommand("gpio", "toggle", targetTid);
         server.send(200, "text/plain", "Comando de reversão enviado");
-        //  Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleRevertRelayRequest");
     }
 
     void handleTurnOnRelayRequest()
     {
-        //  Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleTurnOnRelayRequest");
-        LoRaCom::sendCommand("gpio", "on", 0xFF);
+        uint8_t targetTid = server.hasArg("tid") ? server.arg("tid").toInt() : 0xFF;
+        LoRaCom::sendCommand("gpio", "on", targetTid);
         server.send(200, "text/plain", "Comando para ligar o relé enviado");
-        //  Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleTurnOnRelayRequest");
     }
 
     void handleTurnOffRelayRequest()
     {
-        // Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: handleTurnOffRelayRequest");
-        LoRaCom::sendCommand("gpio", "off", 0xFF);
+        uint8_t targetTid = server.hasArg("tid") ? server.arg("tid").toInt() : 0xFF;
+        LoRaCom::sendCommand("gpio", "off", targetTid);
         server.send(200, "text/plain", "Comando para desligar o relé enviado");
-        //  Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: handleTurnOffRelayRequest");
     }
 
     void handleDeviceListRequest()
