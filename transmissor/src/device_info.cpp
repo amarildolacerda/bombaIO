@@ -7,6 +7,8 @@ std::map<uint8_t, std::pair<String, DeviceInfoData>> DeviceInfo::deviceList;
 void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
 {
 #ifndef __AVR__
+    if ((deviceId == 0) || (deviceId == 0xFF))
+        return;
     // Atualiza a lista de dispositivos com um par de String e DeviceInfoData
     if (deviceList.find(deviceId) == deviceList.end())
     {

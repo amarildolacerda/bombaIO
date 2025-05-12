@@ -20,9 +20,15 @@ public:
     bool initialize(float frequency, uint8_t terminalId, bool promiscuous = true)
 
     {
+#ifdef ESP8266
+        Serial.swap();
+#endif
         if (!rf95.init())
         {
             Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
+            COMSerial.end();
+            Serial.begin(115200);
+
             return false;
         }
         COMSerial.setTimeout(0);

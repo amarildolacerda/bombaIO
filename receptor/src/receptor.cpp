@@ -1,8 +1,14 @@
+
+
 #include "receptor.h"
 #include "Arduino.h"
-#include <LoRaRF95.h>
-#include "logger.h"
 #include "config.h"
+
+#ifdef LORA
+#include <LoRaRF95.h>
+#endif
+#include "logger.h"
+#include "html_server.h"
 
 #ifdef ARDUINO_SAMD_VARIANT_COMPLIANCE
 #define COMSerial Serial1
@@ -14,17 +20,15 @@
 #define ShowSerial SerialUSB
 #endif
 
-const int LED_PIN = LED_BUILTIN;
-const int RELAY_PIN = 2;
-const long STATUS_INTERVAL = 5000;
-const long PRESENTATION_INTERVAL = 10000;
-unsigned long previousMillis = 0;
-volatile bool pinStateChanged = false;
-volatile int lastPinState = HIGH;
-bool mustPresentation = true;
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#include <WiFiManager.h>
+#endif
 
+#ifdef LORA
 char messageBuffer[RH_RF95_MAX_MESSAGE_LEN];
 uint8_t loraBuffer[RH_RF95_MAX_MESSAGE_LEN];
+#endif
 
 void sendStatus();
 void sendPresentation(uint8_t n = 3);
@@ -47,8 +51,8 @@ void handleInterrupt()
     unsigned long now = millis();
     if (now - last_interrupt > 50)
     {
-        pinStateChanged = true;
-        digitalWrite(LED_PIN, HIGH);
+        systemState.pinStateChanged = true;
+        digitalWrite(Config::LED_PIN, HIGH);
     }
     last_interrupt = now;
 }
@@ -65,47 +69,66 @@ void printFreeMemory()
 void setup()
 {
     Logger::setLogLevel(LogLevel::VERBOSE);
+#ifdef __AVR__
     ShowSerial.begin(115200);
     COMSerial.begin(115200);
-
     while (!ShowSerial)
         ;
+#elif ESP8266
+    Serial.begin(115200);
+    WiFiManager wifiManager;
+    wifiManager.autoConnect("AutoConnectAP");
+
+    delay(5000);
+
+    // Serial.begin(9600);
+
+#endif
     Logger::log(LogLevel::INFO, "RF95 Server Initializing...");
 
-    pinMode(LED_PIN, OUTPUT);
-    pinMode(RELAY_PIN, OUTPUT);
-    digitalWrite(RELAY_PIN, HIGH);
-    digitalWrite(LED_PIN, HIGH);
+    pinMode(Config::LED_PIN, OUTPUT);
+    pinMode(Config::RELAY_PIN, OUTPUT);
+    digitalWrite(Config::RELAY_PIN, HIGH);
+    digitalWrite(Config::LED_PIN, HIGH);
 
-    attachInterrupt(digitalPinToInterrupt(RELAY_PIN), handleInterrupt, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN), handleInterrupt, CHANGE);
 
-    lastPinState = digitalRead(RELAY_PIN);
+    systemState.lastPinState = digitalRead(Config::RELAY_PIN);
+
+#ifdef ESP8266
+    initHtmlServer();
+#endif
 
     if (!lora.initialize(Config::BAND, Config::TERMINAL_ID, Config::PROMISCUOS))
     {
         Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
     }
 
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(Config::LED_PIN, LOW);
 }
 
 void formatMessage(uint8_t tid, const char *event, const char *value = "")
 {
+#ifdef LORA
     sprintf(messageBuffer,
             "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}",
             Config::TERMINAL_NAME, event, value);
+#endif
 }
 
 void sendFormattedMessage(uint8_t tid, const char *event, const char *value)
 {
-    digitalWrite(LED_PIN, HIGH);
+#ifdef LORA
+    digitalWrite(Config::LED_PIN, HIGH);
     formatMessage(tid, event, value);
     lora.sendMessage(tid, messageBuffer);
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(Config::LED_PIN, LOW);
+#endif
 }
 
 void sendPresentation(uint8_t n)
 {
+#ifdef LORA
     bool ackReceived = false;
     for (int attempt = 0; attempt < n && !ackReceived; ++attempt)
     {
@@ -113,19 +136,21 @@ void sendPresentation(uint8_t n)
         sendFormattedMessage(0, "presentation", ("RSSI:" + String(lora.getLastRssi())).c_str());
         // Logger::info("Presentation");
     }
+#endif
 }
 
 void sendStatus()
 {
-    int currentState = digitalRead(RELAY_PIN);
+    int currentState = digitalRead(Config::RELAY_PIN);
     const char *status = currentState == HIGH ? "on" : "off";
     sendFormattedMessage(0x00, "status", status);
-    lastPinState = currentState;
-    pinStateChanged = false;
+    systemState.lastPinState = currentState;
+    systemState.pinStateChanged = false;
 }
 
 bool processAndRespondToMessage(const char *message)
 {
+#ifdef LORA
     uint8_t tid = 0; // Placeholder for terminal ID
     bool handled = false;
     if (message == nullptr)
@@ -136,33 +161,33 @@ bool processAndRespondToMessage(const char *message)
 
     // Logger::debug(message);
 
-    constexpr const char *keywordsNoAck[] PROGMEM = {"ack", "nak"};
-    constexpr const char *keywordsAck[] PROGMEM = {"presentation", "get", "set", "gpio"};
+    const char *keywordsNoAck[] = {"ack", "nak"};
+    const char *keywordsAck[] = {"presentation", "get", "set", "gpio"};
 
     if ((strstr_P(message, PSTR("get")) != nullptr) && (strstr_P(message, PSTR("status")) != nullptr))
     {
-        pinStateChanged = true;
+        systemState.pinStateChanged = true;
         handled = true;
     }
     else if (strstr_P(message, PSTR("\"off\"")) != nullptr)
     {
-        digitalWrite(RELAY_PIN, LOW);
+        digitalWrite(Config::RELAY_PIN, LOW);
         handled = Logger::log(LogLevel::INFO, "Relay OFF");
     }
     else if (strstr_P(message, PSTR("\"on\"")) != nullptr)
     {
-        digitalWrite(RELAY_PIN, HIGH);
+        digitalWrite(Config::RELAY_PIN, HIGH);
         handled = Logger::log(LogLevel::INFO, "Relay ON");
     }
     else if (strstr_P(message, PSTR("toggle")) != nullptr)
     {
-        int currentState = digitalRead(RELAY_PIN);
-        digitalWrite(RELAY_PIN, !currentState);
+        int currentState = digitalRead(Config::RELAY_PIN);
+        digitalWrite(Config::RELAY_PIN, !currentState);
         handled = Logger::log(LogLevel::INFO, "Relay toggled ");
     }
     else if (strstr_P(message, PSTR("presentation")) != nullptr)
     {
-        mustPresentation = true;
+        systemState.mustPresentation = true;
         handled = true;
     }
     else if (strstr_P(message, PSTR("ping")) != nullptr)
@@ -192,43 +217,60 @@ bool processAndRespondToMessage(const char *message)
     }
     ack(handled, tid);
     return handled;
+#else
+    return false;
+#endif
 }
 
 void ack(bool ak, uint8_t tid)
 {
+#ifdef LORA
     lora.sendMessage(tid, ak ? "ack" : "nak");
+#endif
 }
 
 void handleLoraIncomingMessages()
 {
+#ifdef LORA
     uint8_t len = RH_RF95_MAX_MESSAGE_LEN;
     if (lora.receiveMessage((char *)loraBuffer, len))
     {
         processAndRespondToMessage((const char *)loraBuffer);
     }
+#endif
 }
 
 void loop()
 {
+    digitalWrite(Config::LED_PIN, HIGH);
     handleLoraIncomingMessages();
-    if ((pinStateChanged) || (millis() - previousMillis >= STATUS_INTERVAL))
+#ifdef LORA
+    if ((systemState.pinStateChanged) || (millis() - systemState.previousMillis >= Config::STATUS_INTERVAL))
     {
-        previousMillis = millis();
+        systemState.previousMillis = millis();
         sendStatus();
-        pinStateChanged = false;
+        systemState.pinStateChanged = false;
         int rssi = lora.getLastRssi();
         if (rssi != 0)
         {
             Logger::log(LogLevel::WARNING, String("RSSI: " + String(rssi) + " dBm").c_str());
         }
     }
+#endif
 
     handleLoraIncomingMessages();
     static unsigned long lastPresentationMillis = 0;
-    if (mustPresentation || millis() - lastPresentationMillis >= PRESENTATION_INTERVAL)
+    if (systemState.mustPresentation || millis() - lastPresentationMillis >= Config::PRESENTATION_INTERVAL)
     {
         sendPresentation(1);
-        mustPresentation = false;
+        systemState.mustPresentation = false;
         lastPresentationMillis = millis();
+#ifdef ESP8266
+        sendFormattedMessage(0xFF, "ip", WiFi.localIP().toString().c_str());
+#endif
     }
+#ifdef ESP8266
+    processHtmlServer();
+#endif
+    digitalWrite(Config::LED_PIN, LOW);
 }

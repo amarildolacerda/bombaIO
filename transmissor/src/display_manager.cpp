@@ -65,6 +65,7 @@ void DisplayManager::updateDisplay()
 }
 void DisplayManager::showFooter()
 {
+    dispCount = DeviceInfo::deviceList.size();
     display.setTextColor(SSD1306_WHITE);
     display.fillRect(0, Config::SCREEN_HEIGHT - 10, Config::SCREEN_WIDTH,
                      10, SSD1306_WHITE);
