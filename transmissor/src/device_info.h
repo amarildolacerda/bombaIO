@@ -17,6 +17,7 @@ struct DeviceInfoData
     String value;
     String name;
     String lastSeenISOTime;
+    String status;
     int rssi;
     // Adicione outros campos conforme necessário
 };
@@ -24,7 +25,7 @@ struct DeviceInfoData
 class DeviceInfo
 {
 public:
-    static void updateDeviceList(uint8_t deviceId, const DeviceInfoData data);
+    static void updateDeviceList(uint8_t deviceId, DeviceInfoData data);
     static String getISOTime();
 
 #ifndef __AVR__

@@ -10,12 +10,7 @@ namespace HtmlServer
 
     void generateHtmlPage();
     void generateDeviceListHtmlPage();
-    void handleRootRequest();
-    void handleStateRequest();
-    void handleRevertRelayRequest();
-    void handleTurnOnRelayRequest();
-    void handleTurnOffRelayRequest();
-    void handleDeviceListRequest();
+    void handleToggleDevice();
     void initWebServer();
 
     void process();

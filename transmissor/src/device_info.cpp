@@ -4,11 +4,30 @@
 // Define o membro estático corretamente
 std::map<uint8_t, std::pair<String, DeviceInfoData>> DeviceInfo::deviceList;
 
-void DeviceInfo::updateDeviceList(uint8_t deviceId, const DeviceInfoData data)
+void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
 {
 #ifndef __AVR__
     // Atualiza a lista de dispositivos com um par de String e DeviceInfoData
-    deviceList[deviceId] = std::make_pair(data.event, data);
+    if (deviceList.find(deviceId) == deviceList.end())
+    {
+        data.status = "DESCONHECIDO";
+        deviceList[deviceId] = std::make_pair(data.event, data);
+    }
+    else
+    {
+        // atualiza os dados
+        deviceList[deviceId].first = data.event;
+        deviceList[deviceId].second.event = data.event;
+        deviceList[deviceId].second.value = data.value;
+        deviceList[deviceId].second.rssi = data.rssi;
+        deviceList[deviceId].second.lastSeenISOTime = data.lastSeenISOTime;
+        if (data.event == "status")
+        {
+            data.value.toUpperCase();
+            deviceList[deviceId].second.status = data.value;
+        }
+    }
+
 #endif
 }
 
