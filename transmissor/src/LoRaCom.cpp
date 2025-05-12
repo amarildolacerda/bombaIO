@@ -198,7 +198,7 @@ bool LoRaCom::waitAck()
 
     digitalWrite(LED_BUILTIN, LOW); // Turn off LED
 
-    ack(false);
+    // ack(false);
     return false;
 }
 
