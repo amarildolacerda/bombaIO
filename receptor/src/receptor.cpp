@@ -136,6 +136,9 @@ bool processAndRespondToMessage(const char *message)
 
     // Logger::debug(message);
 
+    constexpr const char *keywords[] PROGMEM = {"ack", "nak"};
+    constexpr const char *keywordsAck[] PROGMEM = {"presentation", "get", "set", "gpio"};
+
     if ((strstr_P(message, PSTR("get")) != nullptr) && (strstr_P(message, PSTR("status")) != nullptr))
     {
         pinStateChanged = true;
@@ -171,7 +174,6 @@ bool processAndRespondToMessage(const char *message)
     // Verifica se message contém algum dos valores no vetor (nao responde)
     if (!handled)
     {
-        const char *keywords[] = {"ack", "nak"};
         for (const char *keyword : keywords)
         {
             if (strstr_P(message, keyword) != nullptr)
@@ -182,8 +184,6 @@ bool processAndRespondToMessage(const char *message)
     } // Verifica se message contém algum dos valores no vetor (responde com ack)
     if (!handled)
     {
-        const char *keywordsAck[] = {"presentation", "get"};
-
         for (const char *keyword : keywordsAck)
         {
             if (strstr_P(message, keyword) != nullptr)
