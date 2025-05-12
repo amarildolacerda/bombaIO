@@ -71,25 +71,17 @@ public:
     bool receiveMessage(uint8_t *buffer, uint8_t &len) override
     {
         len = 0;
+        if (LoRa.available())
+        {
+            hTo = LoRa.read();
+            hFrom = LoRa.read();
+            hId = LoRa.read();
+            hFlag = LoRa.read();
+        }
         while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
         {
             buffer[len++] = (char)LoRa.read();
         }
-        buffer[len] = '\0';
-        if (len > 4)
-        {
-            hTo = buffer[0];
-            hFrom = buffer[1];
-            hId = buffer[2];
-            hFlag = buffer[3];
-        }
-
-        // Remove os 4 primeiros bytes de controle do buffer
-        for (uint8_t i = 0; i < len - 4; ++i)
-        {
-            buffer[i] = buffer[i + 4];
-        }
-        len = len > 4 ? len - 4 : 0;
         buffer[len] = '\0';
 
 #ifdef DEBUG_ON
@@ -98,7 +90,6 @@ public:
         Logger::log(LogLevel::RECEIVE, msg);
         Logger::log(LogLevel::RECEIVE, (char *)buffer);
 #endif
-
         if (!inPromiscuous)
         {
             if (hTo != 0xFF && hTo != _tid)
@@ -106,10 +97,7 @@ public:
                 return false;
             }
         }
-
         return true;
-        //}
-        // return false;
     }
 
     bool print(const char *message) override

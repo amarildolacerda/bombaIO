@@ -40,7 +40,7 @@ public:
         rf95.setModeTx();
         rf95.setHeaderTo(tid);
         rf95.setHeaderId(genHeaderId());
-        uint8_t flags = strlen(message); // total enviado//
+        uint8_t flags = (uint8_t)(strlen(message) & 0xFF); // total enviado, limitado a 255
         rf95.setHeaderFlags(flags, 0x00);
         rf95.send((uint8_t *)message, strlen(message));
         if (!rf95.waitPacketSent())
