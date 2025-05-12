@@ -9,13 +9,14 @@
 SoftwareSerial SSerial(10, 11); // RX, TX
 #define COMSerial SSerial
 #define ShowSerial Serial
+#elif ESP8266
+#define COMSerial Serial
 #endif
 
 class LoRaRF95
 {
 public:
     LoRaRF95() : rf95(COMSerial) {}
-
     bool initialize(float frequency, uint8_t terminalId, bool promiscuous = true)
 
     {
