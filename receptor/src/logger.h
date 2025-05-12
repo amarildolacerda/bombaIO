@@ -35,7 +35,7 @@ public:
         log(LogLevel::DEBUG, message);
     }
 
-    static void log(LogLevel level, const char *message);
+    static bool log(LogLevel level, const char *message);
 
 private:
     static LogLevel currentLogLevel;

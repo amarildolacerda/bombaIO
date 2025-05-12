@@ -127,70 +127,75 @@ void sendStatus()
 bool processAndRespondToMessage(const char *message)
 {
     uint8_t tid = 0; // Placeholder for terminal ID
+    bool handled = false;
     if (message == nullptr)
     {
-        ack(false, tid);
+        // ack(false, tid);
         return false;
     }
 
     // Logger::debug(message);
-    if (strstr_P(message, PSTR("status")) != nullptr)
+
+    if ((strstr_P(message, PSTR("get")) != nullptr) && (strstr_P(message, PSTR("status")) != nullptr))
     {
         pinStateChanged = true;
-        ack(true, tid);
+        handled = true;
     }
     else if (strstr_P(message, PSTR("\"off\"")) != nullptr)
     {
-        ack(true, tid);
         digitalWrite(RELAY_PIN, LOW);
-        Logger::log(LogLevel::INFO, "Relay OFF");
+        handled = Logger::log(LogLevel::INFO, "Relay OFF");
     }
     else if (strstr_P(message, PSTR("\"on\"")) != nullptr)
     {
-        ack(true, tid);
         digitalWrite(RELAY_PIN, HIGH);
-        Logger::log(LogLevel::INFO, "Relay ON");
+        handled = Logger::log(LogLevel::INFO, "Relay ON");
     }
     else if (strstr_P(message, PSTR("toggle")) != nullptr)
     {
-        ack(true, tid);
         int currentState = digitalRead(RELAY_PIN);
         digitalWrite(RELAY_PIN, !currentState);
-        Logger::log(LogLevel::INFO, "Relay toggled ");
+        handled = Logger::log(LogLevel::INFO, "Relay toggled ");
     }
     else if (strstr_P(message, PSTR("presentation")) != nullptr)
     {
-        ack(true, tid);
         mustPresentation = true;
+        handled = true;
+        return true;
     }
     else if (strstr_P(message, PSTR("ping")) != nullptr)
     {
         lora.sendMessage(tid, "pong");
-        Logger::log(LogLevel::INFO, "Pong sent");
+        handled = Logger::log(LogLevel::INFO, "Pong sent");
     }
     // Verifica se message contém algum dos valores no vetor (nao responde)
-    const char *keywords[] = {"ack", "nak"};
-    for (const char *keyword : keywords)
+    if (!handled)
     {
-        if (strstr_P(message, keyword) != nullptr)
+        const char *keywords[] = {"ack", "nak"};
+        for (const char *keyword : keywords)
         {
-            return true;
+            if (strstr_P(message, keyword) != nullptr)
+            {
+                return true;
+            }
         }
-    }
-    // Verifica se message contém algum dos valores no vetor (responde com ack)
-    const char *keywordsAck[] = {"presentation", "get"};
-    for (const char *keyword : keywordsAck)
+    } // Verifica se message contém algum dos valores no vetor (responde com ack)
+    if (!handled)
     {
-        if (strstr_P(message, keyword) != nullptr)
+        const char *keywordsAck[] = {"presentation", "get"};
+
+        for (const char *keyword : keywordsAck)
         {
-            ack(true, tid);
-            return true;
+            if (strstr_P(message, keyword) != nullptr)
+            {
+                handled = true;
+                return true;
+            }
         }
     }
 
-    // nao reconheceu o comando.
-    ack(false, tid);
-    return false;
+    ack(handled, tid);
+    return handled;
 }
 
 void ack(bool ak, uint8_t tid)
