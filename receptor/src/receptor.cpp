@@ -136,7 +136,7 @@ bool processAndRespondToMessage(const char *message)
 
     // Logger::debug(message);
 
-    constexpr const char *keywords[] PROGMEM = {"ack", "nak"};
+    constexpr const char *keywordsNoAck[] PROGMEM = {"ack", "nak"};
     constexpr const char *keywordsAck[] PROGMEM = {"presentation", "get", "set", "gpio"};
 
     if ((strstr_P(message, PSTR("get")) != nullptr) && (strstr_P(message, PSTR("status")) != nullptr))
@@ -164,36 +164,32 @@ bool processAndRespondToMessage(const char *message)
     {
         mustPresentation = true;
         handled = true;
-        return true;
     }
     else if (strstr_P(message, PSTR("ping")) != nullptr)
     {
         lora.sendMessage(tid, "pong");
-        handled = Logger::log(LogLevel::INFO, "Pong sent");
+        // nao responde com ack nem nak
+        return true;
     }
-    // Verifica se message contém algum dos valores no vetor (nao responde)
-    if (!handled)
+    else
     {
-        for (const char *keyword : keywords)
+        // Verifica se message contém algum dos valores no vetor (nao responde)
+        for (const char *keyword : keywordsNoAck)
         {
             if (strstr_P(message, keyword) != nullptr)
             {
+                // nao responde ACK nem NAK
                 return true;
             }
         }
-    } // Verifica se message contém algum dos valores no vetor (responde com ack)
-    if (!handled)
-    {
         for (const char *keyword : keywordsAck)
         {
             if (strstr_P(message, keyword) != nullptr)
             {
                 handled = true;
-                return true;
             }
         }
     }
-
     ack(handled, tid);
     return handled;
 }
@@ -214,6 +210,7 @@ void handleLoraIncomingMessages()
 
 void loop()
 {
+    handleLoraIncomingMessages();
     if ((pinStateChanged) || (millis() - previousMillis >= STATUS_INTERVAL))
     {
         previousMillis = millis();

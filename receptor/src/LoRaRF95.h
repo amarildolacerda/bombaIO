@@ -52,6 +52,7 @@ public:
             Logger::log(LogLevel::SEND, message);
         }
         rf95.setModeRx();
+        delay(10);
     }
 
     bool receiveMessage(char *buffer, uint8_t &len)
