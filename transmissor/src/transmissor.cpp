@@ -248,6 +248,12 @@ void processIncoming(LoRaInterface *loraInstance)
         }
     }
 
+    if (len <= 10)
+    {
+        // não é um dado do protocolo alto
+        return;
+    }
+
     // Substituir DynamicJsonDocument por StaticJsonDocument para evitar alocação dinâmica
     StaticJsonDocument<128> doc;                                          // Reduzido para 256 bytes
     DeserializationError error = deserializeJson(doc, (const char *)buf); // Removido o uso de `len`

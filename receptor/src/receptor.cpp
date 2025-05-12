@@ -111,7 +111,7 @@ void sendPresentation(uint8_t n)
     {
         String attemptMessage = String(attempt + 1);
         sendFormattedMessage(0, "presentation", ("RSSI:" + String(lora.getLastRssi())).c_str());
-        Logger::info("Presentation");
+        // Logger::info("Presentation");
     }
 }
 
@@ -128,27 +128,30 @@ bool processAndRespondToMessage(const char *message)
 {
     uint8_t tid = 0; // Placeholder for terminal ID
     if (message == nullptr)
+    {
+        ack(false, tid);
         return false;
+    }
 
-    Logger::debug(message);
+    // Logger::debug(message);
     if (strstr_P(message, PSTR("status")) != nullptr)
     {
         pinStateChanged = true;
         ack(true, tid);
     }
-    else if (strstr_P(message, PSTR("ligar")) != nullptr)
+    else if (strstr_P(message, PSTR("\"off\"")) != nullptr)
     {
         ack(true, tid);
         digitalWrite(RELAY_PIN, LOW);
-        Logger::log(LogLevel::INFO, "Relay ON");
+        Logger::log(LogLevel::INFO, "Relay OFF");
     }
-    else if (strstr_P(message, PSTR("desligar")) != nullptr)
+    else if (strstr_P(message, PSTR("\"on\"")) != nullptr)
     {
         ack(true, tid);
         digitalWrite(RELAY_PIN, HIGH);
-        Logger::log(LogLevel::INFO, "Relay OFF");
+        Logger::log(LogLevel::INFO, "Relay ON");
     }
-    else if (strstr_P(message, PSTR("reverter")) != nullptr)
+    else if (strstr_P(message, PSTR("toggle")) != nullptr)
     {
         ack(true, tid);
         int currentState = digitalRead(RELAY_PIN);
@@ -165,11 +168,29 @@ bool processAndRespondToMessage(const char *message)
         lora.sendMessage(tid, "pong");
         Logger::log(LogLevel::INFO, "Pong sent");
     }
-    else
+    // Verifica se message contém algum dos valores no vetor (nao responde)
+    const char *keywords[] = {"ack", "nak"};
+    for (const char *keyword : keywords)
     {
-        return false;
+        if (strstr_P(message, keyword) != nullptr)
+        {
+            return true;
+        }
     }
-    return true;
+    // Verifica se message contém algum dos valores no vetor (responde com ack)
+    const char *keywordsAck[] = {"presentation", "get"};
+    for (const char *keyword : keywordsAck)
+    {
+        if (strstr_P(message, keyword) != nullptr)
+        {
+            ack(true, tid);
+            return true;
+        }
+    }
+
+    // nao reconheceu o comando.
+    ack(false, tid);
+    return false;
 }
 
 void ack(bool ak, uint8_t tid)
@@ -182,11 +203,7 @@ void handleLoraIncomingMessages()
     uint8_t len = RH_RF95_MAX_MESSAGE_LEN;
     if (lora.receiveMessage((char *)loraBuffer, len))
     {
-        Logger::log(LogLevel::INFO, "Mensagem recebida: ");
-        if (!processAndRespondToMessage((const char *)loraBuffer))
-        {
-            ack(false, 0x00);
-        }
+        processAndRespondToMessage((const char *)loraBuffer);
     }
 }
 
@@ -200,7 +217,7 @@ void loop()
         int rssi = lora.getLastRssi();
         if (rssi != 0)
         {
-            Logger::log(LogLevel::INFO, String("RSSI: " + String(rssi) + " dBm").c_str());
+            Logger::log(LogLevel::WARNING, String("RSSI: " + String(rssi) + " dBm").c_str());
         }
     }
 

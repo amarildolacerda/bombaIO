@@ -18,34 +18,61 @@ private:
     uint8_t hId = 0;
     bool inPromiscuous = false;
 
+    void TxMode()
+    {
+        Logger::verbose("TxMode");
+        LoRa.idle();
+        //  LoRa.enableInvertIQ();
+    }
+    static void RxMode()
+    {
+        // LoRa.disableInvertIQ();
+        Logger::verbose("RxMode");
+        LoRa.receive();
+    }
+
 public:
     bool beginSetup(float frequency, bool promiscuous = true) override
     {
         LoRa.begin(frequency);
-        // LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
-        // LoRa.setSignalBandwidth(125E3); // 125kHz
-        // LoRa.setCodingRate4(5);         // 4/5 coding rate
+        LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
+        LoRa.setSignalBandwidth(125E3); // 125kHz
+        LoRa.setCodingRate4(5);         // 4/5 coding rate
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
-        // LoRa.setTxPower(14);
-        // LoRa.setPreambleLength(8);
+        LoRa.setTxPower(23);
+        LoRa.setPreambleLength(8);
         inPromiscuous = promiscuous;
+        LoRa.receive();
+
         return true;
     }
 
     bool sendMessage(uint8_t tidTo, const char *message) override
     {
         char m[251] = {0}; // Reduzido para evitar uso excessivo de memória
-        m[0] = tidTo > -1 ? tidTo : _tidTo;
-        m[1] = _tid;
-        m[2] = genHeaderId();
-        m[3] = 0xFF;                            // 0x00 = no future
-        strncpy(m + 4, message, sizeof(m) - 5); // Usar strncpy para evitar buffer overflow
 
+        LoRa.idle();
         LoRa.beginPacket();
-        LoRa.write((uint8_t *)m, strlen(m));
+
+        LoRa.write(tidTo > -1 ? tidTo : _tidTo);
+        LoRa.write(_tid);
+        LoRa.write(genHeaderId());
+        LoRa.write(strlen(message));
+
+        int snd = LoRa.print(message);
         bool rt = LoRa.endPacket() > 0;
 
-        delay(10);
+        LoRa.receive();
+#ifdef DEBUG_ON
+        Serial.print("Enviou: ");
+        Serial.print(message);
+        Serial.print(" Rst: ");
+        Serial.print(rt);
+        Serial.print(" sent: ");
+        Serial.println(snd);
+#endif
+        //      delay(10);
+
         return rt;
     }
 
@@ -56,6 +83,7 @@ public:
         // Serial.println(packetSize);
         // if (packetSize > 0)
         // {
+
         len = 0;
         while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
         {
@@ -139,15 +167,6 @@ public:
             return false;
         }
         int b = LoRa.parsePacket();
-        // int a = LoRa.available();
-        if (b > 0)
-        {
-            //  Serial.print("check available: ");
-            //  Serial.print(a);
-            Serial.print(" packet ");
-            Serial.print(b);
-            Serial.println("");
-        }
         lastAvailable = millis();
         return (b > 0);
     }

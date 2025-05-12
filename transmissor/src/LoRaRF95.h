@@ -48,6 +48,7 @@ public:
         rf95.setHeaderTo(tid);
         rf95.setHeaderId(genHeaderId());
         rf95.setHeaderFrom(Config::TERMINAL_ID);
+        rf95.setHeaderFlags(strlen(message));
         rf95.send((uint8_t *)message, strlen(message));
         // Serial.print(message);
         return rf95.waitPacketSent();

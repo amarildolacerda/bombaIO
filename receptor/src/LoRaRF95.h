@@ -21,7 +21,7 @@ public:
     {
         if (!rf95.init())
         {
-            Logger::log(LogLevel::INFO, "LoRa initialization failed!");
+            Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
             return false;
         }
         COMSerial.setTimeout(0);
@@ -37,8 +37,11 @@ public:
 
     void sendMessage(uint8_t tid, const char *message)
     {
+        rf95.setModeTx();
         rf95.setHeaderTo(tid);
         rf95.setHeaderId(genHeaderId());
+        uint8_t flags = strlen(message); // total enviado//
+        rf95.setHeaderFlags(flags, 0x00);
         rf95.send((uint8_t *)message, strlen(message));
         if (!rf95.waitPacketSent())
         {
@@ -46,8 +49,9 @@ public:
         }
         else
         {
-            Logger::log(LogLevel::DEBUG, message);
+            Logger::log(LogLevel::SEND, message);
         }
+        rf95.setModeRx();
     }
 
     bool receiveMessage(char *buffer, uint8_t &len)
@@ -57,6 +61,8 @@ public:
             if (rf95.recv((uint8_t *)buffer, &len))
             {
                 buffer[len] = '\0';
+                len = rf95.headerFlags();
+                Logger::log(LogLevel::RECEIVE, (char *)buffer);
                 return true;
             }
         }

@@ -7,6 +7,8 @@ enum class LogLevel
 {
     ERROR,
     WARNING,
+    RECEIVE,
+    SEND,
     INFO,
     DEBUG, // Substituir DEBUG por DEBUG_ON
     VERBOSE

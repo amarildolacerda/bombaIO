@@ -59,22 +59,13 @@ void LoRaCom::handle()
 {
     if (loraInstance->available())
     {
-#ifdef DEBUG_ON
-        Logger::log(LogLevel::DEBUG, "LoRaCom::handle - Pacote disponível");
-#endif
         if (onReceiveCallback)
         {
-#ifdef DEBUG_ON
-            Logger::log(LogLevel::DEBUG, "LoRaCom::handle - Callback definido, chamando callback");
-#endif
             onReceiveCallback(loraInstance);
         }
         else
         {
-#ifdef DEBUG_ON
-            Logger::log(LogLevel::DEBUG, "LoRaCom::handle - Callback não definido");
-#endif
-            Serial.println(F("Não definiu callback para receber os dados"));
+            Logger::log(LogLevel::ERROR, F("Não definiu callback para receber os dados"));
         }
     }
     else

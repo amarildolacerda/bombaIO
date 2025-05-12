@@ -7,13 +7,11 @@ enum class LogLevel
 {
     ERROR,
     WARNING,
+    RECEIVE,
+    SEND,
     INFO,
-#if defined(ENABLE_DEBUG)
     DEBUG,
-#endif
-#if defined(ENABLE_VERBOSE)
     VERBOSE
-#endif
 };
 
 class Logger

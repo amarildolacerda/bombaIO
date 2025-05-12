@@ -15,29 +15,18 @@ void Logger::log(LogLevel level, const char *message)
     }
 
     static const char *levelStrings[] = {
-        "[ERRO]", "[WARN]", "[INFO]"
-#if defined(ENABLE_DEBUG)
-        ,
-        "[DBUG]"
-#endif
-#if defined(ENABLE_VERBOSE)
-        ,
-        "[VERB]"
-#endif
-    };
+        "[ERRO]", "[WARN]", "[RECV]", "[SEND]", "[INFO]",
+        "[DBUG]",
+        "[VERB]"};
 
     static const char *colorCodes[] = {
-        "\033[31m", // ERROR - Red
-        "\033[34m", // WARNING - Blue
-        "\033[32m"  // INFO - Green
-#if defined(ENABLE_DEBUG)
-        ,
-        "\033[33m" // DEBUG - Yellow
-#endif
-#if defined(ENABLE_VERBOSE)
-        ,
-        "\033[36m" // VERBOSE - Cyan
-#endif
+        "\033[31m", // ERRO - Red
+        "\033[34m", // WARN - Blue
+        "\033[35m", // RECEIVE - Magenta
+        "\033[36m", // SEND - Cyan
+        "\033[32m", // INFO - Green
+        "\033[33m", // DBUG - Yellow
+        "\033[37m"  // VERB - White
     };
 
     int idx = static_cast<int>(level);
