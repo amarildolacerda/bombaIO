@@ -37,11 +37,11 @@ public:
 
     void sendMessage(uint8_t tid, const char *message)
     {
+
         rf95.setModeTx();
         rf95.setHeaderTo(tid);
         rf95.setHeaderId(genHeaderId());
-        uint8_t flags = (uint8_t)(strlen(message) & 0xFF); // total enviado, limitado a 255
-        rf95.setHeaderFlags(flags, 0x00);
+        rf95.setHeaderFlags(strlen(message), 0xFF);
         rf95.send((uint8_t *)message, strlen(message));
         if (!rf95.waitPacketSent())
         {
@@ -62,11 +62,10 @@ public:
             if (rf95.recv((uint8_t *)buffer, &len))
             {
                 buffer[len] = '\0';
-                len = rf95.headerFlags();
                 char msg[64];
-                printf(msg, "From: %d To: %d id: %d Frag: %d",
-                       rf95.headerFrom(),
-                       rf95.headerTo(), rf95.headerId(), len);
+                snprintf(msg, len, "From: %d To: %d id: %d Flag: %d",
+                         rf95.headerFrom(),
+                         rf95.headerTo(), rf95.headerId(), len);
                 Logger::log(LogLevel::RECEIVE, msg);
                 Logger::log(LogLevel::RECEIVE, (char *)buffer);
                 return true;
