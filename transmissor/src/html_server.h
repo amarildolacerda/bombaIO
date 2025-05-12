@@ -6,6 +6,8 @@ namespace HtmlServer
 {
 
     // ========== Web Server Implementations ==========
+    void waitTimeout(const bool ateQueDiferente, const int timeout = 3000);
+
     void generateHtmlPage();
     void generateDeviceListHtmlPage();
     void handleRootRequest();

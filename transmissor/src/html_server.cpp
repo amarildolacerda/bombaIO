@@ -55,6 +55,12 @@ namespace HtmlServer
         return styles;
     }
 
+    void waitTimeout(const bool ateQueDiferente, const int timeout)
+    {
+        // Este método não será mais usado para esperar no lado do servidor.
+        // A lógica de atualização será movida para o JavaScript na página HTML.
+    }
+
     void generateHtmlPage()
     {
         String html = "<!DOCTYPE html><html lang='pt-BR'>";
@@ -86,77 +92,42 @@ namespace HtmlServer
         html += "    <div class='status'>RSSI Atual: " + String(LoRaCom::packetRssi()) + " dBm</div>";
         html += "  </div>";
 
-        html += "  <div class='card'>";
-        html += "    <h2>Gerenciamento do Sistema</h2>";
-        html += "    <div class='button-group'>";
-        html += "      <a href='/ota'><button class='btn-info'>Atualização OTA</button></a>";
-        html += "      <button onclick='location.reload()' class='btn-warning'>Recarregar Página</button>";
-        html += "      <a href='/devices'><button class='btn-info'>Lista de Dispositivos</button></a>";
-        html += "    </div>";
-        html += "  </div>";
-        html += "</div>";
-
-        html += "<script>";
-        html += "async function showAlert(message, isError = false) {";
-        html += "  const alertBox = document.createElement('div');";
-        html += "  alertBox.style.position = 'fixed';";
-        html += "  alertBox.style.top = '20px';";
-        html += "  alertBox.style.left = '50%';";
-        html += "  alertBox.style.transform = 'translateX(-50%)';";
-        html += "  alertBox.style.padding = '15px 25px';";
-        html += "  alertBox.style.background = isError ? '#e74c3c' : '#2ecc71';";
-        html += "  alertBox.style.color = 'white';";
-        html += "  alertBox.style.borderRadius = '5px';";
-        html += "  alertBox.style.boxShadow = '0 3px 10px rgba(0,0,0,0.2)';";
-        html += "  alertBox.style.zIndex = '1000';";
-        html += "  alertBox.textContent = message;";
-        html += "  document.body.appendChild(alertBox);";
-        html += "  setTimeout(() => alertBox.remove(), 3000);";
-        html += "}";
-
+        html += "  <script>";
         html += "async function fetchData(url, method = 'GET') {";
         html += "  try {";
-        html += "    document.getElementById('stateInfo').textContent = 'Carregando...';";
         html += "    const response = await fetch(url, { method });";
         html += "    if (!response.ok) throw new Error('Erro na requisição');";
         html += "    return await response.text();";
         html += "  } catch (error) {";
-        html += "    showAlert(error.message, true);";
-        html += "    throw error;";
+        html += "    console.error(error);";
+        html += "    return 'Erro';";
         html += "  }";
         html += "}";
 
         html += "async function getState() {";
-        html += "  try {";
-        html += "    const state = await fetchData('/getState');";
-        html += "    document.getElementById('stateInfo').textContent = 'Estado atual: ' + state;";
-        html += "  } catch {}";
+        html += "  const state = await fetchData('/getState');";
+        html += "  document.getElementById('stateInfo').textContent = 'Estado atual: ' + state;";
         html += "}";
 
         html += "async function turnOnRelay() {";
-        html += "  try {";
-        html += "    const message = await fetchData('/turnOnRelay', 'POST');";
-        html += "    showAlert('Relé ligado: ' + message);";
-        html += "    await getState();";
-        html += "  } catch {}";
+        html += "  await fetchData('/turnOnRelay', 'POST');";
+        html += "  getState();";
         html += "}";
 
         html += "async function turnOffRelay() {";
-        html += "  try {";
-        html += "    const message = await fetchData('/turnOffRelay', 'POST');";
-        html += "    showAlert('Relé desligado: ' + message);";
-        html += "    await getState();";
-        html += "  } catch {}";
+        html += "  await fetchData('/turnOffRelay', 'POST');";
+        html += "  getState();";
         html += "}";
 
         html += "async function revertRelay() {";
-        html += "  try {";
-        html += "    const message = await fetchData('/revertRelay', 'POST');";
-        html += "    showAlert('Relé invertido: ' + message);";
-        html += "    await getState();";
-        html += "  } catch {}";
+        html += "  await fetchData('/revertRelay', 'POST');";
+        html += "  getState();";
         html += "}";
+
+        html += "setInterval(getState, 5000); // Atualiza o estado a cada 5 segundos";
         html += "</script>";
+
+        html += "</div>";
         html += "</body></html>";
 
         server.send(200, "text/html", html.c_str());
@@ -293,7 +264,6 @@ namespace HtmlServer
 
     void initWebServer()
     {
-        Logger::log(LogLevel::VERBOSE, "Entrando no procedimento: initWebServer");
         server.on("/", HTTP_GET, handleRootRequest);
         server.on("/getState", HTTP_GET, handleStateRequest);
         server.on("/revertRelay", HTTP_POST, handleRevertRelayRequest);
@@ -309,7 +279,6 @@ namespace HtmlServer
         server.begin();
 
         Logger::log(LogLevel::INFO, "Servidor HTTP iniciado");
-        Logger::log(LogLevel::VERBOSE, "Saindo do procedimento: initWebServer");
     }
 
     // Function to generate the device list HTML
