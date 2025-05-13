@@ -53,6 +53,6 @@ namespace Config
 
     // Tuya IoT
     constexpr const char *LPID = "sshilmfl"; // Substituir pelo PID real
-    constexpr const char *LMCU_VER = "1.0.0";
+    constexpr const char *LMCU_VER = "1.0";
 }
 #endif

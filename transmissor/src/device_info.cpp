@@ -3,6 +3,7 @@
 
 // Define o membro estático corretamente
 std::map<uint8_t, std::pair<String, DeviceInfoData>> DeviceInfo::deviceList;
+std::map<uint8_t, std::pair<String, DeviceRegData>> DeviceInfo::deviceRegList;
 
 void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
 {
@@ -31,6 +32,14 @@ void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
     }
 
 #endif
+}
+
+void DeviceInfo::updateRegList(u_int8_t tid, DeviceRegData data)
+{
+    if (deviceRegList.find(tid) == deviceRegList.end())
+        deviceRegList[tid].second.name = data.name;
+    else
+        deviceRegList[tid] = std::make_pair(data.tid, data);
 }
 
 String DeviceInfo::getISOTime()

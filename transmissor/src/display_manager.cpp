@@ -66,6 +66,7 @@ void DisplayManager::updateDisplay()
 void DisplayManager::showFooter()
 {
     dispCount = DeviceInfo::deviceList.size();
+    uint8_t regCount = DeviceInfo::deviceRegList.size();
     display.setTextColor(SSD1306_WHITE);
     display.fillRect(0, Config::SCREEN_HEIGHT - 10, Config::SCREEN_WIDTH,
                      10, SSD1306_WHITE);
@@ -73,6 +74,8 @@ void DisplayManager::showFooter()
     display.setCursor(0, Config::SCREEN_HEIGHT - 8);
     display.print("D:");
     display.print(dispCount);
+    display.print("/");
+    display.print(regCount);
     display.print(" v:");
     display.print(ver);
     display.setCursor(Config::SCREEN_WIDTH - 49, Config::SCREEN_HEIGHT - 8);

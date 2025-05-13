@@ -21,16 +21,40 @@ struct DeviceInfoData
     int rssi;
     // Adicione outros campos conforme necessário
 };
+struct DeviceRegData
+{
+    uint8_t tid;
+    String name;
+    String toString()
+    {
+        return String(tid) + ":" + name;
+    }
+    bool fromString(String str)
+    {
+        int sepIndex = str.indexOf(':');
+        if (sepIndex != -1)
+        {
+            tid = str.substring(0, sepIndex).toInt();
+            name = str.substring(sepIndex + 1);
+            return true;
+        }
+        return false;
+    }
+};
+
 #endif
 class DeviceInfo
 {
 public:
     static void updateDeviceList(uint8_t deviceId, DeviceInfoData data);
+    static void updateRegList(u_int8_t tid, DeviceRegData data);
     static String getISOTime();
 
 #ifndef __AVR__
     // Declaração correta de deviceList como membro estático
     static std::map<uint8_t, std::pair<String, DeviceInfoData>> deviceList;
+    static std::map<uint8_t, std::pair<String, DeviceRegData>> deviceRegList;
+
 #endif
 };
 

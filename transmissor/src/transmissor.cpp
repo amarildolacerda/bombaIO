@@ -7,7 +7,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <map>
-// #include <pgmspace> // Use pgmspace for ESP32
+#include "prefers.h"
 #endif
 
 #include "transmissor.h"
@@ -114,11 +114,15 @@ void initTuya()
 #ifndef TEST
 void setup()
 {
+
 #ifdef DEBUG_ON
     Logger::setLogLevel(LogLevel::VERBOSE);
 #endif
     Serial.begin(Config::SERIAL_BAUD);
+    while (!Serial)
+        ;
     Logger::log(LogLevel::INFO, F("Iniciando sistema..."));
+    Prefers::restoreRegs();
 
 #if defined(ESP8266) || defined(__AVR__)
     Logger::log(LogLevel::WARNING, F("ESP8266 não possui display."));
@@ -252,6 +256,16 @@ void processIncoming(LoRaInterface *loraInstance)
     static String value = "";
     if (doc.containsKey("value"))
         value = doc["value"].as<String>();
+
+    static String dname = "UNKNOW";
+    if (doc.containsKey("dtype"))
+    {
+        dname = doc["dtype"].as<String>();
+    }
+    static uint8_t tid = loraInstance->headerFrom();
+    if ((tid == 0) || (tid == 0xFF))
+        return;
+
     // Agora 'doc' contém o JSON parseado de 'buf'
     if (event)
     {
@@ -262,11 +276,22 @@ void processIncoming(LoRaInterface *loraInstance)
         {
             systemState.updateState(value);
         }
+
+        if (event == "presentation")
+        {
+            Serial.print("saveRegs");
+            DeviceRegData reg;
+            reg.tid = tid;
+            reg.name = dname;
+            DeviceInfo::updateRegList(tid, reg);
+            Prefers::saveRegs();
+        }
+
         DeviceInfoData data;
-        data.tid = loraInstance->headerFrom();
+        data.tid = tid;
         data.event = event;
         data.value = value;
-        data.name = doc["dtype"].as<String>();
+        data.name = dname;
         data.lastSeenISOTime = DeviceInfo::getISOTime();
         data.rssi = loraInstance->packetRssi();
         DeviceInfo::updateDeviceList(data.tid, data);

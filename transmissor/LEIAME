@@ -1,0 +1,55 @@
+# LEIAME
+
+## Gerenciamento Persistente de Dispositivos no Gateway LoRa
+
+Este projeto implementa um gateway LoRa capaz de registrar, monitorar e persistir informações sobre dispositivos conectados, mesmo após reinicializações ou quedas de energia. O objetivo é garantir robustez, facilidade de manutenção e escalabilidade para aplicações IoT baseadas em LoRa.
+
+---
+
+## Funcionamento
+
+### Registro e Atualização de Dispositivos
+
+O gateway recebe mensagens LoRa de dispositivos remotos. Quando um dispositivo envia uma mensagem de apresentação (`event == "presentation"`), seus dados (ID, nome, etc.) são extraídos e registrados em uma lista (`deviceRegList`). O método `DeviceInfo::updateRegList` atualiza ou insere o registro correspondente.
+
+### Persistência dos Dados
+
+Para garantir que os dispositivos registrados não sejam perdidos após um reset, o método `Prefers::saveRegs()` salva todos os registros da lista em memória não volátil (NVS/Preferences no ESP32). Cada registro é serializado e armazenado sob uma chave única. Na inicialização do sistema, `Prefers::restoreRegs()` lê esses registros e restaura a lista em memória.
+
+### Monitoramento e Interface
+
+O gateway mantém uma lista dinâmica dos dispositivos ativos (`deviceList`), atualizando informações como status, último evento, RSSI e horário da última comunicação. Essas informações podem ser exibidas em uma interface web ou display local, facilitando o acompanhamento do estado da rede LoRa.
+
+---
+
+## Motivações para o Desenvolvimento
+
+- **Persistência de Dados:** Evitar a perda de informações sobre dispositivos já conhecidos, mesmo após quedas de energia ou reinicializações.
+- **Facilidade de Manutenção:** Permitir que o gateway retome rapidamente o funcionamento normal sem necessidade de reconfiguração manual.
+- **Escalabilidade:** Suportar a adição e remoção dinâmica de dispositivos, tornando o sistema flexível para diferentes cenários de uso.
+- **Diagnóstico e Auditoria:** Manter um histórico dos dispositivos conectados, facilitando o diagnóstico de falhas e a auditoria da rede.
+- **Robustez:** Tornar o sistema mais confiável para aplicações críticas em IoT, onde a continuidade do serviço é fundamental.
+
+---
+
+## Como Utilizar
+
+- **Registro:** Dispositivos LoRa enviam mensagens de apresentação para o gateway.
+- **Persistência:** O gateway salva automaticamente os registros em NVS após cada apresentação.
+- **Restauração:** Ao iniciar, o gateway restaura os registros salvos, reconstruindo a lista de dispositivos conhecidos.
+- **Monitoramento:** O status dos dispositivos pode ser consultado via interface web ou display local.
+
+---
+
+## Considerações Técnicas
+
+- O uso da biblioteca `Preferences` (ESP32) garante persistência simples e eficiente.
+- Para maior eficiência, recomenda-se abrir a NVS uma única vez ao salvar/restaurar múltiplos registros.
+- O formato de serialização dos dados deve ser consistente para garantir restauração correta.
+- O código é modular, facilitando a integração com outros sistemas e a manutenção futura.
+
+---
+
+## Contribuição
+
+Sugestões, melhorias e correções são bem-vindas! Utilize issues ou pull requests para colaborar com o projeto.
