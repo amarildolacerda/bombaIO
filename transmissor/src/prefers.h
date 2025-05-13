@@ -26,7 +26,10 @@ public:
         {
             /* code */
             DeviceRegData data = DeviceInfo::deviceRegList[i].second;
-            Serial.print(data.toString());
+            if (data.tid == 0)
+                continue;
+            Serial.print("  ");
+            Serial.println(data.toString());
             Preferences prefs;
             prefs.begin("devices", false);
             prefs.putString(("reg" + String(i)).c_str(), data.toString().c_str());

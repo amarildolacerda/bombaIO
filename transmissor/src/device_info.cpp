@@ -36,10 +36,21 @@ void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
 
 void DeviceInfo::updateRegList(u_int8_t tid, DeviceRegData data)
 {
-    if (deviceRegList.find(tid) == deviceRegList.end())
-        deviceRegList[tid].second.name = data.name;
+    int n = -1;
+
+    for (int i = 0; i < deviceRegList.size(); i++)
+    {
+        if (deviceRegList[i].second.tid == tid)
+        {
+            n = i;
+            break;
+        }
+    }
+
+    if (n >= 0)
+        deviceRegList[n].second.name = data.name;
     else
-        deviceRegList[tid] = std::make_pair(data.tid, data);
+        deviceRegList[deviceRegList.size()] = std::make_pair(data.tid, data);
 }
 
 String DeviceInfo::getISOTime()
