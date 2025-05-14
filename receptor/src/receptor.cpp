@@ -1,5 +1,3 @@
-
-
 #include "receptor.h"
 #include "Arduino.h"
 #include "config.h"
@@ -30,6 +28,14 @@ char messageBuffer[RH_RF95_MAX_MESSAGE_LEN];
 uint8_t loraBuffer[RH_RF95_MAX_MESSAGE_LEN];
 #endif
 
+#ifdef __AVR__
+#include <EEPROM.h>
+#define EEPROM_ADDR_BOOT_COUNT 0
+#define EEPROM_ADDR_LAST_BOOT 4
+#define IDENTIFICATION_TIMEOUT_MS 10000UL      // 10 segundos para zerar contagem
+#define IDENTIFICATION_POWER_WINDOW_MS 60000UL // 1 minuto para 3 boots
+#endif
+
 void sendStatus();
 void sendPresentation(uint8_t n = 3);
 void ack(bool ak = true, uint8_t targetTerminal = 0x00);
@@ -39,6 +45,7 @@ bool processAndRespondToMessage(const char *message);
 void handleLoraIncomingMessages();
 #ifdef __AVR__
 void printFreeMemory();
+void checkAndHandleIdentificationMode();
 #endif
 
 #if defined(ESP8266) || defined(ESP32)
@@ -64,6 +71,91 @@ void printFreeMemory()
     // ShowSerial.print(freeMemory());
     // ShowSerial.println(F(" bytes"));
 }
+
+bool waitAck(const uint32_t timeout)
+{
+    char msg[64];
+    uint8_t len = sizeof(msg);
+    const long start = millis();
+    if (millis() - start > timeout)
+        Serial.print("waitAck");
+    if (lora.receiveMessage(msg, len))
+    {
+        if (String(msg).indexOf("ack") >= 0)
+            return true;
+    }
+
+    return false;
+}
+
+void checkAndHandleIdentificationMode()
+{
+    uint8_t bootCount = EEPROM.read(EEPROM_ADDR_BOOT_COUNT);
+    unsigned long lastBoot = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        lastBoot |= ((unsigned long)EEPROM.read(EEPROM_ADDR_LAST_BOOT + i)) << (8 * i);
+    }
+    Serial.print("lastBoot: ");
+    Serial.print(lastBoot);
+    unsigned long now = millis();
+    // Remover ajuste de overflow, pois millis() sempre zera no boot
+    // O correto é usar um contador simples de boots consecutivos
+    if ((now - lastBoot > IDENTIFICATION_POWER_WINDOW_MS))
+    {
+        Serial.print("ReinicioBootBoot: ");
+
+        bootCount = 1;
+    }
+    else
+    {
+        bootCount++;
+    }
+
+    Serial.print(" Count: ");
+    Serial.println(bootCount);
+
+    // Salva novo estado
+    EEPROM.write(EEPROM_ADDR_BOOT_COUNT, bootCount);
+    for (int i = 0; i < 4; ++i)
+    {
+        EEPROM.write(EEPROM_ADDR_LAST_BOOT + i, (now >> (8 * i)) & 0xFF);
+    }
+    // Verificação de gravação
+    uint8_t checkBootCount = EEPROM.read(EEPROM_ADDR_BOOT_COUNT);
+    unsigned long checkLastBoot = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        checkLastBoot |= ((unsigned long)EEPROM.read(EEPROM_ADDR_LAST_BOOT + i)) << (8 * i);
+    }
+    if (checkBootCount != bootCount || checkLastBoot != now)
+    {
+        Logger::log(LogLevel::ERROR, "Falha ao gravar na EEPROM!");
+        Serial.print(bootCount);
+    }
+    else
+    {
+        Logger::log(LogLevel::DEBUG, "EEPROM gravada com sucesso.");
+    }
+
+    if (bootCount >= 3)
+    {
+        Logger::log(LogLevel::WARNING, "Entrando em modo de identificação do dispositivo!");
+        // Modo identificação: envia apresentação continuamente
+        for (int i = 0; i < 10; ++i)
+        {
+            Serial.print("presetattion");
+            sendPresentation(1);
+            delay(1000);
+            if (waitAck(200))
+            {
+                break;
+            }
+        }
+        bootCount = 0;
+        EEPROM.write(EEPROM_ADDR_BOOT_COUNT, bootCount);
+    }
+}
 #endif
 
 void setup()
@@ -74,6 +166,11 @@ void setup()
     COMSerial.begin(115200);
     while (!ShowSerial)
         ;
+    if (!lora.initialize(Config::BAND, Config::TERMINAL_ID, Config::PROMISCUOS))
+    {
+        Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
+    }
+    checkAndHandleIdentificationMode();
 #elif ESP8266
     Serial.begin(115200);
     WiFiManager wifiManager;
@@ -98,11 +195,6 @@ void setup()
 #ifdef ESP8266
     initHtmlServer();
 #endif
-
-    if (!lora.initialize(Config::BAND, Config::TERMINAL_ID, Config::PROMISCUOS))
-    {
-        Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
-    }
 
     digitalWrite(Config::LED_PIN, LOW);
 }
@@ -258,17 +350,6 @@ void loop()
     }
 #endif
 
-    handleLoraIncomingMessages();
-    static unsigned long lastPresentationMillis = 0;
-    if (systemState.mustPresentation || millis() - lastPresentationMillis >= Config::PRESENTATION_INTERVAL)
-    {
-        sendPresentation(1);
-        systemState.mustPresentation = false;
-        lastPresentationMillis = millis();
-#ifdef ESP8266
-        sendFormattedMessage(0xFF, "ip", WiFi.localIP().toString().c_str());
-#endif
-    }
 #ifdef ESP8266
     processHtmlServer();
 #endif
