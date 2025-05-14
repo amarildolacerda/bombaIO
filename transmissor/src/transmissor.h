@@ -1,7 +1,6 @@
 #ifndef TRANSMISSOR_H
 #define TRANSMISSOR_H
 
-#include <TuyaWifi.h>
 #include <ArduinoJson.h>
 #ifdef ESP32
 #include "display_manager.h"
@@ -16,6 +15,7 @@
 #include <time.h>
 #endif
 #include "LoRaCom.h"
+#include "Espalexa.h"
 
 // ========== Callback Tuya ==========
 unsigned char handleTuyaCommand(unsigned char dp_id, const unsigned char dp_data[], unsigned short dp_len);
@@ -32,7 +32,7 @@ void handleStateRequest();
 void initTuya();
 
 // ========== Setup e Loop Principais ==========
-void setup();
-void loop();
+extern void tsetup(Espalexa *alexa = nullptr);
+extern void tloop();
 
 #endif // TRANSMISSOR_H

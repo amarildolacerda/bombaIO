@@ -10,10 +10,14 @@
 #include "prefers.h"
 #endif
 
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <Espalexa.h>
+
 #include "transmissor.h"
 #include "logger.h"
 #include "config.h"
-#include "html_server.h"
+#include "html_tserver.h"
 #include "LoRaCom.h"
 #include "device_info.h"
 #include "system_state.h"
@@ -25,46 +29,23 @@
 void processIncoming(LoRaInterface *loraInstance);
 
 // ========== Instâncias Globais ==========
-#ifdef TUYA
-TuyaWifi my_device;
-// ========== PROGMEM Strings ==========
-const char logTuyaDesligar[] PROGMEM = "Comando Tuya: DESLIGAR";
-const char logTuyaLigar[] PROGMEM = "Comando Tuya: LIGAR";
-const char logTuyaReverter[] PROGMEM = "Comando Tuya: REVERTER";
-const char logTuyaStatus[] PROGMEM = "Comando Tuya: STATUS";
-const char logWiFiConnected[] PROGMEM = "WiFi conectado: ";
-const char logNTPFail[] PROGMEM = "Falha ao sincronizar com NTP. Tentando novamente em 1 minuto...";
-const char logNTPSuccess[] PROGMEM = "Sincronização com NTP bem-sucedida.";
 
-// ========== Implementações ==========
+// ========== Espalexa (Alexa) Integration ==========
+Espalexa *espalexa = nullptr;
 
-// ========== Tuya Callback Implementation ==========
-unsigned char handleTuyaCommand(unsigned char dp_id, const unsigned char dp_data[], unsigned short dp_len)
+void alexaDeviceCallback(EspalexaDevice *d)
 {
-    static const char *const commands[] PROGMEM = {"desligar", "ligar", "revert", "status"};
-    static const char *const responses[] PROGMEM = {"OFF", "OK", "REVERTER", ""};
-    /*  static const char *const logs[] PROGMEM = {
-          logTuyaDesligar,
-          logTuyaLigar,
-          logTuyaReverter,
-          logTuyaStatus};
-  */
-    if (dp_data[0] < 4)
+    const uint8_t item = d->getId();
+    if ((item < 0) || (item >= DeviceInfo::deviceRegList.size()))
     {
-        char command[10];
-        char response[10];
-        strcpy_P(command, (PGM_P)pgm_read_ptr(&commands[dp_data[0]]));
-        strcpy_P(response, (PGM_P)pgm_read_ptr(&responses[dp_data[0]]));
-        LoRaCom::sendCommand(command, response, dp_id);
-        Logger::log(LogLevel::INFO, command); // Or use the appropriate variable if you want to log the command string
+        return;
     }
-    else
-    {
-        return 0;
-    }
-    return 1;
+    const DeviceRegData data = DeviceInfo::deviceRegList[item].second;
+
+    const bool state = (d->getValue() > 0);
+    Logger::log(LogLevel::INFO, state ? "Alexa: ON" : "Alexa: OFF");
+    LoRaCom::sendCommand("gpio", state ? "on" : "off", data.tid);
 }
-#endif
 
 // ========== Network Functions Implementations ==========
 #if defined(ESP8266) || defined(ESP32)
@@ -100,20 +81,26 @@ void initNTP()
 }
 #endif
 
-#ifdef TUYA
-// ========== Tuya Initialization ==========
-void initTuya()
+void initAlexa()
 {
-    my_device.init((unsigned char *)Config::LPID, (unsigned char *)Config::LMCU_VER);
-    my_device.dp_process_func_register(handleTuyaCommand);
-    Logger::log(LogLevel::INFO, "Tuya inicializado");
+    Serial.println("Alexa:");
+    for (int i = 0; i < DeviceInfo::deviceRegList.size(); i++)
+    {
+        const DeviceRegData reg = DeviceInfo::deviceRegList[i].second;
+        if (reg.tid == 0)
+            continue;
+        espalexa->addDevice((reg.name + String(reg.tid)), alexaDeviceCallback, EspalexaDeviceType::onoff);
+        Serial.print(reg.tid);
+        Serial.print(": ");
+        Serial.println(reg.name + String(reg.tid));
+    }
 }
-#endif
 
 // ========== Main Setup and Loop ==========
 #ifndef TEST
-void setup()
+void tsetup(Espalexa *alexa)
 {
+    espalexa = alexa;
 
 #ifdef DEBUG_ON
     Logger::setLogLevel(LogLevel::VERBOSE);
@@ -154,11 +141,11 @@ void setup()
     }
     LoRaCom::setReceiveCallback(processIncoming);
 
-#ifdef TUYA
-    initTuya();
-#endif
 #if defined(ESP32) || defined(ESP8266)
-    HtmlServer::initWebServer();
+    HtmlServer::initWebServer(alexa);
+    initAlexa();
+    HtmlServer::begin();
+
 #endif
 
 #ifdef ESP8266
@@ -172,7 +159,7 @@ void setup()
 
 #ifndef TEST
 static bool primeiraVez = true;
-void loop()
+void tloop()
 {
     if (primeiraVez)
     {
@@ -180,8 +167,8 @@ void loop()
     }
 
     LoRaCom::handle(); // precisa pedir leitura rapida
-#ifdef TUYA
-    my_device.uart_service();
+#if defined(ESP32) || defined(ESP8266)
+    espalexa->loop();
 #endif
 
 #ifndef __AVR__

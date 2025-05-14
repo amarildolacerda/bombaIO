@@ -58,4 +58,17 @@ void loop()
 
 #else
 #include "transmissor.h"
+#include "Espalexa.h"
+
+Espalexa espalexaX;
+
+void setup()
+{
+    tsetup(&espalexaX);
+}
+void loop()
+{
+    tloop();
+}
+
 #endif
