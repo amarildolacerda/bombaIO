@@ -213,6 +213,13 @@ void sendFormattedMessage(uint8_t tid, const char *event, const char *value)
 #ifdef LORA
     digitalWrite(Config::LED_PIN, HIGH);
     formatMessage(tid, event, value);
+    // Garante null-terminator
+    messageBuffer[RH_RF95_MAX_MESSAGE_LEN - 1] = '\0';
+    size_t msgLen = strlen(messageBuffer);
+    if (msgLen == 0 || messageBuffer[msgLen - 1] != '\0')
+    {
+        messageBuffer[msgLen] = '\0';
+    }
     lora.sendMessage(tid, messageBuffer);
     digitalWrite(Config::LED_PIN, LOW);
 #endif
@@ -264,17 +271,20 @@ bool processAndRespondToMessage(const char *message)
     else if (strstr_P(message, PSTR("\"off\"")) != nullptr)
     {
         digitalWrite(Config::RELAY_PIN, LOW);
+        systemState.pinStateChanged = true;
         handled = Logger::log(LogLevel::INFO, "Relay OFF");
     }
     else if (strstr_P(message, PSTR("\"on\"")) != nullptr)
     {
         digitalWrite(Config::RELAY_PIN, HIGH);
+        systemState.pinStateChanged = true;
         handled = Logger::log(LogLevel::INFO, "Relay ON");
     }
     else if (strstr_P(message, PSTR("toggle")) != nullptr)
     {
         int currentState = digitalRead(Config::RELAY_PIN);
         digitalWrite(Config::RELAY_PIN, !currentState);
+        systemState.pinStateChanged = true;
         handled = Logger::log(LogLevel::INFO, "Relay toggled ");
     }
     else if (strstr_P(message, PSTR("presentation")) != nullptr)

@@ -2,8 +2,13 @@
 #define HTML_SERVER_H
 
 #ifndef __AVR__
+#ifdef ESP32
+#include <WebServer.h>
+#elif ESP8266
+#include <ESP8266WebServer.h>
+// extern ESP8266WebServer server;
+#endif
 
-#include "Espalexa.h"
 namespace HtmlServer
 {
 
@@ -13,21 +18,13 @@ namespace HtmlServer
     void generateHtmlPage();
     void generateDeviceListHtmlPage();
     void handleToggleDevice();
-    void initWebServer(Espalexa *espalexa = nullptr);
+    void initWebServer(WebServer *ws = nullptr);
 
     void process();
     void begin();
 
 } // namespace HtmlServer
 
-#ifdef ESP32
-#include <WebServer.h>
-extern WebServer espServer;
-#elif ESP8266
-
-#include <ESP8266WebServer.h>
-extern ESP8266WebServer server;
-#endif
 #endif
 
 #endif // HTML_SERVER_H

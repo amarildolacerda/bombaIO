@@ -32,7 +32,7 @@ void handleStateRequest();
 void initTuya();
 
 // ========== Setup e Loop Principais ==========
-extern void tsetup(Espalexa *alexa = nullptr);
+extern void tsetup();
 extern void tloop();
 
 #endif // TRANSMISSOR_H

@@ -49,6 +49,19 @@ public:
     static void updateDeviceList(uint8_t deviceId, DeviceInfoData data);
     static void updateRegList(u_int8_t tid, DeviceRegData data);
     static String getISOTime();
+    static uint8_t indexOf(uint8_t tid)
+    {
+
+#ifndef __AVR__
+        for (uint8_t i = 0; i < deviceRegList.size(); i++)
+        {
+            if (deviceRegList[i].second.tid == tid)
+                return i;
+        }
+
+#endif
+        return -1;
+    }
 
 #ifndef __AVR__
     // Declaração correta de deviceList como membro estático

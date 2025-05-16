@@ -102,7 +102,7 @@ public:
 
     bool print(const char *message) override
     {
-        return sendMessage(0xFF, message);
+        return sendMessage(_tidTo, message);
     }
     void setHeaderTo(uint8_t tidTo) override
     {

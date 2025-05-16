@@ -192,10 +192,14 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
 {
     char output[Config::MESSAGE_LEN];
     formatMessage(output, tid, event.c_str(), value.c_str());
-    // Serial.println(output);
-
+    // Garante null-terminator
+    output[Config::MESSAGE_LEN - 1] = '\0';
+    size_t msgLen = strlen(output);
+    if (msgLen == 0 || output[msgLen - 1] != '\0')
+    {
+        output[msgLen] = '\0';
+    }
     loraInstance->setHeaderTo(tid);
-
     bool rt = loraInstance->sendMessage(tid, output);
     if (!rt)
     {
@@ -205,7 +209,6 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
 #ifdef DEBUG_ON
     Logger::verbose(output);
 #endif
-
     return true;
 }
 

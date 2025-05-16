@@ -14,17 +14,10 @@
 
 #undef DISPLAY
 
-#ifdef ESP32
-WebServer espServer(Config::WEBSERVER_PORT);
-#include "Espalexa.h"
-#elif ESP8266
-ESP8266WebServer espServer(Config::WEBSERVER_PORT);
-#include "Espalexa.h"
-#endif
-
 namespace HtmlServer
 {
 
+    WebServer *espServer = nullptr;
     String getCommonStyles()
     {
         String styles = "  * { box-sizing: border-box; }";
@@ -141,7 +134,7 @@ namespace HtmlServer
 
         html += "</body></html>";
 
-        espServer.send(200, "text/html", html.c_str());
+        espServer->send(200, "text/html", html.c_str());
     }
 
     void generateDeviceDetailsPage(uint8_t tid)
@@ -197,7 +190,7 @@ namespace HtmlServer
 
         html += "</body></html>";
 
-        espServer.send(200, "text/html", html.c_str());
+        espServer->send(200, "text/html", html.c_str());
     }
 
     void handleRootRequest()
@@ -207,52 +200,44 @@ namespace HtmlServer
 
     void handleDeviceDetailsRequest()
     {
-        uint8_t tid = espServer.hasArg("tid") ? espServer.arg("tid").toInt() : 0xFF;
+        uint8_t tid = espServer->hasArg("tid") ? espServer->arg("tid").toInt() : 0xFF;
         if (DeviceInfo::deviceList.find(tid) != DeviceInfo::deviceList.end())
         {
             generateDeviceDetailsPage(tid);
         }
         else
         {
-            espServer.send(404, "text/plain", "Dispositivo não encontrado");
+            espServer->send(404, "text/plain", "Dispositivo não encontrado");
         }
     }
 
-    Espalexa *alexa = nullptr;
-    void initWebServer(Espalexa *espalexa)
+    void initWebServer(WebServer *server)
     {
-        alexa = espalexa;
-        espServer.on("/", HTTP_GET, handleRootRequest);
-        espServer.on("/device", HTTP_GET, handleDeviceDetailsRequest);
-        espServer.on("/controlDevice", HTTP_POST, handleToggleDevice);
-        espServer.on("/reset", HTTP_GET, []()
-                     { DeviceInfo::deviceRegList.clear(); 
+        espServer = server;
+
+        espServer->on("/", HTTP_GET, handleRootRequest);
+        espServer->on("/device", HTTP_GET, handleDeviceDetailsRequest);
+        espServer->on("/controlDevice", HTTP_POST, handleToggleDevice);
+        espServer->on("/reset", HTTP_GET, []()
+                      { DeviceInfo::deviceRegList.clear(); 
                         Prefers::saveRegs();
-         espServer.send(404, "text/plain", "OK"); });
+         espServer->send(404, "text/plain", "OK"); });
         // Handler catch-all para qualquer rota desconhecida
-        espServer.onNotFound([espalexa]()
-                             {
-                                Serial.print("NOTFOUND:"+espServer.uri());
-            if (!espalexa->handleAlexaApiCall(espServer.uri(), espServer.arg(0))) {
-                Serial.print("NENHUM ALEXA");
-                espServer.send(404, "text/plain", "Not found");
-            } });
-        espServer.on("/", HTTP_ANY, []()
-                     {
-                        Serial.print("ANY:"+espServer.uri());
-            if (espServer.method() != HTTP_GET) {
-                espServer.send(404, "text/plain", "Not found");
+        espServer->on("/", HTTP_ANY, []()
+                      {
+                        Serial.print("ANY:"+espServer->uri());
+            if (espServer->method() != HTTP_GET) {
+                espServer->send(404, "text/plain", "Not found");
             } });
     }
     void begin()
     {
-        alexa->begin(&espServer);
-        espServer.begin();
+        espServer->begin();
     }
     void handleToggleDevice()
     {
-        uint8_t tid = espServer.hasArg("tid") ? espServer.arg("tid").toInt() : 0xFF;
-        String action = espServer.hasArg("action") ? espServer.arg("action") : "none";
+        uint8_t tid = espServer->hasArg("tid") ? espServer->arg("tid").toInt() : 0xFF;
+        String action = espServer->hasArg("action") ? espServer->arg("action") : "none";
         action.toLowerCase();
         const auto &device = DeviceInfo::deviceList[tid];
         const DeviceInfoData &data = device.second;
@@ -262,12 +247,12 @@ namespace HtmlServer
         {
             String response = "{ \"tid\": " + String(data.tid) +
                               ", \"status\": \"" + data.status + "\" }";
-            espServer.send(200, "application/json", response);
+            espServer->send(200, "application/json", response);
         }
     }
     void process()
     {
-        espServer.handleClient();
+        espServer->handleClient();
     }
 }
 #endif

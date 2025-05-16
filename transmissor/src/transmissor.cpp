@@ -5,7 +5,6 @@
 #include <pgmspace.h> // Use pgmspace.h for ESP8266
 #elif ESP32
 #include <WiFi.h>
-#include <WebServer.h>
 #include <map>
 #include "prefers.h"
 #endif
@@ -26,12 +25,22 @@
 #endif
 #include "LoRaInterface.h"
 
+#ifdef ESP32
+#include <WebServer.h>
+#include "Espalexa.h"
+WebServer server(Config::WEBSERVER_PORT);
+Espalexa espalexa;
+#elif ESP8266
+ESP8266WebServer server(Config::WEBSERVER_PORT);
+#include "Espalexa.h"
+Espalexa espalexa;
+#endif
+
 void processIncoming(LoRaInterface *loraInstance);
 
 // ========== Instâncias Globais ==========
 
 // ========== Espalexa (Alexa) Integration ==========
-Espalexa *espalexa = nullptr;
 
 void alexaDeviceCallback(EspalexaDevice *d)
 {
@@ -89,18 +98,30 @@ void initAlexa()
         const DeviceRegData reg = DeviceInfo::deviceRegList[i].second;
         if (reg.tid == 0)
             continue;
-        espalexa->addDevice((reg.name + String(reg.tid)), alexaDeviceCallback, EspalexaDeviceType::onoff);
+        espalexa.addDevice((reg.name + String(reg.tid)), alexaDeviceCallback, EspalexaDeviceType::onoff);
         Serial.print(reg.tid);
         Serial.print(": ");
         Serial.println(reg.name + String(reg.tid));
     }
+    server.onNotFound([]()
+                      {
+           String uri = server.uri();
+           String arg0 = server.args() > 0 ? server.arg(0) : String("");
+           Serial.print("NOTFOUND:" + uri);
+           if (!espalexa.handleAlexaApiCall(uri, arg0)) {
+               Serial.print("NENHUM ALEXA");
+               server.send(404, "text/plain", "Not found");
+               return;
+           }
+             server.send(200,"text/plain","OK"); });
+
+    espalexa.begin(&server);
 }
 
 // ========== Main Setup and Loop ==========
 #ifndef TEST
-void tsetup(Espalexa *alexa)
+void tsetup()
 {
-    espalexa = alexa;
 
 #ifdef DEBUG_ON
     Logger::setLogLevel(LogLevel::VERBOSE);
@@ -142,9 +163,9 @@ void tsetup(Espalexa *alexa)
     LoRaCom::setReceiveCallback(processIncoming);
 
 #if defined(ESP32) || defined(ESP8266)
-    HtmlServer::initWebServer(alexa);
-    initAlexa();
+    HtmlServer::initWebServer(&server);
     HtmlServer::begin();
+    initAlexa();
 
 #endif
 
@@ -167,12 +188,12 @@ void tloop()
     }
 
     LoRaCom::handle(); // precisa pedir leitura rapida
-#if defined(ESP32) || defined(ESP8266)
-    espalexa->loop();
-#endif
 
 #ifndef __AVR__
     HtmlServer::process();
+#if defined(ESP32) || defined(ESP8266)
+    espalexa.loop();
+#endif
 
 #endif
 
@@ -200,8 +221,6 @@ void tloop()
 
 void processIncoming(LoRaInterface *loraInstance)
 {
-    // while (loraInstance->available())
-    // {
     uint8_t buf[Config::MESSAGE_LEN + 1] = {0}; // +1 para garantir espaço para null-terminator
     uint8_t len = Config::MESSAGE_LEN;
     bool rt = loraInstance->receiveMessage(buf, len);
@@ -224,6 +243,16 @@ void processIncoming(LoRaInterface *loraInstance)
     if (len <= 10)
     {
         // não é um dado do protocolo alto
+        return;
+    }
+
+    // Filtro: descarta mensagens que não começam com '{'
+    if (buf[0] != '{')
+    {
+        Logger::log(LogLevel::ERROR, "Descartado pacote LoRa inválido (não começa com '{')");
+        Logger::log(LogLevel::ERROR, (const char *)buf);
+        LoRaCom::ack(false, loraInstance->headerFrom());
+
         return;
     }
 
@@ -262,6 +291,26 @@ void processIncoming(LoRaInterface *loraInstance)
         if (event == "status")
         {
             systemState.updateState(value);
+            uint8_t alexaId = DeviceInfo::indexOf(tid);
+            if (alexaId >= 0)
+            {
+                EspalexaDevice *d = espalexa.getDevice(alexaId);
+                if (d)
+                {
+                    d->setState(value == "on");
+                    d->setValue(value == "on");
+                    d->setPercent((value == "on") ? 100 : 0);
+                    Serial.printf("Alexa(%d): %s (%s)", alexaId, value.c_str(), value == "on" ? "true" : "false");
+                }
+                else
+                {
+                    Serial.print("nao achei alexa device");
+                }
+            }
+            else
+            {
+                Serial.print("não achei alexa data");
+            }
         }
 
         if (event == "presentation")
@@ -284,7 +333,6 @@ void processIncoming(LoRaInterface *loraInstance)
         DeviceInfo::updateDeviceList(data.tid, data);
     }
     LoRaCom::ack(true, loraInstance->headerFrom());
-    // }
 }
 
 #endif
