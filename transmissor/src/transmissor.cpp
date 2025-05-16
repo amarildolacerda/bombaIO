@@ -199,15 +199,6 @@ void tloop()
 
     systemState.handle();
 
-    if (!systemState.isStateValid())
-    {
-        LoRaCom::sendCommand("get", "status", 0xFF);
-        systemState.resetStateValid();
-#ifdef TTGO
-        displayManager.message("get status");
-#endif
-    }
-
 #ifdef TTGO
     displayManager.handle();
 #endif
