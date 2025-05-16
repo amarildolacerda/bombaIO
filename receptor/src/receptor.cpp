@@ -44,6 +44,7 @@ void sendFormattedMessage(uint8_t tid, const char *event, const char *value);
 bool processAndRespondToMessage(const char *message);
 void handleLoraIncomingMessages();
 
+bool loraActive = false;
 #ifdef __AVR__
 void checkAndHandleIdentificationMode();
 bool waitAck(const uint32_t timeout);
@@ -129,8 +130,14 @@ void setup()
     if (!lora.initialize(Config::BAND, Config::TERMINAL_ID, Config::PROMISCUOS))
     {
         Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
+        loraActive = false;
     }
-    checkAndHandleIdentificationMode();
+    else
+    {
+        loraActive = true;
+    }
+    if (loraActive)
+        checkAndHandleIdentificationMode();
 #elif ESP8266
     Serial.begin(115200);
     WiFiManager wifiManager;
@@ -145,7 +152,6 @@ void setup()
 
     pinMode(Config::LED_PIN, OUTPUT);
     pinMode(Config::RELAY_PIN, OUTPUT);
-    digitalWrite(Config::RELAY_PIN, HIGH);
     digitalWrite(Config::LED_PIN, HIGH);
 
     systemState.lastPinState = digitalRead(Config::RELAY_PIN);
@@ -312,14 +318,24 @@ long checaZeraContador = millis();
 bool zerou = false;
 void loop()
 {
+
+    if ((!loraActive))
+    {
+        digitalWrite(Config::LED_PIN, HIGH);
+        delay(1000);
+        digitalWrite(Config::LED_PIN, LOW);
+        delay(500);
+        return;
+    }
+
     if ((!zerou) && (millis() - checaZeraContador > 60000))
     { // depois de um minuto rodando, reset o contador de reinicio;
         zeraContadorReinicio();
         zerou = true;
     }
 
-    handleLoraIncomingMessages();
 #ifdef LORA
+    handleLoraIncomingMessages();
     unsigned long status_internal = (systemState.pinStateChanged ? 5000 : Config::STATUS_INTERVAL);
     if ((millis() - systemState.previousMillis) >= status_internal)
     {
@@ -332,6 +348,7 @@ void loop()
             Logger::log(LogLevel::WARNING, String("RSSI: " + String(rssi) + " dBm").c_str());
         }
     }
+
 #endif
 
 #ifdef ESP8266

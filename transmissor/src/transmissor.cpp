@@ -291,7 +291,7 @@ void processIncoming(LoRaInterface *loraInstance)
                     d->setValue(value == "on");
                     d->setPercent((value == "on") ? 100 : 0);
                     char msg[64];
-                    sprintf(msg, "Alexa(%d): %s (%s)", alexaId, value.c_str(), value == "on" ? "true" : "false");
+                    sprintf(msg, "Term: % d Alexa %s (%d): %s (%s)", tid, DeviceInfo::deviceRegList[alexaId].second.name, alexaId, value.c_str(), value == "on" ? "true" : "false");
                     Logger::info(msg);
                 }
                 else

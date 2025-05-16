@@ -6,7 +6,7 @@
 
 #ifdef __AVR__
 #include <SoftwareSerial.h>
-SoftwareSerial SSerial(10, 11); // RX, TX
+SoftwareSerial SSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
 #define COMSerial SSerial
 #define ShowSerial Serial
 #elif ESP8266
@@ -57,7 +57,6 @@ public:
         else
         {
             Logger::log(LogLevel::SEND, message);
-
         }
         rf95.setModeRx();
         delay(10);

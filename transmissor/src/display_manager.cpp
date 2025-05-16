@@ -49,8 +49,12 @@ void DisplayManager::updateDisplay()
 
     if (loraRcvEvent.length() > 0)
     {
-        display.print("Terminal: ");
-        display.println(_tid);
+        display.print("Term: ");
+        display.print(_tid);
+        int id = DeviceInfo::indexOf(_tid);
+        display.print(" ");
+        display.println(DeviceInfo::deviceRegList[id].second.name);
+
         display.print("Evento: ");
         display.println(loraRcvEvent);
         display.print("Value: ");

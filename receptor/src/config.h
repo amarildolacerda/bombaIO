@@ -6,7 +6,7 @@ class SystemState
 public:
     unsigned long previousMillis = 0;
     bool pinStateChanged = false;
-    int lastPinState = HIGH;
+    int lastPinState = 1;
     bool mustPresentation = true;
 };
 
@@ -15,7 +15,7 @@ static SystemState systemState;
 namespace Config
 {
 #ifdef __AVR__
-    constexpr char TERMINAL_NAME[] = "relay";
+    constexpr char TERMINAL_NAME[] = RELAY_LORA_NAME;
 #else
     constexpr char TERMINAL_NAME[] = "D1";
 #endif
@@ -27,6 +27,8 @@ namespace Config
     constexpr int BAND = 868.0; // Grove funciona melhor em 868
 
     constexpr int RELAY_PIN = 4;
+    constexpr int RX_PIN = 6;
+    constexpr int TX_PIN = 7;
     constexpr long STATUS_INTERVAL = 30000;
     constexpr long PRESENTATION_INTERVAL = 10000;
 };
