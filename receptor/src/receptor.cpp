@@ -46,6 +46,7 @@ void handleLoraIncomingMessages();
 
 #ifdef __AVR__
 void checkAndHandleIdentificationMode();
+bool waitAck(const uint32_t timeout);
 #endif
 
 #ifdef __AVR__
@@ -72,6 +73,7 @@ void zeraContadorReinicio()
 {
     uint8_t bootCount = 0;
     EEPROM.write(EEPROM_ADDR_BOOT_COUNT, bootCount);
+    Logger::info("Zerou contador de reinicio");
 }
 void checkAndHandleIdentificationMode()
 {
@@ -113,6 +115,8 @@ void checkAndHandleIdentificationMode()
     }
 }
 #endif
+
+// Define systemState struct and global instance
 
 void setup()
 {
@@ -195,9 +199,12 @@ void sendStatus()
     int currentState = digitalRead(Config::RELAY_PIN);
     const char *status = currentState == HIGH ? "on" : "off";
     sendFormattedMessage(0x00, "status", status);
-    waitAck(100);
     systemState.lastPinState = currentState;
-    systemState.pinStateChanged = false;
+    if (waitAck(500))
+    {
+        systemState.pinStateChanged = false;
+        Logger::info(" status ack OK");
+    }
 }
 
 bool processAndRespondToMessage(const char *message)
@@ -308,7 +315,8 @@ void loop()
 
     handleLoraIncomingMessages();
 #ifdef LORA
-    if ((systemState.pinStateChanged) || (millis() - systemState.previousMillis >= Config::STATUS_INTERVAL))
+    unsigned long status_internal = (systemState.pinStateChanged ? 5000 : Config::STATUS_INTERVAL);
+    if ((millis() - systemState.previousMillis) >= status_internal)
     {
         systemState.previousMillis = millis();
         sendStatus();

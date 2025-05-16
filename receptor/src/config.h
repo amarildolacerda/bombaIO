@@ -4,7 +4,7 @@
 class SystemState
 {
 public:
-    long previousMillis = 0;
+    unsigned long previousMillis = 0;
     bool pinStateChanged = false;
     int lastPinState = HIGH;
     bool mustPresentation = true;
@@ -27,7 +27,7 @@ namespace Config
     constexpr int BAND = 868.0; // Grove funciona melhor em 868
 
     constexpr int RELAY_PIN = 4;
-    constexpr long STATUS_INTERVAL = 5000;
+    constexpr long STATUS_INTERVAL = 30000;
     constexpr long PRESENTATION_INTERVAL = 10000;
 };
 #endif
