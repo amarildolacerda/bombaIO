@@ -62,6 +62,10 @@ public:
         delay(10);
     }
 
+    bool available()
+    {
+        return rf95.available();
+    }
     bool receiveMessage(char *buffer, uint8_t &len)
     {
         if (rf95.available())

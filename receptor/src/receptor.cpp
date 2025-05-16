@@ -43,92 +43,49 @@ void formatMessage(uint8_t tid, const char *event, const char *value);
 void sendFormattedMessage(uint8_t tid, const char *event, const char *value);
 bool processAndRespondToMessage(const char *message);
 void handleLoraIncomingMessages();
+
 #ifdef __AVR__
-void printFreeMemory();
 void checkAndHandleIdentificationMode();
 #endif
 
-#if defined(ESP8266) || defined(ESP32)
-void IRAM_ATTR handleInterrupt()
-#else
-void handleInterrupt()
-#endif
-{
-    static unsigned long last_interrupt = 0;
-    unsigned long now = millis();
-    if (now - last_interrupt > 50)
-    {
-        systemState.pinStateChanged = true;
-        digitalWrite(Config::LED_PIN, HIGH);
-    }
-    last_interrupt = now;
-}
-
 #ifdef __AVR__
-void printFreeMemory()
-{
-    // ShowSerial.print(F("Free RAM: "));
-    // ShowSerial.print(freeMemory());
-    // ShowSerial.println(F(" bytes"));
-}
 
 bool waitAck(const uint32_t timeout)
 {
     char msg[64];
     uint8_t len = sizeof(msg);
     const long start = millis();
-    if (millis() - start > timeout)
-        Serial.print("waitAck");
-    if (lora.receiveMessage(msg, len))
+    while (millis() - start < timeout)
     {
-        if (String(msg).indexOf("ack") >= 0)
-            return true;
+        delay(10);
+        if (lora.receiveMessage(msg, len))
+        {
+            if (String(msg).indexOf("ack") >= 0)
+                return true;
+        }
     }
 
     return false;
 }
 
+void zeraContadorReinicio()
+{
+    uint8_t bootCount = 0;
+    EEPROM.write(EEPROM_ADDR_BOOT_COUNT, bootCount);
+}
 void checkAndHandleIdentificationMode()
 {
     uint8_t bootCount = EEPROM.read(EEPROM_ADDR_BOOT_COUNT);
-    unsigned long lastBoot = 0;
-    for (int i = 0; i < 4; ++i)
-    {
-        lastBoot |= ((unsigned long)EEPROM.read(EEPROM_ADDR_LAST_BOOT + i)) << (8 * i);
-    }
-    Serial.print("lastBoot: ");
-    Serial.print(lastBoot);
-    unsigned long now = millis();
-    // Remover ajuste de overflow, pois millis() sempre zera no boot
-    // O correto é usar um contador simples de boots consecutivos
-    if ((now - lastBoot > IDENTIFICATION_POWER_WINDOW_MS))
-    {
-        Serial.print("ReinicioBootBoot: ");
-
-        bootCount = 1;
-    }
-    else
-    {
-        bootCount++;
-    }
-
-    Serial.print(" Count: ");
+    bootCount++;
+    Serial.print("Boot Count: ");
     Serial.println(bootCount);
 
     // Salva novo estado
     EEPROM.write(EEPROM_ADDR_BOOT_COUNT, bootCount);
-    for (int i = 0; i < 4; ++i)
-    {
-        EEPROM.write(EEPROM_ADDR_LAST_BOOT + i, (now >> (8 * i)) & 0xFF);
-    }
+
     // Verificação de gravação
     uint8_t checkBootCount = EEPROM.read(EEPROM_ADDR_BOOT_COUNT);
-    unsigned long checkLastBoot = 0;
-    for (int i = 0; i < 4; ++i)
-    {
-        checkLastBoot |= ((unsigned long)EEPROM.read(EEPROM_ADDR_LAST_BOOT + i)) << (8 * i);
-    }
-    if (checkBootCount != bootCount || checkLastBoot != now)
+    if (checkBootCount != bootCount)
     {
         Logger::log(LogLevel::ERROR, "Falha ao gravar na EEPROM!");
         Serial.print(bootCount);
@@ -144,7 +101,7 @@ void checkAndHandleIdentificationMode()
         // Modo identificação: envia apresentação continuamente
         for (int i = 0; i < 10; ++i)
         {
-            Serial.print("presetattion");
+            Serial.print("presentation");
             sendPresentation(1);
             delay(1000);
             if (waitAck(200))
@@ -152,8 +109,7 @@ void checkAndHandleIdentificationMode()
                 break;
             }
         }
-        bootCount = 0;
-        EEPROM.write(EEPROM_ADDR_BOOT_COUNT, bootCount);
+        zeraContadorReinicio();
     }
 }
 #endif
@@ -188,8 +144,6 @@ void setup()
     digitalWrite(Config::RELAY_PIN, HIGH);
     digitalWrite(Config::LED_PIN, HIGH);
 
-    attachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN), handleInterrupt, CHANGE);
-
     systemState.lastPinState = digitalRead(Config::RELAY_PIN);
 
 #ifdef ESP8266
@@ -211,7 +165,6 @@ void formatMessage(uint8_t tid, const char *event, const char *value = "")
 void sendFormattedMessage(uint8_t tid, const char *event, const char *value)
 {
 #ifdef LORA
-    digitalWrite(Config::LED_PIN, HIGH);
     formatMessage(tid, event, value);
     // Garante null-terminator
     messageBuffer[RH_RF95_MAX_MESSAGE_LEN - 1] = '\0';
@@ -221,7 +174,6 @@ void sendFormattedMessage(uint8_t tid, const char *event, const char *value)
         messageBuffer[msgLen] = '\0';
     }
     lora.sendMessage(tid, messageBuffer);
-    digitalWrite(Config::LED_PIN, LOW);
 #endif
 }
 
@@ -243,6 +195,7 @@ void sendStatus()
     int currentState = digitalRead(Config::RELAY_PIN);
     const char *status = currentState == HIGH ? "on" : "off";
     sendFormattedMessage(0x00, "status", status);
+    waitAck(100);
     systemState.lastPinState = currentState;
     systemState.pinStateChanged = false;
 }
@@ -254,11 +207,9 @@ bool processAndRespondToMessage(const char *message)
     bool handled = false;
     if (message == nullptr)
     {
-        // ack(false, tid);
         return false;
     }
-
-    // Logger::debug(message);
+    digitalWrite(Config::LED_PIN, HIGH);
 
     const char *keywordsNoAck[] = {"ack", "nak"};
     const char *keywordsAck[] = {"presentation", "get", "set", "gpio"};
@@ -334,17 +285,27 @@ void ack(bool ak, uint8_t tid)
 void handleLoraIncomingMessages()
 {
 #ifdef LORA
-    uint8_t len = RH_RF95_MAX_MESSAGE_LEN;
-    if (lora.receiveMessage((char *)loraBuffer, len))
+    if (lora.available())
     {
-        processAndRespondToMessage((const char *)loraBuffer);
+        uint8_t len = RH_RF95_MAX_MESSAGE_LEN;
+        if (lora.receiveMessage((char *)loraBuffer, len))
+        {
+            processAndRespondToMessage((const char *)loraBuffer);
+        }
     }
 #endif
 }
 
+long checaZeraContador = millis();
+bool zerou = false;
 void loop()
 {
-    digitalWrite(Config::LED_PIN, HIGH);
+    if (!zerou && (millis() - checaZeraContador > 60000))
+    { // depois de um minuto rodando, reset o contador de reinicio;
+        zeraContadorReinicio();
+        zerou = true;
+    }
+
     handleLoraIncomingMessages();
 #ifdef LORA
     if ((systemState.pinStateChanged) || (millis() - systemState.previousMillis >= Config::STATUS_INTERVAL))
