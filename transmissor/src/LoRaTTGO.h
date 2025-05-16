@@ -62,6 +62,8 @@ public:
 
         int snd = LoRa.print(message);
         bool rt = LoRa.endPacket() > 0;
+        LoRa.flush();
+
         Logger::log(LogLevel::SEND, message);
         LoRa.receive();
 
@@ -78,11 +80,12 @@ public:
             hId = LoRa.read();
             hFlag = LoRa.read();
         }
+        memset(buffer, 0, sizeof(buffer));
         while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
         {
             buffer[len++] = (char)LoRa.read();
         }
-        buffer[len] = '\0';
+        // buffer[len] = '\0';
 
 #ifdef DEBUG_ON
         char msg[64];

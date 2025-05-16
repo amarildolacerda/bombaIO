@@ -88,6 +88,7 @@ void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const
 #ifdef TTGO
     name = "ttgo";
 #endif
+    memset(message, 0, sizeof(message));
     sprintf(message, "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}", name, event, value);
 }
 

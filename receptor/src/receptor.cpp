@@ -160,9 +160,10 @@ void setup()
 void formatMessage(uint8_t tid, const char *event, const char *value = "")
 {
 #ifdef LORA
-    sprintf(messageBuffer,
-            "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}",
-            Config::TERMINAL_NAME, event, value);
+    memset(messageBuffer, 0, sizeof(messageBuffer));
+    snprintf(messageBuffer, sizeof(messageBuffer),
+             "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}",
+             Config::TERMINAL_NAME, event, value);
 #endif
 }
 
@@ -170,13 +171,6 @@ void sendFormattedMessage(uint8_t tid, const char *event, const char *value)
 {
 #ifdef LORA
     formatMessage(tid, event, value);
-    // Garante null-terminator
-    messageBuffer[RH_RF95_MAX_MESSAGE_LEN - 1] = '\0';
-    size_t msgLen = strlen(messageBuffer);
-    if (msgLen == 0 || messageBuffer[msgLen - 1] != '\0')
-    {
-        messageBuffer[msgLen] = '\0';
-    }
     lora.sendMessage(tid, messageBuffer);
 #endif
 }
@@ -285,7 +279,18 @@ bool processAndRespondToMessage(const char *message)
 void ack(bool ak, uint8_t tid)
 {
 #ifdef LORA
-    lora.sendMessage(tid, ak ? "ack" : "nak");
+    // Garante que a mensagem enviada está null-terminated
+    char ackMsg[8];
+    memset(ackMsg, 0, sizeof(ackMsg));
+    if (ak)
+    {
+        strncpy(ackMsg, "ack", sizeof(ackMsg));
+    }
+    else
+    {
+        strncpy(ackMsg, "nak", sizeof(ackMsg));
+    }
+    lora.sendMessage(tid, ackMsg);
 #endif
 }
 
@@ -307,7 +312,7 @@ long checaZeraContador = millis();
 bool zerou = false;
 void loop()
 {
-    if (!zerou && (millis() - checaZeraContador > 60000))
+    if ((!zerou) && (millis() - checaZeraContador > 60000))
     { // depois de um minuto rodando, reset o contador de reinicio;
         zeraContadorReinicio();
         zerou = true;

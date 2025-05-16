@@ -92,24 +92,23 @@ void initNTP()
 
 void initAlexa()
 {
-    Serial.println("Alexa:");
+    Logger::info("Alexa Init");
     for (int i = 0; i < DeviceInfo::deviceRegList.size(); i++)
     {
         const DeviceRegData reg = DeviceInfo::deviceRegList[i].second;
         if (reg.tid == 0)
             continue;
         espalexa.addDevice((reg.name + String(reg.tid)), alexaDeviceCallback, EspalexaDeviceType::onoff);
-        Serial.print(reg.tid);
-        Serial.print(": ");
-        Serial.println(reg.name + String(reg.tid));
+        // Serial.print(reg.tid);
+        // Serial.print(": ");
+        // Serial.println(reg.name + String(reg.tid));
     }
+
     server.onNotFound([]()
                       {
            String uri = server.uri();
            String arg0 = server.args() > 0 ? server.arg(0) : String("");
-           Serial.print("NOTFOUND:" + uri);
            if (!espalexa.handleAlexaApiCall(uri, arg0)) {
-               Serial.print("NENHUM ALEXA");
                server.send(404, "text/plain", "Not found");
                return;
            }
@@ -212,7 +211,8 @@ void tloop()
 
 void processIncoming(LoRaInterface *loraInstance)
 {
-    uint8_t buf[Config::MESSAGE_LEN + 1] = {0}; // +1 para garantir espaço para null-terminator
+    uint8_t buf[Config::MESSAGE_LEN + 1]; // +1 para garantir espaço para null-terminator
+    memset(buf, 0, sizeof(buf));
     uint8_t len = Config::MESSAGE_LEN;
     bool rt = loraInstance->receiveMessage(buf, len);
     if (!rt)
@@ -220,7 +220,6 @@ void processIncoming(LoRaInterface *loraInstance)
         Logger::log(LogLevel::INFO, F("Não pegou ou descartou"));
         return;
     }
-    buf[len] = '\0'; // Garante null-terminator para uso como string
 
     // Remove caracteres não imprimíveis antes de desserializar
     for (uint8_t i = 0; i < len; i++)
@@ -291,22 +290,24 @@ void processIncoming(LoRaInterface *loraInstance)
                     d->setState(value == "on");
                     d->setValue(value == "on");
                     d->setPercent((value == "on") ? 100 : 0);
-                    Serial.printf("Alexa(%d): %s (%s)", alexaId, value.c_str(), value == "on" ? "true" : "false");
+                    char msg[64];
+                    sprintf(msg, "Alexa(%d): %s (%s)", alexaId, value.c_str(), value == "on" ? "true" : "false");
+                    Logger::info(msg);
                 }
                 else
                 {
-                    Serial.print("nao achei alexa device");
+                    Logger::error("nao achei alexa device");
                 }
             }
             else
             {
-                Serial.print("não achei alexa data");
+                Logger::error("não achei alexa data");
             }
         }
 
         if (event == "presentation")
         {
-            Serial.print("saveRegs");
+            // Serial.print("saveRegs");
             DeviceRegData reg;
             reg.tid = tid;
             reg.name = dname;
