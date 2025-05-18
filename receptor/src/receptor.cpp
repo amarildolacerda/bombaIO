@@ -61,13 +61,13 @@ bool waitAck(const uint32_t timeout)
     const long start = millis();
     while (millis() - start < timeout)
     {
-        delay(10);
         if (lora.receiveMessage(msg, len))
         {
             if (String(msg).indexOf("ack") >= 0)
                 return true;
         }
-        // yield();
+        delay(10);
+        yield();
     }
 
     return false;
@@ -207,6 +207,7 @@ void sendStatus()
         sendFormattedMessage(0x00, "status", status);
         systemState.lastPinState = currentState;
         systemState.pinStateChanged = true;
+        delay(1000);
         if (waitAck(1000))
         {
             systemState.pinStateChanged = false;
