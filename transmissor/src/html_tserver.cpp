@@ -51,14 +51,15 @@ namespace HtmlServer
         return styles;
     }
 
-    void generateMenu()
+    String generateMenu()
     {
+        // Menu
         String html = "<div class='menu'>";
         html += "<a href='/' class='menu-item'>Home</a>";
         html += "<a href='/ota' class='menu-item'>OTA Update</a>";
         html += "<a href='/reset' class='menu-item'>Reset Devices</a>";
         html += "</div>";
-        espServer->sendContent(html);
+        return html;
     }
 
     void generateHomePage()
@@ -74,8 +75,7 @@ namespace HtmlServer
         html += "</head>";
         html += "<body>";
         html += "<div class='container'>";
-
-        generateMenu();
+        html += generateMenu();
 
         html += "  <header>";
         html += "    <h1>Dispositivos Conectados</h1>";
@@ -301,7 +301,9 @@ namespace HtmlServer
                       {
             DeviceInfo::deviceRegList.clear(); 
             Prefers::saveRegs();
-            espServer->send(200, "text/plain", "OK"); });
+            espServer->send(200, "text/plain", "OK"); 
+            
+            ESP.restart(); });
 
         // Rotas OTA
         espServer->on("/ota", HTTP_GET, []()
