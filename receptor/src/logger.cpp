@@ -41,3 +41,14 @@ bool Logger::log(LogLevel level, const char *message)
     Serial.print(F("\033[0m")); // Reset color if used
     return true;
 }
+
+bool Logger::log(LogLevel level, __FlashStringHelper *message)
+{
+    if (message == nullptr)
+        return 0;
+
+    char eventBuffer[32];
+    strncpy_P(eventBuffer, reinterpret_cast<const char *>(message), sizeof(eventBuffer));
+
+    return Logger::log(level, eventBuffer);
+}

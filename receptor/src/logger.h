@@ -36,6 +36,7 @@ public:
     }
 
     static bool log(LogLevel level, const char *message);
+    static bool log(LogLevel level, __FlashStringHelper *message);
 
 private:
     static LogLevel currentLogLevel;
