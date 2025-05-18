@@ -327,6 +327,7 @@ void processIncoming(LoRaInterface *loraInstance)
         data.rssi = loraInstance->packetRssi();
         DeviceInfo::updateDeviceList(data.tid, data);
     }
+    delay(50);
     LoRaCom::ack(true, loraInstance->headerFrom());
 }
 
