@@ -52,8 +52,9 @@ public:
         LoRa.flush();
 
         Logger::log(LogLevel::SEND, message);
+        delay(50);
         LoRa.receive();
-
+        delay(10);
         return rt;
     }
 

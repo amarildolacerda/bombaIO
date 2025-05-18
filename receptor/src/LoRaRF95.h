@@ -58,6 +58,7 @@ public:
         {
             Logger::log(LogLevel::SEND, message);
         }
+        delay(50);
         rf95.setModeRx();
         delay(10);
     }
