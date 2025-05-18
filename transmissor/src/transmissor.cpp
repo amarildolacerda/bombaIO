@@ -211,6 +211,7 @@ void tloop()
 
 void processIncoming(LoRaInterface *loraInstance)
 {
+    bool handled = false;
     uint8_t buf[Config::MESSAGE_LEN + 1]; // +1 para garantir espaço para null-terminator
     memset(buf, 0, sizeof(buf));
     uint8_t len = Config::MESSAGE_LEN;
@@ -236,17 +237,16 @@ void processIncoming(LoRaInterface *loraInstance)
 
     if (len <= 10)
     {
-        // não é um dado do protocolo alto
+        // não é um dado do protocolo alto (ACK,NAK)
         return;
     }
 
     // Filtro: descarta mensagens que não começam com '{'
     if (buf[0] != '{')
     {
+        LoRaCom::ack(false, loraInstance->headerFrom());
         Logger::log(LogLevel::ERROR, "Descartado pacote LoRa inválido (não começa com '{')");
         Logger::log(LogLevel::ERROR, (const char *)buf);
-        LoRaCom::ack(false, loraInstance->headerFrom());
-
         return;
     }
 
@@ -283,7 +283,9 @@ void processIncoming(LoRaInterface *loraInstance)
 #endif
         if (event == "status")
         {
+            LoRaCom::ack(true, loraInstance->headerFrom());
             systemState.updateState(value);
+
             uint8_t alexaId = DeviceInfo::indexOf(tid);
             if (alexaId >= 0)
             {
@@ -296,6 +298,7 @@ void processIncoming(LoRaInterface *loraInstance)
                     char msg[64];
                     sprintf(msg, "Term: % d Alexa %s (%d): %s (%s)", tid, DeviceInfo::deviceRegList[alexaId].second.name, alexaId, value.c_str(), value == "on" ? "true" : "false");
                     Logger::info(msg);
+                    return;
                 }
                 else
                 {
@@ -306,16 +309,18 @@ void processIncoming(LoRaInterface *loraInstance)
             {
                 Logger::error("não achei alexa data");
             }
+            return;
         }
 
         if (event == "presentation")
         {
-            // Serial.print("saveRegs");
+            LoRaCom::ack(true, loraInstance->headerFrom());
             DeviceRegData reg;
             reg.tid = tid;
             reg.name = dname;
             DeviceInfo::updateRegList(tid, reg);
             Prefers::saveRegs();
+            return;
         }
 
         DeviceInfoData data;
@@ -327,8 +332,7 @@ void processIncoming(LoRaInterface *loraInstance)
         data.rssi = loraInstance->packetRssi();
         DeviceInfo::updateDeviceList(data.tid, data);
     }
-    delay(50);
-    LoRaCom::ack(true, loraInstance->headerFrom());
+    LoRaCom::ack(false, loraInstance->headerFrom());
 }
 
 #endif

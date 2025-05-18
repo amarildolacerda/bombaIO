@@ -47,40 +47,42 @@ public:
         LoRa.write(genHeaderId());
         LoRa.write(strlen(message) + 3);
 
-        char msg[64];
-        snprintf(msg, sizeof(msg), "SendMessage From: %d To: %d", _tid, tidTo);
-        Logger::log(LogLevel::VERBOSE, msg);
+        // char msg[64];
+        // snprintf(msg, sizeof(msg), "SendMessage From: %d To: %d", _tid, tidTo);
+        // Logger::log(LogLevel::VERBOSE, msg);
 
         int snd = LoRa.print(message);
         bool rt = LoRa.endPacket() > 0;
-        LoRa.flush();
-
         Logger::log(LogLevel::SEND, message);
-        LoRa.receive();
+
         delay(50);
+        LoRa.receive();
         return rt;
     }
 
     bool receiveMessage(uint8_t *buffer, uint8_t &len) override
     {
         len = 0;
-        if (LoRa.available())
-        {
-            hTo = LoRa.read();
-            hFrom = LoRa.read();
-            hId = LoRa.read();
-            hFlag = LoRa.read();
-        }
+        if (!LoRa.available())
+            return false;
+
+        hTo = LoRa.read();
+        hFrom = LoRa.read();
+        hId = LoRa.read();
+        hFlag = LoRa.read();
+
         memset(buffer, 0, sizeof(buffer));
         while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
         {
-            buffer[len++] = (char)LoRa.read();
+            uint8_t r = LoRa.read();
+            buffer[len++] = (char)r;
         }
-        // buffer[len] = '\0';
+        if ((hFrom == _tid))
+            return false;
 
 #ifdef DEBUG_ON
         char msg[64];
-        snprintf(msg, sizeof(msg), "(%d) From: %d To: %d id: %d Flag: %d bytes: %d", _tid,
+        snprintf(msg, sizeof(msg), "Term: (%d) From: %d To: %d id: %d Flag: %d bytes: %d", _tid,
                  headerFrom(), headerTo(), headerId(), hFlag,
                  strlen((char *)buffer));
         Logger::log(LogLevel::RECEIVE, msg);
@@ -88,10 +90,8 @@ public:
 #endif
         if (!inPromiscuous)
         {
-            if (hTo != 0xFF && hTo != _tid)
-            {
-                return false;
-            }
+
+            return (hTo == 0xFF || hTo == _tid);
         }
         return true;
     }

@@ -65,7 +65,7 @@ public:
             Logger::log(LogLevel::SEND, message);
         }
         rf95.setModeRx();
-        delay(50);
+        delay(10);
     }
 
     bool available()

@@ -50,7 +50,7 @@ static uint8_t loraBuffer[Config::MESSAGE_MAX_LEN];
 #define IDENTIFICATION_POWER_WINDOW_MS 60000UL // 1 minuto para 3 boots
 #endif
 
-void sendStatus();
+bool sendStatus();
 void sendPresentation(uint8_t n = 3);
 void ack(bool ak = true, uint8_t targetTerminal = 0x00);
 void formatMessage(uint8_t tid, const char *event, const char *value);
@@ -108,12 +108,18 @@ bool waitAck(const uint32_t timeout)
     char msg[Config::MESSAGE_MAX_LEN];
     uint8_t len = sizeof(msg);
     const long start = millis();
+    delaySafe(10);
     while (millis() - start < timeout)
     {
         if (lora.receiveMessage(msg, len))
         {
-            if (String(msg).indexOf("ack") >= 0)
+            if (len == 3)
                 return true;
+            else
+            {
+                processAndRespondToMessage(msg);
+                return false;
+            }
         }
         delaySafe(10);
         yield();
@@ -154,12 +160,11 @@ void checkAndHandleIdentificationMode()
     {
         Logger::log(LogLevel::WARNING, F("Entrando em modo de identificação do dispositivo!"));
         // Modo identificação: envia apresentação continuamente
-        for (int i = 0; i < 10; ++i)
+        for (int i = 0; i < 3; ++i)
         {
-            Serial.print("presentation");
+            Serial.println(F("presentation"));
             sendPresentation(1);
-            delaySafe(1000);
-            if (waitAck(200))
+            if (waitAck(500))
             {
                 break;
             }
@@ -252,29 +257,25 @@ void sendPresentation(uint8_t n)
     {
         String attemptMessage = String(attempt + 1);
         sendFormattedMessage(0, "presentation", ("RSSI:" + String(lora.getLastRssi())).c_str());
-        // Logger::info("Presentation");
     }
 #endif
 }
 
-void sendStatus()
+bool sendStatus()
 {
     bool currentState = digitalRead(Config::RELAY_PIN);
     savePinState(currentState);
     const char *status = currentState == HIGH ? "on" : "off";
-    for (uint8_t i = 0; i < 3; i++)
+    sendFormattedMessage(0x00, "status", status);
+    systemState.lastPinState = currentState;
+    systemState.pinStateChanged = true;
+    if (waitAck(10))
     {
-        sendFormattedMessage(0x00, "status", status);
-        systemState.lastPinState = currentState;
-        systemState.pinStateChanged = true;
-        delaySafe(1000);
-        if (waitAck(1000))
-        {
-            systemState.pinStateChanged = false;
-            Logger::log(LogLevel::INFO, F("status ack OK"));
-            break;
-        }
+        systemState.pinStateChanged = false;
+        Logger::log(LogLevel::INFO, F("status ack OK"));
+        return true;
     }
+    return false;
 }
 
 void setTime(const char *tz)
@@ -296,6 +297,16 @@ bool processAndRespondToMessage(const char *message)
 
     const char *keywordsNoAck[] = {"ack", "nak"};
     const char *keywordsAck[] = {"presentation", "get", "set", "gpio"};
+
+    for (const char *keyword : keywordsNoAck)
+    {
+        if (strstr_P(message, keyword) != nullptr)
+        {
+            // nao responde ACK nem NAK
+            Logger::log(LogLevel::VERBOSE, keyword);
+            return true;
+        }
+    }
 
     if ((strstr_P(message, PSTR("get")) != nullptr) && (strstr_P(message, PSTR("status")) != nullptr))
     {
@@ -334,43 +345,6 @@ bool processAndRespondToMessage(const char *message)
     }
     else
     {
-        // Verifica se message contém algum dos valores no vetor (nao responde)
-#ifndef x__AVR__
-        JsonDocument doc;
-
-        // Deserializa a string JSON
-        DeserializationError error = deserializeJson(doc, message);
-
-        // Verifica se ocorreu um erro
-        if (error)
-        {
-            Logger::log(LogLevel::ERROR, F("Falha na deserialização"));
-            ack(false, tid);
-            return false;
-        }
-
-        // Extrai o valor da chave "value"
-        const char *value = doc["value"];
-        const char *event = doc["event"];
-        if (strstr("time", event) != nullptr)
-        {
-            setTime(value);
-            handled = true;
-        }
-#endif
-    }
-
-    if (!handled)
-    {
-        for (const char *keyword : keywordsNoAck)
-        {
-            if (strstr_P(message, keyword) != nullptr)
-            {
-                // nao responde ACK nem NAK
-                Logger::log(LogLevel::VERBOSE, keyword);
-                return true;
-            }
-        }
 
         for (const char *keyword : keywordsAck)
         {
@@ -379,6 +353,34 @@ bool processAndRespondToMessage(const char *message)
                 handled = true;
             }
         }
+
+        // Verifica se message contém algum dos valores no vetor (nao responde)
+#ifndef x__AVR__
+        if (!handled)
+        {
+            JsonDocument doc;
+
+            // Deserializa a string JSON
+            DeserializationError error = deserializeJson(doc, message);
+
+            // Verifica se ocorreu um erro
+            if (error)
+            {
+                Logger::log(LogLevel::ERROR, F("Falha na deserialização"));
+                ack(false, tid);
+                return false;
+            }
+
+            // Extrai o valor da chave "value"
+            const char *value = doc["value"];
+            const char *event = doc["event"];
+            if (strstr("time", event) != nullptr)
+            {
+                setTime(value);
+                handled = true;
+            }
+        }
+#endif
     }
 
     ack(handled, tid);
@@ -422,8 +424,10 @@ void handleLoraIncomingMessages()
 
 long checaZeraContador = millis();
 bool zerou = false;
+int resetCheck = 0;
 void loop()
 {
+
 #ifdef __AVR__
     WDT_RESET(); // Reinicia o contador do WDT (evita reset não desejado)
 #endif
@@ -433,6 +437,11 @@ void loop()
         zeraContadorReinicio();
         zerou = true;
     }
+
+#ifdef __AVR__
+    if (resetCheck++ > 50)
+        asm volatile("jmp 0"); // Jump to the reset vector (address 0)
+#endif
 
     if ((!loraActive))
     {
@@ -448,16 +457,21 @@ void loop()
 #ifdef __AVR__
     WDT_RESET(); // Reinicia o contador do WDT (evita reset não desejado)
 #endif
-    unsigned long status_internal = (systemState.pinStateChanged ? 5000 : Config::STATUS_INTERVAL);
+    unsigned long status_internal = (systemState.pinStateChanged ? 10000 : Config::STATUS_INTERVAL);
     if ((millis() - systemState.previousMillis) >= status_internal)
     {
         systemState.previousMillis = millis();
-        sendStatus();
-        systemState.pinStateChanged = false;
-        int rssi = lora.getLastRssi();
-        if (rssi != 0)
+        if (sendStatus())
         {
-            Logger::log(LogLevel::WARNING, String("RSSI: " + String(rssi) + " dBm").c_str());
+            systemState.pinStateChanged = false;
+            int rssi = lora.getLastRssi();
+            if (rssi != 0)
+            {
+                Logger::log(LogLevel::WARNING, String("RSSI: " + String(rssi) + " dBm").c_str());
+            }
+        }
+        else
+        {
         }
     }
 
@@ -466,6 +480,6 @@ void loop()
 #ifdef ESP8266
     processHtmlServer();
 #endif
-
+    resetCheck = 0;
     digitalWrite(Config::LED_PIN, LOW);
 }
