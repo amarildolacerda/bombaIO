@@ -10,6 +10,17 @@
 #include "logger.h"
 #include "html_server.h"
 
+#ifdef __AVR__
+#include <avr/wdt.h>
+#define WDT_ENABLE() wdt_enable(WDTO_4S) // Habilita WDT com timeout de 4 segundos
+#define WDT_RESET() wdt_reset()          // Reinicia o contador do WDT ("alimenta o cachorro")
+#define WDT_DISABLE() wdt_disable()      // Desativa o WDT (use com cuidado)
+#else
+#define WDT_ENABLE()  // Nada em plataformas não-AVR
+#define WDT_RESET()   // Nada em plataformas não-AVR
+#define WDT_DISABLE() // Nada em plataformas não-AVR
+#endif
+
 #ifdef ARDUINO_SAMD_VARIANT_COMPLIANCE
 #define COMSerial Serial1
 #define ShowSerial SerialUSB
@@ -34,6 +45,7 @@ static uint8_t loraBuffer[Config::MESSAGE_MAX_LEN];
 #include <EEPROM.h>
 #define EEPROM_ADDR_BOOT_COUNT 0
 #define EEPROM_ADDR_LAST_BOOT 4
+#define EEPROM_ADDR_PIN5_STATE 8
 #define IDENTIFICATION_TIMEOUT_MS 10000UL      // 10 segundos para zerar contagem
 #define IDENTIFICATION_POWER_WINDOW_MS 60000UL // 1 minuto para 3 boots
 #endif
@@ -52,6 +64,43 @@ void checkAndHandleIdentificationMode();
 bool waitAck(const uint32_t timeout);
 #endif
 
+void delaySafe(unsigned long ms)
+{
+#ifdef __AVR__
+    unsigned long start = millis();
+    while (millis() - start < ms)
+    {
+        WDT_RESET();
+        delay(1);
+    }
+#else
+    delay(ms);
+#endif
+}
+
+#ifdef __AVR__
+// Função para salvar o estado do pino 5 na EEPROM
+void savePinState(bool state)
+{
+    EEPROM.update(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
+}
+
+// Função para ler o estado do pino 5 da EEPROM
+bool readPinState()
+{
+    return EEPROM.read(EEPROM_ADDR_PIN5_STATE) == 1;
+}
+
+// Função para inicializar o pino 5 com o estado salvo
+void initPinRelay()
+{
+    pinMode(5, OUTPUT);
+    bool savedState = readPinState();
+    digitalWrite(Config::RELAY_PIN, savedState ? HIGH : LOW);
+    Logger::info(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF");
+}
+#endif
+
 #ifdef __AVR__
 
 bool waitAck(const uint32_t timeout)
@@ -66,7 +115,7 @@ bool waitAck(const uint32_t timeout)
             if (String(msg).indexOf("ack") >= 0)
                 return true;
         }
-        delay(10);
+        delaySafe(10);
         yield();
     }
 
@@ -109,7 +158,7 @@ void checkAndHandleIdentificationMode()
         {
             Serial.print("presentation");
             sendPresentation(1);
-            delay(1000);
+            delaySafe(1000);
             if (waitAck(200))
             {
                 break;
@@ -124,6 +173,12 @@ void checkAndHandleIdentificationMode()
 
 void setup()
 {
+#ifdef __AVR__
+    // Desabilita WDT imediatamente para evitar reset acidental durante a inicialização
+    MCUSR &= ~(1 << WDRF); // Limpa o flag de reset do WDT
+    WDT_DISABLE();
+#endif
+
     Logger::setLogLevel(LogLevel::VERBOSE);
 #ifdef __AVR__
     ShowSerial.begin(115200);
@@ -155,7 +210,7 @@ void setup()
 
     pinMode(Config::LED_PIN, OUTPUT);
     pinMode(Config::RELAY_PIN, OUTPUT);
-    digitalWrite(Config::LED_PIN, HIGH);
+    initPinRelay();
 
     systemState.lastPinState = digitalRead(Config::RELAY_PIN);
 
@@ -165,6 +220,10 @@ void setup()
 
     digitalWrite(Config::LED_PIN, LOW);
     systemState.pinStateChanged = true;
+
+#ifdef __AVR__
+    WDT_ENABLE(); // Habilita o Watchdog após a inicialização
+#endif
 }
 
 void formatMessage(uint8_t tid, const char *event, const char *value = "")
@@ -200,14 +259,15 @@ void sendPresentation(uint8_t n)
 
 void sendStatus()
 {
-    int currentState = digitalRead(Config::RELAY_PIN);
+    bool currentState = digitalRead(Config::RELAY_PIN);
+    savePinState(currentState);
     const char *status = currentState == HIGH ? "on" : "off";
     for (uint8_t i = 0; i < 3; i++)
     {
         sendFormattedMessage(0x00, "status", status);
         systemState.lastPinState = currentState;
         systemState.pinStateChanged = true;
-        delay(1000);
+        delaySafe(1000);
         if (waitAck(1000))
         {
             systemState.pinStateChanged = false;
@@ -364,15 +424,9 @@ long checaZeraContador = millis();
 bool zerou = false;
 void loop()
 {
-
-    if ((!loraActive))
-    {
-        digitalWrite(Config::LED_PIN, HIGH);
-        delay(1000);
-        digitalWrite(Config::LED_PIN, LOW);
-        delay(500);
-        return;
-    }
+#ifdef __AVR__
+    WDT_RESET(); // Reinicia o contador do WDT (evita reset não desejado)
+#endif
 
     if ((!zerou) && (millis() - checaZeraContador > 60000))
     { // depois de um minuto rodando, reset o contador de reinicio;
@@ -380,8 +434,20 @@ void loop()
         zerou = true;
     }
 
+    if ((!loraActive))
+    {
+        digitalWrite(Config::LED_PIN, HIGH);
+        delaySafe(1000);
+        digitalWrite(Config::LED_PIN, LOW);
+        delaySafe(500);
+        return;
+    }
+
 #ifdef LORA
     handleLoraIncomingMessages();
+#ifdef __AVR__
+    WDT_RESET(); // Reinicia o contador do WDT (evita reset não desejado)
+#endif
     unsigned long status_internal = (systemState.pinStateChanged ? 5000 : Config::STATUS_INTERVAL);
     if ((millis() - systemState.previousMillis) >= status_internal)
     {
@@ -400,5 +466,6 @@ void loop()
 #ifdef ESP8266
     processHtmlServer();
 #endif
+
     digitalWrite(Config::LED_PIN, LOW);
 }
