@@ -15,6 +15,10 @@ SoftwareSerial SSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
 
 class LoRaRF95
 {
+private:
+    bool _promiscuos : 1;
+    uint8_t _tid = 0;
+
 public:
     LoRaRF95() : rf95(COMSerial) {}
     bool initialize(float frequency, uint8_t terminalId, bool promiscuous = true)
@@ -31,9 +35,11 @@ public:
 
             return false;
         }
+        _promiscuos = promiscuous;
+        _tid = terminalId;
         COMSerial.setTimeout(0);
         rf95.setFrequency(frequency);
-        rf95.setPromiscuous(promiscuous);
+        rf95.setPromiscuous(true);
         rf95.setHeaderTo(0xFF);
         rf95.setHeaderFrom(terminalId);
         rf95.setTxPower(14);
@@ -80,7 +86,9 @@ public:
                          rf95.headerTo(), rf95.headerId(), len, strlen(buffer));
                 Logger::log(LogLevel::RECEIVE, msg);
                 Logger::log(LogLevel::RECEIVE, (char *)buffer);
-                return true;
+                uint8_t mto = rf95.headerTo();
+                if (((mto == 0xFF) || (mto == _tid)) || (_promiscuos))
+                    return true;
             }
         }
         return false;

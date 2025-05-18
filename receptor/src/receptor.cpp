@@ -67,7 +67,7 @@ bool waitAck(const uint32_t timeout)
             if (String(msg).indexOf("ack") >= 0)
                 return true;
         }
-        yield();
+        // yield();
     }
 
     return false;
@@ -77,7 +77,7 @@ void zeraContadorReinicio()
 {
     uint8_t bootCount = 0;
     EEPROM.write(EEPROM_ADDR_BOOT_COUNT, bootCount);
-    Logger::info("Zerou contador de reinicio");
+    Logger::log(LogLevel::INFO, F("Zerou contador de reinicio"));
 }
 void checkAndHandleIdentificationMode()
 {
@@ -93,17 +93,17 @@ void checkAndHandleIdentificationMode()
     uint8_t checkBootCount = EEPROM.read(EEPROM_ADDR_BOOT_COUNT);
     if (checkBootCount != bootCount)
     {
-        Logger::log(LogLevel::ERROR, "Falha ao gravar na EEPROM!");
+        Logger::log(LogLevel::ERROR, F("Falha ao gravar na EEPROM!"));
         Serial.print(bootCount);
     }
     else
     {
-        Logger::log(LogLevel::DEBUG, "EEPROM gravada com sucesso.");
+        Logger::log(LogLevel::DEBUG, F("EEPROM gravada com sucesso."));
     }
 
     if (bootCount >= 3)
     {
-        Logger::log(LogLevel::WARNING, "Entrando em modo de identificação do dispositivo!");
+        Logger::log(LogLevel::WARNING, F("Entrando em modo de identificação do dispositivo!"));
         // Modo identificação: envia apresentação continuamente
         for (int i = 0; i < 10; ++i)
         {
@@ -132,7 +132,7 @@ void setup()
         ;
     if (!lora.initialize(Config::BAND, Config::TERMINAL_ID, Config::PROMISCUOS))
     {
-        Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
+        Logger::log(LogLevel::ERROR, F("LoRa initialization failed!"));
         loraActive = false;
     }
     else
@@ -151,7 +151,7 @@ void setup()
     // Serial.begin(9600);
 
 #endif
-    Logger::log(LogLevel::INFO, "RF95 Server Initializing...");
+    Logger::log(LogLevel::INFO, F("RF95 Server Initializing..."));
 
     pinMode(Config::LED_PIN, OUTPUT);
     pinMode(Config::RELAY_PIN, OUTPUT);
@@ -210,7 +210,7 @@ void sendStatus()
         if (waitAck(1000))
         {
             systemState.pinStateChanged = false;
-            Logger::info(" status ack OK");
+            Logger::log(LogLevel::INFO, F("status ack OK"));
             break;
         }
     }
@@ -235,14 +235,6 @@ bool processAndRespondToMessage(const char *message)
 
     const char *keywordsNoAck[] = {"ack", "nak"};
     const char *keywordsAck[] = {"presentation", "get", "set", "gpio"};
-    for (const char *keyword : keywordsNoAck)
-    {
-        if (strstr_P(message, keyword) != nullptr)
-        {
-            // nao responde ACK nem NAK
-            return true;
-        }
-    }
 
     if ((strstr_P(message, PSTR("get")) != nullptr) && (strstr_P(message, PSTR("status")) != nullptr))
     {
@@ -253,20 +245,20 @@ bool processAndRespondToMessage(const char *message)
     {
         digitalWrite(Config::RELAY_PIN, LOW);
         systemState.pinStateChanged = true;
-        handled = Logger::log(LogLevel::INFO, "Relay OFF");
+        handled = Logger::log(LogLevel::INFO, F("Relay OFF"));
     }
     else if (strstr_P(message, PSTR("\"on\"")) != nullptr)
     {
         digitalWrite(Config::RELAY_PIN, HIGH);
         systemState.pinStateChanged = true;
-        handled = Logger::log(LogLevel::INFO, "Relay ON");
+        handled = Logger::log(LogLevel::INFO, F("Relay ON"));
     }
     else if (strstr_P(message, PSTR("toggle")) != nullptr)
     {
         int currentState = digitalRead(Config::RELAY_PIN);
         digitalWrite(Config::RELAY_PIN, !currentState);
         systemState.pinStateChanged = true;
-        handled = Logger::log(LogLevel::INFO, "Relay toggled ");
+        handled = Logger::log(LogLevel::INFO, F("Relay toggled "));
     }
     else if (strstr_P(message, PSTR("presentation")) != nullptr)
     {
@@ -291,7 +283,7 @@ bool processAndRespondToMessage(const char *message)
         // Verifica se ocorreu um erro
         if (error)
         {
-            Logger::log(LogLevel::ERROR, "Falha na deserialização");
+            Logger::log(LogLevel::ERROR, F("Falha na deserialização"));
             ack(false, tid);
             return false;
         }
@@ -309,6 +301,16 @@ bool processAndRespondToMessage(const char *message)
 
     if (!handled)
     {
+        for (const char *keyword : keywordsNoAck)
+        {
+            if (strstr_P(message, keyword) != nullptr)
+            {
+                // nao responde ACK nem NAK
+                Logger::log(LogLevel::VERBOSE, keyword);
+                return true;
+            }
+        }
+
         for (const char *keyword : keywordsAck)
         {
             if (strstr_P(message, keyword) != nullptr)

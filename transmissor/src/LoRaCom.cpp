@@ -103,6 +103,7 @@ void LoRaCom::ack(bool ak, uint8_t tid)
 {
     loraInstance->setHeaderTo(tid);
     bool rt = loraInstance->print((ak) ? "ack" : "nak");
+    displayManager.message((ak) ? "ack" : "nak");
 }
 
 uint8_t nHeaderId = 0;
@@ -140,7 +141,7 @@ void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
 
         snprintf(nStr, sizeof(nStr), "%u", attempt + 1);
         formatMessage(message, tid, "presentation", nStr);
-
+        displayManager.message(message);
         loraInstance->setHeaderTo(tid);
         bool rt = loraInstance->print(message);
         if (rt)
@@ -219,6 +220,7 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
         Logger::log(LogLevel::ERROR, F("Falha ao enviar comando LoRa"));
         return false;
     }
+    displayManager.message(value);
     return true;
 }
 
