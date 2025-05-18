@@ -76,7 +76,9 @@ public:
 
 #ifdef DEBUG_ON
         char msg[64];
-        snprintf(msg, sizeof(msg), "(%d) From: %d To: %d id: %d Flag: %d", _tid, headerFrom(), headerTo(), headerId(), hFlag);
+        snprintf(msg, sizeof(msg), "(%d) From: %d To: %d id: %d Flag: %d bytes: %d", _tid,
+                 headerFrom(), headerTo(), headerId(), hFlag,
+                 strlen((char *)buffer));
         Logger::log(LogLevel::RECEIVE, msg);
         Logger::log(LogLevel::RECEIVE, (char *)buffer);
 #endif

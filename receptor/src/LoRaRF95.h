@@ -74,9 +74,9 @@ public:
             {
                 buffer[len] = '\0';
                 char msg[64];
-                snprintf(msg, len, "From: %d To: %d id: %d Flag: %d",
+                snprintf(msg, 64, "From: %d To: %d id: %d Flag: %d bytes: %d",
                          rf95.headerFrom(),
-                         rf95.headerTo(), rf95.headerId(), len);
+                         rf95.headerTo(), rf95.headerId(), len, strlen(buffer));
                 Logger::log(LogLevel::RECEIVE, msg);
                 Logger::log(LogLevel::RECEIVE, (char *)buffer);
                 return true;

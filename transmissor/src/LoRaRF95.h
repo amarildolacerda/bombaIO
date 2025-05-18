@@ -112,8 +112,11 @@ public:
 
 #ifdef DEBUG_ON
                 char msg[64];
-                snprintf(msg, sizeof(msg), "From: %d To: %d id: %d", rf95.headerFrom(), rf95.headerTo(), rf95.headerId());
-                Logger::info(msg);
+                snprintf(msg, sizeof(msg), "(%d) From: %d To: %d id: %d Flag: %d bytes: %d", _tid,
+                         headerFrom(), headerTo(), headerId(), hFlag,
+                         strlen((char *)buffer));
+                Logger::log(LogLevel::RECEIVE, msg);
+                Logger::log(LogLevel::RECEIVE, (char *)buffer);
 #endif
                 len = recvLen;
                 return true;

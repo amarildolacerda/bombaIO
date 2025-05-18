@@ -1,7 +1,7 @@
 #include "receptor.h"
 #include "Arduino.h"
 #include "config.h"
-#ifndef __AVR__
+#ifndef x__AVR__
 #include "ArduinoJson.h"
 #endif
 #ifdef LORA
@@ -26,8 +26,8 @@
 #endif
 
 #ifdef LORA
-char messageBuffer[RH_RF95_MAX_MESSAGE_LEN];
-uint8_t loraBuffer[RH_RF95_MAX_MESSAGE_LEN];
+static char messageBuffer[Config::MESSAGE_MAX_LEN];
+static uint8_t loraBuffer[Config::MESSAGE_MAX_LEN];
 #endif
 
 #ifdef __AVR__
@@ -56,7 +56,7 @@ bool waitAck(const uint32_t timeout);
 
 bool waitAck(const uint32_t timeout)
 {
-    char msg[64];
+    char msg[Config::MESSAGE_MAX_LEN];
     uint8_t len = sizeof(msg);
     const long start = millis();
     while (millis() - start < timeout)
@@ -67,6 +67,7 @@ bool waitAck(const uint32_t timeout)
             if (String(msg).indexOf("ack") >= 0)
                 return true;
         }
+        yield();
     }
 
     return false;
@@ -201,12 +202,17 @@ void sendStatus()
 {
     int currentState = digitalRead(Config::RELAY_PIN);
     const char *status = currentState == HIGH ? "on" : "off";
-    sendFormattedMessage(0x00, "status", status);
-    systemState.lastPinState = currentState;
-    if (waitAck(500))
+    for (uint8_t i = 0; i < 3; i++)
     {
-        systemState.pinStateChanged = false;
-        Logger::info(" status ack OK");
+        sendFormattedMessage(0x00, "status", status);
+        systemState.lastPinState = currentState;
+        systemState.pinStateChanged = true;
+        if (waitAck(1000))
+        {
+            systemState.pinStateChanged = false;
+            Logger::info(" status ack OK");
+            break;
+        }
     }
 }
 
@@ -276,7 +282,7 @@ bool processAndRespondToMessage(const char *message)
     else
     {
         // Verifica se message contém algum dos valores no vetor (nao responde)
-#ifndef __AVR__
+#ifndef x__AVR__
         JsonDocument doc;
 
         // Deserializa a string JSON
