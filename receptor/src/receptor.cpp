@@ -1,7 +1,9 @@
 #include "receptor.h"
 #include "Arduino.h"
 #include "config.h"
-
+#ifndef __AVR__
+#include "ArduinoJson.h"
+#endif
 #ifdef LORA
 #include <LoRaRF95.h>
 #endif
@@ -208,6 +210,12 @@ void sendStatus()
     }
 }
 
+void setTime(const char *tz)
+{
+    Serial.print("TimeZ: ");
+    Serial.println(tz);
+}
+
 bool processAndRespondToMessage(const char *message)
 {
 #ifdef LORA
@@ -221,6 +229,14 @@ bool processAndRespondToMessage(const char *message)
 
     const char *keywordsNoAck[] = {"ack", "nak"};
     const char *keywordsAck[] = {"presentation", "get", "set", "gpio"};
+    for (const char *keyword : keywordsNoAck)
+    {
+        if (strstr_P(message, keyword) != nullptr)
+        {
+            // nao responde ACK nem NAK
+            return true;
+        }
+    }
 
     if ((strstr_P(message, PSTR("get")) != nullptr) && (strstr_P(message, PSTR("status")) != nullptr))
     {
@@ -260,14 +276,33 @@ bool processAndRespondToMessage(const char *message)
     else
     {
         // Verifica se message contém algum dos valores no vetor (nao responde)
-        for (const char *keyword : keywordsNoAck)
+#ifndef __AVR__
+        JsonDocument doc;
+
+        // Deserializa a string JSON
+        DeserializationError error = deserializeJson(doc, message);
+
+        // Verifica se ocorreu um erro
+        if (error)
         {
-            if (strstr_P(message, keyword) != nullptr)
-            {
-                // nao responde ACK nem NAK
-                return true;
-            }
+            Logger::log(LogLevel::ERROR, "Falha na deserialização");
+            ack(false, tid);
+            return false;
         }
+
+        // Extrai o valor da chave "value"
+        const char *value = doc["value"];
+        const char *event = doc["event"];
+        if (strstr("time", event) != nullptr)
+        {
+            setTime(value);
+            handled = true;
+        }
+#endif
+    }
+
+    if (!handled)
+    {
         for (const char *keyword : keywordsAck)
         {
             if (strstr_P(message, keyword) != nullptr)
@@ -276,6 +311,7 @@ bool processAndRespondToMessage(const char *message)
             }
         }
     }
+
     ack(handled, tid);
     return handled;
 #else
