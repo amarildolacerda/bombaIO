@@ -221,6 +221,10 @@ void processIncoming(LoRaInterface *loraInstance)
         return;
     }
 
+    uint8_t tid = loraInstance->headerFrom();
+    if ((tid == 0) && (loraInstance->headerTo() == 0xFF)) // descarta pacotes proprios.
+        return;
+
     // Remove caracteres não imprimíveis antes de desserializar
     for (uint8_t i = 0; i < len; i++)
     {
@@ -268,7 +272,6 @@ void processIncoming(LoRaInterface *loraInstance)
     {
         dname = doc["dtype"].as<String>();
     }
-    static uint8_t tid = loraInstance->headerFrom();
     if ((tid == 0) || (tid == 0xFF))
         return;
 

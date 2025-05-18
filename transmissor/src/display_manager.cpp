@@ -21,11 +21,15 @@ void DisplayManager::initializeDisplay()
     display.display();
 }
 
+void setPos(uint8_t linha, uint8_t coluna)
+{
+    display.setCursor(coluna * 6.5, linha * 8.7);
+}
 void DisplayManager::updateDisplay()
 {
     lastUpdate = millis();
     display.clearDisplay();
-    display.setCursor(0, 0);
+    setPos(0, 0);
 
     display.print("WiFi: ");
     display.println(wifiConnected ? WiFi.localIP().toString() : "DESCONECTADO");
@@ -38,27 +42,35 @@ void DisplayManager::updateDisplay()
         Logger::log(LogLevel::WARNING, String("Sinal LoRa baixo: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
         ultimoBaixo = millis();
     }
+    setPos(1, 0);
     display.print("Radio: ");
     display.print(loraInitialized ? (baixo) ? "Baixo" : "OK" : "FALHA");
     display.print(" (");
     display.print(rssi);
     display.println(")");
 
-    display.print("Estado: ");
-    display.println(relayState);
-
     if (loraRcvEvent.length() > 0)
     {
+        setPos(2, 0);
         display.print("Term: ");
         display.print(_tid);
         int id = DeviceInfo::indexOf(_tid);
         display.print(" ");
         display.println(DeviceInfo::deviceRegList[id].second.name);
 
+        setPos(3, 0);
+        display.print("Estado: ");
+        display.println(relayState); // redundante, so esta preenchendo espaço no display
+
+        setPos(4, 0);
         display.print("Evento: ");
         display.println(loraRcvEvent);
+        setPos(5, 0);
         display.print("Value: ");
-        display.println(loraRcvValue);
+        display.print(loraRcvValue);
+        // display.setCursor(Config::SCREEN_WIDTH - 49, Config::SCREEN_HEIGHT - (8.5 * 2));
+        setPos(5, 12);
+        display.println(systemState.lastUpdateTime);
     }
     else
     {

@@ -161,6 +161,7 @@ void setup()
 #endif
 
     digitalWrite(Config::LED_PIN, LOW);
+    systemState.pinStateChanged = true;
 }
 
 void formatMessage(uint8_t tid, const char *event, const char *value = "")

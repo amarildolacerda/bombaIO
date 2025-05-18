@@ -9,10 +9,11 @@ private:
     bool wifiConnected = false;
     bool loraInitialized = false;
     uint8_t _tid = 0;
-    String relayState = "DESLIGADO";
 
 protected:
 public:
+    String relayState = "...";
+    String lastUpdateTime = "";
     void loraRcv(const String &message);
     void updateState(const String &newState);
     void setWifiStatus(bool connected);

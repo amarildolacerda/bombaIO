@@ -55,6 +55,7 @@ bool LoRaCom::initialize()
     return true;
 }
 
+long lastSendTime = -20000;
 void LoRaCom::handle()
 {
     if (loraInstance->available())
@@ -79,6 +80,12 @@ void LoRaCom::handle()
             ultimoRssi = millis();
         }
 #endif
+    }
+
+    if (millis() - lastSendTime > 30000)
+    {
+        lastSendTime = millis();
+        LoRaCom::sendTime();
     }
 }
 
@@ -116,6 +123,11 @@ int LoRaCom::packetRssi()
 
     int8_t rssi = loraInstance->packetRssi();
     return rssi;
+}
+
+void LoRaCom::sendTime()
+{
+    sendCommand("time", DeviceInfo::getISOTime(), 0xFF);
 }
 
 void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
@@ -207,9 +219,6 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
         Logger::log(LogLevel::ERROR, F("Falha ao enviar comando LoRa"));
         return false;
     }
-#ifdef DEBUG_ON
-    Logger::verbose(output);
-#endif
     return true;
 }
 

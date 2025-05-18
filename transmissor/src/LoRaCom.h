@@ -26,6 +26,8 @@ public:
     static void handle();
     static bool waitAck();
     static void sendPresentation(const uint8_t tid = 0xFF, const uint8_t n = 3);
+    static void sendTime();
+
     static void ack(bool ak = true, uint8_t tid = 0xFF);
     static void formatMessage(char *message, uint8_t tid, const char *event, const char *value);
     static void sleep(unsigned int duration);

@@ -9,15 +9,13 @@
 #ifndef __AVR__
 
 #ifdef ESP32
-#include "update.h"
+#include <Update.h>
 #endif
-
-#undef DISPLAY
 
 namespace HtmlServer
 {
-
     WebServer *espServer = nullptr;
+
     String getCommonStyles()
     {
         String styles = "  * { box-sizing: border-box; }";
@@ -27,9 +25,9 @@ namespace HtmlServer
         styles += "  .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 25px; }";
         styles += "  h2 { color: #3498db; margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }";
         styles += "  .button-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }";
-        styles += "  button { background: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.3s; flex: 1 1 120px; }";
-        styles += "  button:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }";
-        styles += "  button:active { transform: translateY(0); }";
+        styles += "  button, .btn { background: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.3s; flex: 1 1 120px; text-decoration: none; display: inline-block; text-align: center; }";
+        styles += "  button:hover, .btn:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }";
+        styles += "  button:active, .btn:active { transform: translateY(0); }";
         styles += "  .status { color: #7f8c8d; font-size: 14px; margin-top: 5px; }";
         styles += "  .btn-danger { background: #e74c3c; }";
         styles += "  .btn-danger:hover { background: #c0392b; }";
@@ -37,8 +35,30 @@ namespace HtmlServer
         styles += "  .btn-success:hover { background: #27ae60; }";
         styles += "  .btn-warning { background: #f39c12; }";
         styles += "  .btn-warning:hover { background: #d35400; }";
-        styles += "  @media (max-width: 600px) { .button-group { flex-direction: column; } button { width: 100%; } }";
+        styles += "  .btn-info { background: #3498db; }";
+        styles += "  .btn-info:hover { background: #2980b9; }";
+        styles += "  @media (max-width: 600px) { .button-group { flex-direction: column; } button, .btn { width: 100%; } }";
+        styles += "  .menu { background: #2c3e50; padding: 15px; margin-bottom: 20px; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 10px; }";
+        styles += "  .menu-item { color: white; text-decoration: none; padding: 8px 12px; border-radius: 4px; }";
+        styles += "  .menu-item:hover { background: #3498db; }";
+        styles += "  .upload-form { margin-top: 20px; }";
+        styles += "  .progress { margin-top: 20px; width: 100%; background-color: #f1f1f1; border-radius: 4px; overflow: hidden; }";
+        styles += "  .progress-bar { width: 0%; height: 30px; background-color: #4CAF50; text-align: center; line-height: 30px; color: white; transition: width 0.3s; }";
+        styles += "  .device-card { display: inline-block; width: 200px; margin: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; text-align: center; background-color: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }";
+        styles += "  .device-card h3 { margin: 10px 0; font-size: 18px; color: #333; }";
+        styles += "  .device-card button { margin-top: 10px; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }";
+        styles += "  .device-card button:hover { background-color: #2980b9; }";
         return styles;
+    }
+
+    void generateMenu()
+    {
+        String html = "<div class='menu'>";
+        html += "<a href='/' class='menu-item'>Home</a>";
+        html += "<a href='/ota' class='menu-item'>OTA Update</a>";
+        html += "<a href='/reset' class='menu-item'>Reset Devices</a>";
+        html += "</div>";
+        espServer->sendContent(html);
     }
 
     void generateHomePage()
@@ -50,47 +70,21 @@ namespace HtmlServer
         html += "<title>Dispositivos Conectados</title>";
         html += "<style>";
         html += getCommonStyles();
-        html += "  .device-card {";
-        html += "    display: inline-block;";
-        html += "    width: 200px;";
-        html += "    margin: 10px;";
-        html += "    padding: 15px;";
-        html += "    border: 1px solid #ddd;";
-        html += "    border-radius: 8px;";
-        html += "    text-align: center;";
-        html += "    background-color: #fff;";
-        html += "    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);";
-        html += "  }";
-        html += "  .device-card h3 {";
-        html += "    margin: 10px 0;";
-        html += "    font-size: 18px;";
-        html += "    color: #333;";
-        html += "  }";
-        html += "  .device-card button {";
-        html += "    margin-top: 10px;";
-        html += "    padding: 10px;";
-        html += "    background-color: #3498db;";
-        html += "    color: white;";
-        html += "    border: none;";
-        html += "    border-radius: 5px;";
-        html += "    cursor: pointer;";
-        html += "  }";
-        html += "  .device-card button:hover {";
-        html += "    background-color: #2980b9;";
-        html += "  }";
         html += "</style>";
         html += "</head>";
         html += "<body>";
         html += "<div class='container'>";
+
+        generateMenu();
+
         html += "  <header>";
         html += "    <h1>Dispositivos Conectados</h1>";
         html += "  </header>";
-
         html += "  <div class='device-list'>";
 
-        for (const auto &device : DeviceInfo::deviceList)
+        for (const auto &device : DeviceInfo::deviceRegList)
         {
-            DeviceInfoData data = device.second.second;
+            DeviceRegData data = device.second.second;
             data.name.toUpperCase();
             if (data.tid > 0)
             {
@@ -150,9 +144,8 @@ namespace HtmlServer
         html += "</head>";
         html += "<body>";
         html += "<div class='container'>";
-        html += "  <header>";
-        html += "    <h1>Detalhes do Dispositivo</h1>";
-        html += "  </header>";
+
+        generateMenu();
 
         const auto &device = DeviceInfo::deviceList[tid];
         const DeviceInfoData &data = device.second;
@@ -193,6 +186,66 @@ namespace HtmlServer
         espServer->send(200, "text/html", html.c_str());
     }
 
+    void generateOTAPage()
+    {
+        String html = "<!DOCTYPE html><html lang='pt-BR'>";
+        html += "<head>";
+        html += "<meta charset='UTF-8'>";
+        html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+        html += "<title>OTA Update</title>";
+        html += "<style>";
+        html += getCommonStyles();
+        html += "</style>";
+        html += "</head>";
+        html += "<body>";
+        html += "<div class='container'>";
+
+        generateMenu();
+
+        html += "  <div class='card'>";
+        html += "    <h2>OTA Update</h2>";
+        html += "    <form class='upload-form' method='POST' action='/update' enctype='multipart/form-data'>";
+        html += "      <input type='file' name='update' accept='.bin' style='margin-bottom: 15px; width: 100%; padding: 10px;'>";
+        html += "      <button type='submit' class='btn-success'>Iniciar Atualização</button>";
+        html += "    </form>";
+        html += "    <div class='progress' style='display:none;'>";
+        html += "      <div class='progress-bar' id='progress'>0%</div>";
+        html += "    </div>";
+        html += "  </div>";
+        html += "</div>";
+
+        html += "<script>";
+        html += "document.querySelector('form').addEventListener('submit', function(e) {";
+        html += "  e.preventDefault();";
+        html += "  var formData = new FormData(this);";
+        html += "  var xhr = new XMLHttpRequest();";
+        html += "  xhr.open('POST', '/update', true);";
+        html += "  xhr.upload.onprogress = function(e) {";
+        html += "    if (e.lengthComputable) {";
+        html += "      var percent = Math.round((e.loaded / e.total) * 100);";
+        html += "      document.querySelector('.progress').style.display = 'block';";
+        html += "      document.getElementById('progress').style.width = percent + '%';";
+        html += "      document.getElementById('progress').innerHTML = percent + '%';";
+        html += "    }";
+        html += "  };";
+        html += "  xhr.onload = function() {";
+        html += "    if (this.status == 200) {";
+        html += "      alert('Atualização concluída com sucesso! O dispositivo irá reiniciar.');";
+        html += "      setTimeout(function() { window.location.href = '/'; }, 2000);";
+        html += "    } else {";
+        html += "      alert('Erro na atualização: ' + this.responseText);";
+        html += "      document.querySelector('.progress').style.display = 'none';";
+        html += "    }";
+        html += "  };";
+        html += "  xhr.send(formData);";
+        html += "});";
+        html += "</script>";
+
+        html += "</body></html>";
+
+        espServer->send(200, "text/html", html.c_str());
+    }
+
     void handleRootRequest()
     {
         generateHomePage();
@@ -211,29 +264,13 @@ namespace HtmlServer
         }
     }
 
-    void initWebServer(WebServer *server)
+    void respStatus(uint8_t tid, String status)
     {
-        espServer = server;
+        String response = "{ \"tid\": " + String(tid) +
+                          ", \"status\": \"" + status + "\" }";
+        espServer->send(200, "application/json", response);
+    }
 
-        espServer->on("/", HTTP_GET, handleRootRequest);
-        espServer->on("/device", HTTP_GET, handleDeviceDetailsRequest);
-        espServer->on("/controlDevice", HTTP_POST, handleToggleDevice);
-        espServer->on("/reset", HTTP_GET, []()
-                      { DeviceInfo::deviceRegList.clear(); 
-                        Prefers::saveRegs();
-         espServer->send(404, "text/plain", "OK"); });
-        // Handler catch-all para qualquer rota desconhecida
-        espServer->on("/", HTTP_ANY, []()
-                      {
-                        Serial.print("ANY:"+espServer->uri());
-            if (espServer->method() != HTTP_GET) {
-                espServer->send(404, "text/plain", "Not found");
-            } });
-    }
-    void begin()
-    {
-        espServer->begin();
-    }
     void handleToggleDevice()
     {
         uint8_t tid = espServer->hasArg("tid") ? espServer->arg("tid").toInt() : 0xFF;
@@ -242,14 +279,81 @@ namespace HtmlServer
         const auto &device = DeviceInfo::deviceList[tid];
         const DeviceInfoData &data = device.second;
         if (action == "toggle")
+        {
             LoRaCom::sendCommand("gpio", "toggle", tid);
+            respStatus(data.tid, data.status);
+        }
         else if (action == "status")
         {
-            String response = "{ \"tid\": " + String(data.tid) +
-                              ", \"status\": \"" + data.status + "\" }";
-            espServer->send(200, "application/json", response);
+            respStatus(data.tid, data.status);
         }
     }
+
+    void initWebServer(WebServer *server)
+    {
+        espServer = server;
+
+        // Rotas principais
+        espServer->on("/", HTTP_GET, handleRootRequest);
+        espServer->on("/device", HTTP_GET, handleDeviceDetailsRequest);
+        espServer->on("/controlDevice", HTTP_POST, handleToggleDevice);
+        espServer->on("/reset", HTTP_GET, []()
+                      {
+            DeviceInfo::deviceRegList.clear(); 
+            Prefers::saveRegs();
+            espServer->send(200, "text/plain", "OK"); });
+
+        // Rotas OTA
+        espServer->on("/ota", HTTP_GET, []()
+                      { generateOTAPage(); });
+
+#ifdef ESP32
+        // Handler para upload de arquivo OTA
+        espServer->on("/update", HTTP_POST, []()
+                      {
+            espServer->sendHeader("Connection", "close");
+            espServer->send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+            ESP.restart(); }, []()
+                      {
+            HTTPUpload& upload = espServer->upload();
+            if (upload.status == UPLOAD_FILE_START) {
+                Serial.printf("Update: %s\n", upload.filename.c_str());
+                if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+                    Update.printError(Serial);
+                }
+            } else if (upload.status == UPLOAD_FILE_WRITE) {
+                if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+                    Update.printError(Serial);
+                }
+            } else if (upload.status == UPLOAD_FILE_END) {
+                if (Update.end(true)) {
+                    Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+                } else {
+                    Update.printError(Serial);
+                }
+            } });
+#endif
+
+        // Handler para páginas não encontradas
+        /* espServer->onNotFound([]()
+                               {
+             if (espServer->method() == HTTP_GET) {
+                 String message = "Página não encontrada\n\n";
+                 message += "URI: " + espServer->uri() + "\n";
+                 message += "Method: " + ((espServer->method() == HTTP_GET) ? "GET" : "POST") + "\n";
+                 espServer->send(404, "text/plain", message);
+             } else {
+                 espServer->send(404, "text/plain", "Not found");
+             } });
+              */
+    }
+
+    void begin()
+    {
+        espServer->begin();
+        Serial.println("HTTP server started");
+    }
+
     void process()
     {
         espServer->handleClient();

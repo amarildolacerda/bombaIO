@@ -3,6 +3,7 @@
 #include <time.h>
 #include "config.h"
 #include "display_manager.h"
+#include "device_info.h"
 
 SystemState systemState; // Define the global systemState object
 
@@ -13,10 +14,10 @@ void SystemState::loraRcv(const String &message)
 }
 
 long lastUpdate = 0;
-String relayState = "DESCONHECIDO";
 void SystemState::updateState(const String &newState)
 {
 
+    lastUpdateTime = DeviceInfo::getISOTime().substring(11, 19);
     relayState = (newState == "on" ? "LIGADO" : "DESLIGADO");
 }
 

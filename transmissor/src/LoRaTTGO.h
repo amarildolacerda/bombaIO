@@ -19,19 +19,6 @@ private:
     uint8_t hFlag = 0;
     bool inPromiscuous = false;
 
-    void TxMode()
-    {
-        Logger::verbose("TxMode");
-        LoRa.idle();
-        //  LoRa.enableInvertIQ();
-    }
-    static void RxMode()
-    {
-        // LoRa.disableInvertIQ();
-        Logger::verbose("RxMode");
-        LoRa.receive();
-    }
-
 public:
     bool beginSetup(float frequency, bool promiscuous = true) override
     {
@@ -58,7 +45,7 @@ public:
         LoRa.write(tidTo > -1 ? tidTo : _tidTo);
         LoRa.write(_tid);
         LoRa.write(genHeaderId());
-        LoRa.write(strlen(message));
+        LoRa.write(strlen(message) + 3);
 
         int snd = LoRa.print(message);
         bool rt = LoRa.endPacket() > 0;
