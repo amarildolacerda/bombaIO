@@ -42,7 +42,7 @@ bool Logger::log(LogLevel level, const char *message)
     return true;
 }
 
-bool Logger::log(LogLevel level, __FlashStringHelper *message)
+bool Logger::log(LogLevel level, const __FlashStringHelper *message)
 {
     if (message == nullptr)
         return 0;

@@ -10,7 +10,7 @@ enum class LogLevel
     RECEIVE,
     SEND,
     INFO,
-    DEBUG, // Substituir DEBUG por DEBUG_ON
+    DEBUG,
     VERBOSE
 };
 
@@ -32,15 +32,11 @@ public:
     }
     static void debug(const char *message)
     {
-        log(LogLevel::DEBUG, message); // Atualizar para DEBUG_ON
-    }
-    static void verbose(const char *message)
-    {
-        log(LogLevel::VERBOSE, message);
+        log(LogLevel::DEBUG, message);
     }
 
-    static void log(LogLevel level, const char *message);
-    static void log(LogLevel level, const __FlashStringHelper *message);
+    static bool log(LogLevel level, const char *message);
+    static bool log(LogLevel level, const __FlashStringHelper *message);
 
 private:
     static LogLevel currentLogLevel;
