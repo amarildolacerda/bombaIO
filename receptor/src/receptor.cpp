@@ -284,6 +284,8 @@ void setTime(const char *tz)
 
 bool processAndRespondToMessage(const char *message)
 {
+    Serial.println(message);
+
 #ifdef LORA
     uint8_t tid = 0; // Placeholder for terminal ID
     bool handled = false;

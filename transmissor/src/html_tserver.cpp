@@ -82,9 +82,9 @@ namespace HtmlServer
         html += "  </header>";
         html += "  <div class='device-list'>";
 
-        for (const auto &device : DeviceInfo::deviceRegList)
+        for (auto &device : DeviceInfo::deviceRegList)
         {
-            DeviceRegData data = device.second.second;
+            DeviceRegData &data = device.second.second;
             data.name.toUpperCase();
             if (data.tid > 0)
             {
@@ -112,18 +112,28 @@ namespace HtmlServer
         html += "}";
         html += "document.addEventListener('DOMContentLoaded', () => {";
         html += "  const devices = [";
-        for (const auto &device : DeviceInfo::deviceList)
+        for (const auto &device : DeviceInfo::deviceRegList)
         {
-            DeviceInfoData data = device.second.second;
+            DeviceRegData data = device.second.second;
             if (data.tid > 0)
             {
                 html += "'" + String(data.tid) + "',";
             }
         }
+
         html += "];";
-        html += "  devices.forEach(id => updateStatus(id));";
-        html += "  devices.forEach(id => setInterval(() => updateStatus(id), 1000));";
+        html += "  let currentIndex = 0;"; // Adiciona um contador
+        html += "  const updateNextDevice = () => {";
+        html += "    if (currentIndex < devices.length) {";
+        html += "      updateStatus(devices[currentIndex]);";
+        html += "      currentIndex++;"; // Incrementa o contador
+        html += "    } else {";
+        html += "      currentIndex = 0;"; // Reinicia o contador
+        html += "    }";
+        html += "  };";
+        html += "  setInterval(updateNextDevice, 1000);"; // Atualiza um dispositivo a cada segundo
         html += "});";
+
         html += "</script>";
 
         html += "</body></html>";
@@ -147,17 +157,19 @@ namespace HtmlServer
 
         generateMenu();
 
-        const auto &device = DeviceInfo::deviceList[tid];
-        const DeviceInfoData &data = device.second;
+        const uint8_t idx = DeviceInfo::indexOf(tid);
+        const DeviceRegData &rdata = DeviceInfo::deviceRegList[idx].second;
+        const DeviceInfoData &data = DeviceInfo::deviceList[rdata.tid].second;
+        const uint8_t didx = DeviceInfo::dataOf(tid);
 
         html += "  <div class='card'>";
-        html += "    <h2>" + data.name + "</h2>";
-        html += "    <p>RSSI: " + String(data.rssi) + " dBm</p>";
-        html += "    <p>Última Atualização: " + data.lastSeenISOTime + "</p>";
+        html += "    <h2>" + rdata.name + "</h2>";
+        html += "    <p>RSSI: " + ((didx >= 0) ? String(data.rssi) : "") + " dBm</p>";
+        html += "    <p>Última Atualização: " + ((didx >= 0) ? data.lastSeenISOTime : "") + "</p>";
         html += "    <p id='device-status'>Estado: Carregando...</p>";
         html += "<script>";
         html += "async function updateStatus() {";
-        html += "  const res = await fetch(`/controlDevice?tid=" + String(data.tid) + "&action=status`, { method: 'POST' });";
+        html += "  const res = await fetch(`/controlDevice?tid=" + String(rdata.tid) + "&action=status`, { method: 'POST' });";
         html += "  if (res.ok) {";
         html += "    const json = await res.json();";
         html += "    document.getElementById('device-status').innerText = 'Estado: ' + json.status;";
@@ -168,7 +180,7 @@ namespace HtmlServer
         html += "updateStatus();";
         html += "setInterval(updateStatus, 1000);";
         html += "</script>";
-        html += "    <button onclick=\"toggleDevice('" + String(data.tid) + "')\" class='btn-warning'>Alternar Estado</button>";
+        html += "    <button onclick=\"toggleDevice('" + String(rdata.tid) + "')\" class='btn-warning'>Alternar Estado</button>";
         html += "  </div>";
 
         html += "  <a href='/' class='btn-info'>Voltar</a>";
@@ -254,7 +266,8 @@ namespace HtmlServer
     void handleDeviceDetailsRequest()
     {
         uint8_t tid = espServer->hasArg("tid") ? espServer->arg("tid").toInt() : 0xFF;
-        if (DeviceInfo::deviceList.find(tid) != DeviceInfo::deviceList.end())
+        uint8_t idx = DeviceInfo::indexOf(tid);
+        if (idx >= 0)
         {
             generateDeviceDetailsPage(tid);
         }
@@ -276,17 +289,18 @@ namespace HtmlServer
         uint8_t tid = espServer->hasArg("tid") ? espServer->arg("tid").toInt() : 0xFF;
         String action = espServer->hasArg("action") ? espServer->arg("action") : "none";
         action.toLowerCase();
+
         const auto &device = DeviceInfo::deviceList[tid];
         const DeviceInfoData &data = device.second;
+
         if (action == "toggle")
         {
             LoRaCom::sendCommand("gpio", "toggle", tid);
-            respStatus(data.tid, data.status);
         }
-        else if (action == "status")
-        {
-            respStatus(data.tid, data.status);
-        }
+        int timeDiff = DeviceInfo::getTimeDifferenceSeconds(data.lastSeenISOTime);
+        bool isOffline = (timeDiff == -1) || (timeDiff > 60);
+        String status = isOffline ? "OffLine" : (data.status.length() == 0 ? "???" : data.status);
+        respStatus(tid, status);
     }
 
     void initWebServer(WebServer *server)

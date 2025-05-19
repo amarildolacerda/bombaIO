@@ -283,6 +283,15 @@ void processIncoming(LoRaInterface *loraInstance)
 #endif
         if (event == "status")
         {
+            DeviceInfoData data;
+            data.tid = tid;
+            data.event = event;
+            data.value = value;
+            data.name = dname;
+            data.lastSeenISOTime = DeviceInfo::getISOTime();
+            data.rssi = loraInstance->packetRssi();
+            DeviceInfo::updateDeviceList(data.tid, data);
+
             LoRaCom::ack(true, loraInstance->headerFrom());
             systemState.updateState(value);
 
@@ -322,15 +331,6 @@ void processIncoming(LoRaInterface *loraInstance)
             Prefers::saveRegs();
             return;
         }
-
-        DeviceInfoData data;
-        data.tid = tid;
-        data.event = event;
-        data.value = value;
-        data.name = dname;
-        data.lastSeenISOTime = DeviceInfo::getISOTime();
-        data.rssi = loraInstance->packetRssi();
-        DeviceInfo::updateDeviceList(data.tid, data);
     }
     LoRaCom::ack(false, loraInstance->headerFrom());
 }
