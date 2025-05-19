@@ -54,14 +54,22 @@ public:
     static int16_t indexOf(uint8_t tid)
     {
 
-#ifndef __AVR__
         for (uint8_t i = 0; i < deviceRegList.size(); i++)
         {
             if (deviceRegList[i].second.tid == tid)
                 return i;
         }
 
-#endif
+        return -1;
+    }
+    static int16_t indexOfName(String name)
+    {
+        for (uint8_t i = 0; i < deviceRegList.size(); i++)
+        {
+            if (deviceRegList[i].second.name == name)
+                return i;
+        }
+
         return -1;
     }
 

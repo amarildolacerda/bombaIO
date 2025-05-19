@@ -21,9 +21,11 @@ void DisplayManager::initializeDisplay()
     display.display();
 }
 
-void setPos(uint8_t linha, uint8_t coluna)
+const long rowHeight = 9.30; // Config::SCREEN_HEIGHT / 7;
+const long colWidth = 6.95;  // Config::SCREEN_WIDTH / 21;
+void setPos(long linha, long coluna)
 {
-    display.setCursor(coluna * 6.5, linha * 8.7);
+    display.setCursor((coluna * (colWidth)) + 1, (linha * rowHeight) + (linha < 6 ? 1 : 2));
 }
 void DisplayManager::updateDisplay()
 {
@@ -49,7 +51,13 @@ void DisplayManager::updateDisplay()
     display.print(rssi);
     display.println(")");
 
-    if (loraRcvEvent.length() > 0)
+    if (systemState.isDiscovering())
+    {
+        setPos(3, 0);
+        display.println("Esperando");
+        display.println("Novo dispositivo"); // redundante, so esta preenchendo espaço no display
+    }
+    else if (loraRcvEvent.length() > 0)
     {
         setPos(2, 0);
         display.print("Term: ");
@@ -60,6 +68,7 @@ void DisplayManager::updateDisplay()
 
         setPos(3, 0);
         display.print("Estado: ");
+
         display.println(relayState); // redundante, so esta preenchendo espaço no display
 
         setPos(4, 0);
@@ -69,7 +78,7 @@ void DisplayManager::updateDisplay()
         display.print("Value: ");
         display.print(loraRcvValue);
         // display.setCursor(Config::SCREEN_WIDTH - 49, Config::SCREEN_HEIGHT - (8.5 * 2));
-        setPos(5, 12);
+        setPos(5, 13);
         display.println(systemState.lastUpdateTime);
     }
     else
@@ -78,42 +87,52 @@ void DisplayManager::updateDisplay()
     }
     showFooter();
     display.display();
+    stateTimeout = 1000;
 }
 void DisplayManager::showFooter()
 {
     dispCount = DeviceInfo::deviceList.size();
     uint8_t regCount = DeviceInfo::deviceRegList.size();
     display.setTextColor(SSD1306_WHITE);
-    display.fillRect(0, Config::SCREEN_HEIGHT - 10, Config::SCREEN_WIDTH,
-                     10, SSD1306_WHITE);
+    display.fillRect(0, Config::SCREEN_HEIGHT - 9, Config::SCREEN_WIDTH,
+                     9, SSD1306_WHITE);
     display.setTextColor(BLACK, WHITE);
-    display.setCursor(0, Config::SCREEN_HEIGHT - 8);
+    // display.setCursor(0, Config::SCREEN_HEIGHT - 8);
+    setPos(6, 0);
     display.print("D:");
     display.print(dispCount);
     display.print("/");
     display.print(regCount);
     display.print(" v:");
     display.print(ver);
-    display.setCursor(Config::SCREEN_WIDTH - 49, Config::SCREEN_HEIGHT - 8);
+    // display.setCursor(Config::SCREEN_WIDTH - 49, Config::SCREEN_HEIGHT - 8);
+    setPos(6, 13);
     display.println(DeviceInfo::getISOTime().substring(11, 19)); // Mostra apenas HH:MM:SS
     display.setTextColor(WHITE, BLACK);
 }
 
 void DisplayManager::handle()
 {
-    if (millis() - lastUpdate > 1000)
+    if (millis() - lastUpdate > stateTimeout)
         updateDisplay();
 }
 
 void DisplayManager::message(const String &event)
 {
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.println("Enviou:");
-    display.println(event);
-    showFooter();
+    // display.clearDisplay();
+    // display.setCursor(0, 0);
+    // display.setTextColor(BLACK, WHITE);
+    setPos(5, 0);
+    // display.println("Enviou:");
+    display.print("                     ");
+    setPos(5, 0);
+    display.print(event);
+    // showFooter();
+    // display.setTextColor(WHITE, BLACK);
+
     display.display();
     lastUpdate = millis();
+    stateTimeout = 2000;
 }
 
 DisplayManager displayManager;

@@ -42,18 +42,28 @@ void processIncoming(LoRaInterface *loraInstance);
 
 // ========== Espalexa (Alexa) Integration ==========
 
+struct AlexaDeviceMap
+{
+    uint8_t tid;     // ID do dispositivo LoRa
+    uint8_t alexaId; // ID atribuído pela Espalexa
+    String name;     // Nome do dispositivo
+};
+
+static std::vector<AlexaDeviceMap> alexaDevices;
+
 void alexaDeviceCallback(EspalexaDevice *d)
 {
-    const uint8_t item = d->getId();
-    if ((item < 0) || (item >= DeviceInfo::deviceRegList.size()))
+    const uint8_t alexaId = d->getId();
+    for (auto &dev : alexaDevices)
     {
-        return;
+        if (dev.alexaId == alexaId)
+        {
+            const bool state = (d->getValue() > 0);
+            Logger::info("Alexa(" + String(dev.alexaId) + "): " + dev.name + " command: " + String(state ? "ON" : "OFF"));
+            LoRaCom::sendCommand("gpio", state ? "on" : "off", dev.tid);
+            break;
+        }
     }
-    const DeviceRegData data = DeviceInfo::deviceRegList[item].second;
-
-    const bool state = (d->getValue() > 0);
-    Logger::log(LogLevel::INFO, state ? "Alexa: ON" : "Alexa: OFF");
-    LoRaCom::sendCommand("gpio", state ? "on" : "off", data.tid);
 }
 
 // ========== Network Functions Implementations ==========
@@ -90,18 +100,55 @@ void initNTP()
 }
 #endif
 
+void discoverableCallback(bool discoverable)
+{
+    espalexa.setDiscoverable(discoverable);
+}
+
+void aliveOffLineAlexa()
+{
+
+    for (auto &dev : alexaDevices)
+    {
+        int idx = DeviceInfo::dataOf(dev.tid);
+        int secs = 61;
+        if (idx >= 0)
+        {
+            DeviceInfoData &data = DeviceInfo::deviceList[idx].second;
+            secs = DeviceInfo::getTimeDifferenceSeconds(data.lastSeenISOTime);
+        }
+        if (secs > 60)
+        {
+            EspalexaDevice *d = espalexa.getDevice(dev.alexaId);
+            if (d)
+            {
+                d->setState(false);
+                d->setValue(false);
+                d->setPercent(0);
+
+                d->setPropertyChanged(EspalexaDeviceProperty::none);
+
+                Logger::warn(String("Alexa not alive: " + dev.name).c_str());
+                delay(10);
+            }
+        }
+    }
+}
+
 void initAlexa()
 {
+    systemState.registerDiscoveryCallback(discoverableCallback);
     Logger::info("Alexa Init");
+    uint8_t alexaId = 0;
     for (int i = 0; i < DeviceInfo::deviceRegList.size(); i++)
     {
         const DeviceRegData reg = DeviceInfo::deviceRegList[i].second;
         if (reg.tid == 0)
             continue;
-        espalexa.addDevice((reg.name + String(reg.tid)), alexaDeviceCallback, EspalexaDeviceType::onoff);
-        // Serial.print(reg.tid);
-        // Serial.print(": ");
-        // Serial.println(reg.name + String(reg.tid));
+        alexaDevices.push_back({reg.tid, alexaId++, reg.name});
+        String name = reg.name + ":" + String(reg.tid);
+        espalexa.addDevice(name, alexaDeviceCallback); //, EspalexaDeviceType::onoff);
+        Logger::info(String("Reg Alexa(" + String(i) + "): " + String(reg.tid) + " Name: " + name).c_str());
     }
 
     server.onNotFound([]()
@@ -115,6 +162,7 @@ void initAlexa()
              server.send(200,"text/plain","OK"); });
 
     espalexa.begin(&server);
+    aliveOffLineAlexa();
 }
 
 // ========== Main Setup and Loop ==========
@@ -181,6 +229,12 @@ void tsetup()
 static bool primeiraVez = true;
 void tloop()
 {
+
+    if (systemState.isDiscovering())
+    {
+        espalexa.setDiscoverable(true);
+    }
+
     if (primeiraVez)
     {
         Logger::log(LogLevel::VERBOSE, F("Loop iniciado"));
@@ -209,6 +263,31 @@ void tloop()
     }
 }
 
+void updateStateAlexa(uint8_t tid, String dname, String value)
+{
+
+    for (auto &dev : alexaDevices)
+    {
+        if (dev.tid == tid)
+        {
+            EspalexaDevice *d = espalexa.getDevice(dev.alexaId);
+            if (d)
+            {
+                d->setState(value == "on");
+                d->setValue(value == "on");
+                d->setPercent((value == "on") ? 100 : 0);
+                char msg[64];
+                sprintf(msg, "Term: % d Alexa %s (%d): %s (%s)", tid, dev.name, dev.alexaId, value.c_str(), value == "on" ? "true" : "false");
+                Logger::info(msg);
+                return;
+            }
+            else
+            {
+                Logger::error("nao achei alexa device");
+            }
+        }
+    }
+}
 void processIncoming(LoRaInterface *loraInstance)
 {
     bool handled = false;
@@ -294,41 +373,38 @@ void processIncoming(LoRaInterface *loraInstance)
 
             LoRaCom::ack(true, loraInstance->headerFrom());
             systemState.updateState(value);
-
-            uint8_t alexaId = DeviceInfo::indexOf(tid);
-            if (alexaId >= 0)
-            {
-                EspalexaDevice *d = espalexa.getDevice(alexaId);
-                if (d)
-                {
-                    d->setState(value == "on");
-                    d->setValue(value == "on");
-                    d->setPercent((value == "on") ? 100 : 0);
-                    char msg[64];
-                    sprintf(msg, "Term: % d Alexa %s (%d): %s (%s)", tid, DeviceInfo::deviceRegList[alexaId].second.name, alexaId, value.c_str(), value == "on" ? "true" : "false");
-                    Logger::info(msg);
-                    return;
-                }
-                else
-                {
-                    Logger::error("nao achei alexa device");
-                }
-            }
-            else
-            {
-                Logger::error("não achei alexa data");
-            }
+            aliveOffLineAlexa();
+            updateStateAlexa(tid, dname, value);
             return;
         }
+        else
+        {
+            Logger::error("não achei alexa data");
+        }
+        return;
 
         if (event == "presentation")
         {
-            LoRaCom::ack(true, loraInstance->headerFrom());
-            DeviceRegData reg;
-            reg.tid = tid;
-            reg.name = dname;
-            DeviceInfo::updateRegList(tid, reg);
-            Prefers::saveRegs();
+            if (systemState.isDiscovering())
+            {
+                LoRaCom::ack(true, loraInstance->headerFrom());
+                DeviceRegData reg;
+                reg.tid = tid;
+                reg.name = dname;
+                DeviceInfo::updateRegList(tid, reg);
+                Prefers::saveRegs();
+                displayManager.message("Novo: " + dname);
+                uint8_t alexaId = alexaDevices.size();
+                alexaDevices.push_back({tid, alexaId, dname});
+                espalexa.addDevice((reg.name + String(reg.tid)), alexaDeviceCallback, EspalexaDeviceType::onoff);
+                systemState.setDiscovery(false);
+                delay(10000);
+                ESP.restart();
+            }
+            else
+            {
+                Logger::log(LogLevel::ERROR, F("Não esta em espera para novo dispositivo"));
+            }
             return;
         }
     }

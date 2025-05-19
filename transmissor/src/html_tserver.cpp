@@ -57,8 +57,36 @@ namespace HtmlServer
         String html = "<div class='menu'>";
         html += "<a href='/' class='menu-item'>Home</a>";
         html += "<a href='/ota' class='menu-item'>OTA Update</a>";
-        html += "<a href='/reset' class='menu-item'>Reset Devices</a>";
+        //  html += "<a href='/reset' class='menu-item'>Reset Devices</a>";
+        html += "<a href='/restart' class='menu-item'>Reiniciar</a>";
+        html += "<a href='/discovery' class='menu-item' id='discovery-btn'>Novo</a>";
         html += "</div>";
+        // Adiciona o script para controlar o modo de descoberta
+        html += "<script>"
+                "let discoveryActive = false;"
+                "let discoveryTimeout;"
+                "function toggleDiscovery() {"
+                "  discoveryActive = !discoveryActive;"
+                "  const btn = document.getElementById('discovery-btn');"
+                "  if (discoveryActive) {"
+                "    btn.style.backgroundColor = '#2ecc71';" // Verde quando ativo
+                "    fetch('/discovery?enable=1', {method: 'POST'});"
+                "    discoveryTimeout = setTimeout(() => {"
+                "      discoveryActive = false;"
+                "      btn.style.backgroundColor = '';"
+                "    }, 60000);" // 60 segundos
+                "  } else {"
+                "    clearTimeout(discoveryTimeout);"
+                "    btn.style.backgroundColor = '';"
+                "    fetch('/discovery?enable=0', {method: 'POST'});"
+                "  }"
+                "}"
+                "document.getElementById('discovery-btn').onclick = function(e) {"
+                "  e.preventDefault();"
+                "  toggleDiscovery();"
+                "  return false;"
+                "};"
+                "</script>";
         return html;
     }
 
@@ -303,6 +331,11 @@ namespace HtmlServer
         respStatus(tid, status);
     }
 
+    void goHome()
+    {
+        espServer->sendHeader("Location", "/");
+        espServer->send(302, "text/plain", "Redirecting to home...");
+    }
     void initWebServer(WebServer *server)
     {
         espServer = server;
@@ -316,8 +349,21 @@ namespace HtmlServer
             DeviceInfo::deviceRegList.clear(); 
             Prefers::saveRegs();
             espServer->send(200, "text/plain", "OK"); 
-            
             ESP.restart(); });
+
+        espServer->on("/restart", HTTP_GET, []()
+                      {
+        goHome();
+                        ESP.restart(); });
+
+        espServer->on("/discovery", HTTP_POST, []()
+                      {
+        if (espServer->hasArg("enable")) {
+            systemState.setDiscovery(espServer->arg("enable") == "1");
+            espServer->send(200, "text/plain", "OK");
+        } else {
+            espServer->send(400, "text/plain", "Bad Request");
+        } });
 
         // Rotas OTA
         espServer->on("/ota", HTTP_GET, []()

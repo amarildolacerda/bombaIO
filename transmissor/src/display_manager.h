@@ -23,9 +23,11 @@ private:
     bool loraInitialized;
     String relayState;
     String loraRcvMessage;
+    uint32_t stateTimeout = 1000;
     String ver = "1.0.0";
     int dispCount = 0;
     void showFooter();
+
 public:
     int rssi = 0;
     float snr = 0;

@@ -58,4 +58,8 @@ void SystemState::handle()
     displayManager.loraStatus(loraInitialized);
     displayManager.relayStatus(relayState);
 #endif
+    if (discoveryMode && millis() > discoveryEndTime)
+    {
+        discoveryMode = false;
+    }
 }

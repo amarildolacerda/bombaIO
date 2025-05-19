@@ -22,9 +22,17 @@ public:
     {
         log(LogLevel::ERROR, message);
     }
+    static void error(String message)
+    {
+        log(LogLevel::ERROR, message.c_str());
+    }
     static void info(const char *message)
     {
         log(LogLevel::INFO, message);
+    }
+    static void info(String message)
+    {
+        log(LogLevel::INFO, message.c_str());
     }
     static void warn(const char *message)
     {
