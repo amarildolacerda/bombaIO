@@ -230,11 +230,6 @@ static bool primeiraVez = true;
 void tloop()
 {
 
-    if (systemState.isDiscovering())
-    {
-        espalexa.setDiscoverable(true);
-    }
-
     if (primeiraVez)
     {
         Logger::log(LogLevel::VERBOSE, F("Loop iniciado"));
@@ -265,11 +260,12 @@ void tloop()
 
 void updateStateAlexa(uint8_t tid, String dname, String value)
 {
-
+    uint8_t ct = 0;
     for (auto &dev : alexaDevices)
     {
         if (dev.tid == tid)
         {
+            ct++;
             EspalexaDevice *d = espalexa.getDevice(dev.alexaId);
             if (d)
             {
@@ -283,9 +279,12 @@ void updateStateAlexa(uint8_t tid, String dname, String value)
             }
             else
             {
-                Logger::error("nao achei alexa device");
             }
         }
+    }
+    if (ct == 0)
+    {
+        Logger::error(String("nao achei alexa device" + String(tid)).c_str());
     }
 }
 void processIncoming(LoRaInterface *loraInstance)
@@ -373,8 +372,12 @@ void processIncoming(LoRaInterface *loraInstance)
 
             LoRaCom::ack(true, loraInstance->headerFrom());
             systemState.updateState(value);
-            aliveOffLineAlexa();
-            updateStateAlexa(tid, dname, value);
+
+            if (!systemState.isDiscovering())
+            {
+                aliveOffLineAlexa();
+                updateStateAlexa(tid, dname, value);
+            }
             return;
         }
         else
