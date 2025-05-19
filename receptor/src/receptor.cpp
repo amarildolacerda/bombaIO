@@ -10,7 +10,7 @@
 #include "logger.h"
 #include "html_server.h"
 
-#ifdef __AVR__
+#ifdef X__AVR__
 #include <avr/wdt.h>
 #define WDT_ENABLE() wdt_enable(WDTO_4S) // Habilita WDT com timeout de 4 segundos
 #define WDT_RESET() wdt_reset()          // Reinicia o contador do WDT ("alimenta o cachorro")
@@ -261,6 +261,7 @@ void sendPresentation(uint8_t n)
 #endif
 }
 
+bool waitingACK = false;
 bool sendStatus()
 {
     bool currentState = digitalRead(Config::RELAY_PIN);
@@ -269,12 +270,9 @@ bool sendStatus()
     sendFormattedMessage(0x00, "status", status);
     systemState.lastPinState = currentState;
     systemState.pinStateChanged = true;
-    if (waitAck(10))
-    {
-        systemState.pinStateChanged = false;
-        Logger::log(LogLevel::INFO, F("status ack OK"));
-        return true;
-    }
+    waitingACK = true;
+    systemState.previousMillis = millis();
+
     return false;
 }
 
@@ -295,18 +293,8 @@ bool processAndRespondToMessage(const char *message)
     }
     digitalWrite(Config::LED_PIN, HIGH);
 
-    const char *keywordsNoAck[] = {"ack", "nak"};
+    // const char *keywordsNoAck[] = {"ack", "nak"};
     const char *keywordsAck[] = {"presentation", "get", "set", "gpio"};
-
-    for (const char *keyword : keywordsNoAck)
-    {
-        if (strstr_P(message, keyword) != nullptr)
-        {
-            // nao responde ACK nem NAK
-            Logger::log(LogLevel::VERBOSE, keyword);
-            return true;
-        }
-    }
 
     if ((strstr_P(message, PSTR("get")) != nullptr) && (strstr_P(message, PSTR("status")) != nullptr))
     {
@@ -317,12 +305,14 @@ bool processAndRespondToMessage(const char *message)
     {
         digitalWrite(Config::RELAY_PIN, LOW);
         systemState.pinStateChanged = true;
+        sendStatus();
         handled = Logger::log(LogLevel::INFO, F("Relay OFF"));
     }
     else if (strstr_P(message, PSTR("\"on\"")) != nullptr)
     {
         digitalWrite(Config::RELAY_PIN, HIGH);
         systemState.pinStateChanged = true;
+        sendStatus();
         handled = Logger::log(LogLevel::INFO, F("Relay ON"));
     }
     else if (strstr_P(message, PSTR("toggle")) != nullptr)
@@ -330,6 +320,7 @@ bool processAndRespondToMessage(const char *message)
         int currentState = digitalRead(Config::RELAY_PIN);
         digitalWrite(Config::RELAY_PIN, !currentState);
         systemState.pinStateChanged = true;
+        sendStatus();
         handled = Logger::log(LogLevel::INFO, F("Relay toggled "));
     }
     else if (strstr_P(message, PSTR("presentation")) != nullptr)
@@ -341,6 +332,25 @@ bool processAndRespondToMessage(const char *message)
     {
         lora.sendMessage(tid, "pong");
         // nao responde com ack nem nak
+        return true;
+    }
+
+    else if (strstr_P(message, PSTR("ack")) != nullptr)
+    {
+
+        // nao responde ACK nem NAK
+        waitingACK = false;
+        systemState.pinStateChanged = false;
+        int rssi = lora.getLastRssi();
+        if (rssi != 0)
+        {
+            Logger::log(LogLevel::WARNING, String("RSSI: " + String(rssi) + " dBm").c_str());
+        }
+        Logger::log(LogLevel::INFO, F("status ack OK"));
+        return true;
+    }
+    else if (strstr_P(message, PSTR("nak")) != nullptr)
+    {
         return true;
     }
     else
@@ -367,6 +377,7 @@ bool processAndRespondToMessage(const char *message)
             if (error)
             {
                 Logger::log(LogLevel::ERROR, F("Falha na deserialização"));
+                Logger::log(LogLevel::VERBOSE, message);
                 ack(false, tid);
                 return false;
             }
@@ -413,7 +424,7 @@ void handleLoraIncomingMessages()
 #ifdef LORA
     if (lora.available())
     {
-        uint8_t len = RH_RF95_MAX_MESSAGE_LEN;
+        uint8_t len = sizeof(loraBuffer);
         if (lora.receiveMessage((char *)loraBuffer, len))
         {
             processAndRespondToMessage((const char *)loraBuffer);
@@ -424,7 +435,6 @@ void handleLoraIncomingMessages()
 
 long checaZeraContador = millis();
 bool zerou = false;
-int resetCheck = 0;
 void loop()
 {
 
@@ -437,11 +447,6 @@ void loop()
         zeraContadorReinicio();
         zerou = true;
     }
-
-#ifdef __AVR__
-    if (resetCheck++ > 50)
-        asm volatile("jmp 0"); // Jump to the reset vector (address 0)
-#endif
 
     if ((!loraActive))
     {
@@ -457,22 +462,10 @@ void loop()
 #ifdef __AVR__
     WDT_RESET(); // Reinicia o contador do WDT (evita reset não desejado)
 #endif
-    unsigned long status_internal = (systemState.pinStateChanged ? 10000 : Config::STATUS_INTERVAL);
+    unsigned long status_internal = (systemState.pinStateChanged ? 5000 : Config::STATUS_INTERVAL);
     if ((millis() - systemState.previousMillis) >= status_internal)
     {
-        systemState.previousMillis = millis();
-        if (sendStatus())
-        {
-            systemState.pinStateChanged = false;
-            int rssi = lora.getLastRssi();
-            if (rssi != 0)
-            {
-                Logger::log(LogLevel::WARNING, String("RSSI: " + String(rssi) + " dBm").c_str());
-            }
-        }
-        else
-        {
-        }
+        sendStatus();
     }
 
 #endif
@@ -480,6 +473,5 @@ void loop()
 #ifdef ESP8266
     processHtmlServer();
 #endif
-    resetCheck = 0;
     digitalWrite(Config::LED_PIN, LOW);
 }

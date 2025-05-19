@@ -64,13 +64,22 @@ public:
         {
             Logger::log(LogLevel::SEND, message);
         }
+        delay(50);
         rf95.setModeRx();
-        delay(10);
+        delay(50);
     }
 
     bool available()
     {
         return rf95.available();
+    }
+    uint8_t headerId()
+    {
+        return rf95.headerId();
+    }
+    int8_t headerFrom()
+    {
+        return rf95.headerFrom();
     }
     bool receiveMessage(char *buffer, uint8_t &len)
     {
