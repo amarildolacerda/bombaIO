@@ -10,6 +10,7 @@
 // ========== Configurações do Sistema ==========
 namespace Config
 {
+    constexpr const char *ALEXA_TERMOSTATO = "Termostato";
 
     constexpr uint8_t LORA_RX_PIN = 10; // RX pin for RF95
     constexpr uint8_t LORA_TX_PIN = 11; // TX pin for RF95
