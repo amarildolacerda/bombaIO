@@ -47,9 +47,9 @@ public:
         LoRa.write(genHeaderId());
         LoRa.write(strlen(message) + 3);
 
-        // char msg[64];
-        // snprintf(msg, sizeof(msg), "SendMessage From: %d To: %d", _tid, tidTo);
-        // Logger::log(LogLevel::VERBOSE, msg);
+        char msg[64];
+        snprintf(msg, sizeof(msg), "SendMessage From: %d To: %d flag: %d", _tid, tidTo, strlen(message) + 3);
+        Logger::log(LogLevel::SEND, msg);
 
         int snd = LoRa.print(message);
         bool rt = LoRa.endPacket() > 0;

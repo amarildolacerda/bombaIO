@@ -3,7 +3,10 @@
 
 #ifndef __AVR__
 #ifdef ESP32
-#include <WebServer.h>
+// #include <WebServer.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+
 #elif ESP8266
 #include <ESP8266WebServer.h>
 // extern ESP8266WebServer server;
@@ -18,7 +21,7 @@ namespace HtmlServer
     void generateHtmlPage();
     void generateDeviceListHtmlPage();
     void handleToggleDevice();
-    void initWebServer(WebServer *ws = nullptr);
+    void initWebServer(AsyncWebServer *ws = nullptr);
 
     void process();
     void begin();

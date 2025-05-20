@@ -15,7 +15,6 @@
 #include <time.h>
 #endif
 #include "LoRaCom.h"
-#include "Espalexa.h"
 
 // ========== Callback Tuya ==========
 unsigned char handleTuyaCommand(unsigned char dp_id, const unsigned char dp_data[], unsigned short dp_len);

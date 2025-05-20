@@ -11,7 +11,6 @@
 
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <Espalexa.h>
 
 #include "transmissor.h"
 #include "logger.h"
@@ -23,13 +22,16 @@
 #ifdef TTGO
 #include "display_manager.h"
 #endif
+
 #include "LoRaInterface.h"
+#include "fauxmoESP.h"
 
 #ifdef ESP32
-#include <WebServer.h>
-#include "Espalexa.h"
-WebServer server(Config::WEBSERVER_PORT);
-Espalexa espalexa;
+// #include <WebServer.h>
+#include <ESPAsyncWebServer.h>
+AsyncWebServer server(Config::WEBSERVER_PORT);
+fauxmoESP alexa;
+
 #elif ESP8266
 ESP8266WebServer server(Config::WEBSERVER_PORT);
 #include "Espalexa.h"
@@ -47,20 +49,24 @@ struct AlexaDeviceMap
     uint8_t tid;     // ID do dispositivo LoRa
     uint8_t alexaId; // ID atribuído pela Espalexa
     String name;     // Nome do dispositivo
+    String uniqueName()
+    {
+        return name + "." + String(tid);
+    }
 };
 
 static std::vector<AlexaDeviceMap> alexaDevices;
 
-void alexaDeviceCallback(EspalexaDevice *d)
+void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
 {
-    const uint8_t alexaId = d->getId();
-    Logger::log(LogLevel::DEBUG, String("Callback da Alexa ID: " + String(d->getId())).c_str());
+    const uint8_t alexaId = (uint8_t)device_id;
+    Logger::log(LogLevel::DEBUG, String("Callback da Alexa: " + String(device_name)).c_str());
     for (auto &dev : alexaDevices)
     {
-        if (dev.alexaId == alexaId)
+        if (dev.uniqueName() == device_name)
         {
-            const bool state = (d->getValue() > 0);
-            Logger::info("Alexa(" + String(dev.alexaId) + "): " + dev.name + " command: " + String(state ? "ON" : "OFF"));
+            // const bool state = (value > 0);
+            Logger::info("Alexa(" + String(dev.alexaId) + "): " + dev.uniqueName() + " command: " + String(state ? "ON" : "OFF"));
             LoRaCom::sendCommand("gpio", state ? "on" : "off", dev.tid);
             break;
         }
@@ -105,7 +111,7 @@ void initNTP()
 
 void discoverableCallback(bool discoverable)
 {
-    espalexa.setDiscoverable(discoverable);
+    // espalexa.setDiscoverable(discoverable);
     Logger::info(String("Alexa Discoverable " + String(discoverable ? "OK" : "OFF")).c_str());
 }
 
@@ -123,18 +129,20 @@ void aliveOffLineAlexa()
         }
         if (secs >= 60)
         {
-            EspalexaDevice *d = espalexa.getDevice(dev.alexaId);
-            if (d)
-            {
-                d->setState(false);
-                d->setValue(false);
-                d->setPercent(0);
+            alexa.setState(dev.uniqueName().c_str(), false, 0);
 
-                //                d->setPropertyChanged(EspalexaDeviceProperty::none);
+            // EspalexaDevice *d = espalexa.getDevice(dev.alexaId);
+            // if (d)
+            // {
+            //     d->setState(false);
+            //     d->setValue(false);
+            //     d->setPercent(0);
 
-                Logger::warn(String(dev.name + " esta a mais de " + String(secs) + "s sem conexao ").c_str());
-                delay(10);
-            }
+            //                d->setPropertyChanged(EspalexaDeviceProperty::none);
+
+            Logger::warn(String(dev.name + " esta a mais de " + String(secs) + "s sem conexao ").c_str());
+            delay(10);
+            //}
         }
     }
 }
@@ -143,28 +151,60 @@ void initAlexa()
 {
     systemState.registerDiscoveryCallback(discoverableCallback);
     Logger::info("Alexa Init");
+    alexa.createServer(true);
+    alexa.setPort(80);
+
+    alexa.enable(true);
+
     uint8_t alexaId = 0;
     for (int i = 0; i < DeviceInfo::deviceRegList.size(); i++)
     {
-        const DeviceRegData reg = DeviceInfo::deviceRegList[i];
+        DeviceRegData reg = DeviceInfo::deviceRegList[i];
         if (reg.tid == 0)
             continue;
         alexaDevices.push_back({reg.tid, alexaId++, reg.name});
-        String name = reg.name + ":" + String(reg.tid);
-        espalexa.addDevice(name, alexaDeviceCallback); //, EspalexaDeviceType::onoff);
+
+        alexa.addDevice(reg.uniqueName().c_str());
     }
 
-    server.onNotFound([]()
-                      {
-           String uri = server.uri();
-           String arg0 = server.args() > 0 ? server.arg(0) : String("");
-           if (!espalexa.handleAlexaApiCall(uri, arg0)) {
-               server.send(404, "text/plain", "Not found");
-               return;
-           }
-             server.send(200,"text/plain","OK"); });
+    alexa.onSetState([](unsigned char device_id, const char *device_name, bool state, unsigned char value)
+                     {
+                         // Callback when a command from Alexa is received.
+                         // You can use device_id or device_name to choose the element to perform an action onto (relay, LED,...)
+                         // State is a boolean (ON/OFF) and value a number from 0 to 255 (if you say "set kitchen light to 50%" you will receive a 128 here).
+                         // Just remember not to delay too much here, this is a callback, exit as soon as possible.
+                         // If you have to do something more involved here set a flag and process it in your main loop.
 
-    espalexa.begin(&server);
+                         // if (0 == device_id) digitalWrite(RELAY1_PIN, state);
+                         // if (1 == device_id) digitalWrite(RELAY2_PIN, state);
+                         // if (2 == device_id) analogWrite(LED1_PIN, value);
+
+                        // Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
+
+                         // For the example we are turning the same LED on and off regardless fo the device triggered or the value
+                        // digitalWrite(LED, !state); // we are nor-ing the state because our LED has inverse logic.
+
+                        alexaDeviceCallback(device_id,device_name,state,value); });
+
+    // These two callbacks are required for gen1 and gen3 compatibility
+    server.onRequestBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+                         {
+                             Serial.print("onRequestBody");
+                             Serial.println(request->url());
+                             if (alexa.process(request->client(), request->method() == HTTP_GET, request->url(), String((char *)data)))
+                                 return;
+                             // Handle any other body request here...
+                         });
+    server.onNotFound([](AsyncWebServerRequest *request)
+                      {
+                          Serial.print("onNotFound");
+                          Serial.println(request->url());
+                          String body = (request->hasParam("body", true)) ? request->getParam("body", true)->value() : String();
+                          if (alexa.process(request->client(), request->method() == HTTP_GET, request->url(), body))
+                              return;
+                          // Handle not found request here...
+                      });
+
     for (auto dev : alexaDevices)
     {
         Logger::warn(String("Reg Alexa(" + String(dev.alexaId) + "): " + String(dev.tid) + " Name: " + dev.name).c_str());
@@ -235,7 +275,6 @@ void tsetup()
 static bool primeiraVez = true;
 void tloop()
 {
-
     if (primeiraVez)
     {
         Logger::log(LogLevel::VERBOSE, F("Loop iniciado"));
@@ -246,7 +285,8 @@ void tloop()
 #ifndef __AVR__
     HtmlServer::process();
 #if defined(ESP32) || defined(ESP8266)
-    espalexa.loop();
+    // espalexa.loop();
+    alexa.handle();
 #endif
 
 #endif
@@ -264,33 +304,33 @@ void tloop()
     }
 }
 
-void updateStateAlexa(uint8_t tid, String dname, String value)
+void updateStateAlexa(uint8_t tid, String uniqueName, String value)
 {
     uint8_t ct = 0;
+    Serial.print(uniqueName);
     for (auto &dev : alexaDevices)
     {
-        if (dev.tid == tid)
+        if (dev.uniqueName() == uniqueName)
         {
             ct++;
-            EspalexaDevice *d = espalexa.getDevice(dev.alexaId);
-            if (d)
-            {
-                d->setState(value == "on");
-                d->setValue(value == "on");
-                d->setPercent((value == "on") ? 100 : 0);
-                char msg[64];
-                sprintf(msg, "Term: % d Alexa %s (%d): %s (%s)", tid, dev.name, dev.alexaId, value.c_str(), value == "on" ? "true" : "false");
-                Logger::info(msg);
-                return;
-            }
-            else
-            {
-            }
+            // EspalexaDevice *d = espalexa.getDevice(dev.alexaId);
+            // if (d)
+            //{
+            //     d->setState(value == "on");
+            //     d->setValue(value == "on");
+            //     d->setPercent((value == "on") ? 100 : 0);
+            alexa.setState(dev.uniqueName().c_str(), value == "on", value == "on");
+            char msg[64];
+            sprintf(msg, "Term: % d Alexa %s (%d): %s (%s)", tid, dev.uniqueName(), dev.alexaId, value.c_str(), value == "on" ? "true" : "false");
+            Logger::info(msg);
+            return;
+            //}
+            //}
         }
-    }
-    if (ct == 0)
-    {
-        Logger::error(String("nao achei alexa device" + String(tid)).c_str());
+        if (ct == 0)
+        {
+            Logger::error(String("nao achei alexa device" + String(tid)).c_str());
+        }
     }
 }
 void processIncoming(LoRaInterface *loraInstance)
@@ -382,7 +422,7 @@ void processIncoming(LoRaInterface *loraInstance)
             if (!systemState.isDiscovering())
             {
                 aliveOffLineAlexa();
-                updateStateAlexa(tid, dname, value);
+                updateStateAlexa(tid, data.uniqueName(), value);
             }
             return;
         }
@@ -405,7 +445,8 @@ void processIncoming(LoRaInterface *loraInstance)
                 displayManager.message("Novo: " + dname);
                 uint8_t alexaId = alexaDevices.size();
                 alexaDevices.push_back({tid, alexaId, dname});
-                espalexa.addDevice((reg.name + ":" + String(reg.tid)), alexaDeviceCallback, EspalexaDeviceType::onoff);
+                alexa.addDevice(reg.uniqueName().c_str());
+                // espalexa.addDevice((reg.name + ":" + String(reg.tid)), alexaDeviceCallback, EspalexaDeviceType::onoff);
                 systemState.setDiscovery(false);
                 // delay(10000);
                 //  ESP.restart();

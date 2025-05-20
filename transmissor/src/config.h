@@ -37,7 +37,7 @@ namespace Config
     constexpr uint32_t DISPLAY_UPDATE_INTERVAL = 1000; // Atualização a cada 1s
 
     // Rede
-    constexpr uint16_t WEBSERVER_PORT = 80;
+    constexpr uint16_t WEBSERVER_PORT = 8080;
     constexpr uint16_t WIFI_TIMEOUT_S = 180;
     constexpr const char *WIFI_AP_NAME = "TTGO_Transmitter";
     constexpr const char *NTP_SERVER = "pool.ntp.org";

@@ -15,6 +15,10 @@ struct DeviceInfoData
     String lastSeenISOTime;
     String status;
     int rssi;
+    String uniqueName()
+    {
+        return name + "." + String(tid);
+    }
     // Adicione outros campos conforme necessário
 };
 struct DeviceRegData
@@ -24,6 +28,10 @@ struct DeviceRegData
     String toString()
     {
         return String(tid) + ":" + name;
+    }
+    String uniqueName()
+    {
+        return name + "." + String(tid);
     }
     bool fromString(String str)
     {

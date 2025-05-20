@@ -14,7 +14,7 @@
 
 namespace HtmlServer
 {
-    WebServer *espServer = nullptr;
+    AsyncWebServer *espServer = nullptr;
 
     String getCommonStyles()
     {
@@ -90,7 +90,7 @@ namespace HtmlServer
         return html;
     }
 
-    void generateHomePage()
+    void generateHomePage(AsyncWebServerRequest *request)
     {
         String html = "<!DOCTYPE html><html lang='pt-BR'>";
         html += "<head>";
@@ -164,10 +164,10 @@ namespace HtmlServer
 
         html += "</body></html>";
 
-        espServer->send(200, "text/html", html.c_str());
+        request->send(200, "text/html", html.c_str());
     }
 
-    void generateDeviceDetailsPage(uint8_t tid)
+    void generateDeviceDetailsPage(AsyncWebServerRequest *request, uint8_t tid)
     {
         String html = "<!DOCTYPE html><html lang='pt-BR'>";
         html += "<head>";
@@ -223,10 +223,10 @@ namespace HtmlServer
 
         html += "</body></html>";
 
-        espServer->send(200, "text/html", html.c_str());
+        request->send(200, "text/html", html.c_str());
     }
 
-    void generateOTAPage()
+    void generateOTAPage(AsyncWebServerRequest *request)
     {
         String html = "<!DOCTYPE html><html lang='pt-BR'>";
         html += "<head>";
@@ -283,39 +283,39 @@ namespace HtmlServer
 
         html += "</body></html>";
 
-        espServer->send(200, "text/html", html.c_str());
+        request->send(200, "text/html", html.c_str());
     }
 
-    void handleRootRequest()
+    void handleRootRequest(AsyncWebServerRequest *request)
     {
-        generateHomePage();
+        generateHomePage(request);
     }
 
-    void handleDeviceDetailsRequest()
+    void handleDeviceDetailsRequest(AsyncWebServerRequest *request)
     {
-        uint8_t tid = espServer->hasArg("tid") ? espServer->arg("tid").toInt() : 0xFF;
+        uint8_t tid = request->hasArg("tid") ? request->arg("tid").toInt() : 0xFF;
         uint8_t idx = DeviceInfo::indexOf(tid);
         if (idx >= 0)
         {
-            generateDeviceDetailsPage(tid);
+            generateDeviceDetailsPage(request, tid);
         }
         else
         {
-            espServer->send(404, "text/plain", "Dispositivo não encontrado");
+            request->send(404, "text/plain", "Dispositivo não encontrado");
         }
     }
 
-    void respStatus(uint8_t tid, String status)
+    void respStatus(AsyncWebServerRequest *request, uint8_t tid, String status)
     {
         String response = "{ \"tid\": " + String(tid) +
                           ", \"status\": \"" + status + "\" }";
-        espServer->send(200, "application/json", response);
+        request->send(200, "application/json", response);
     }
 
-    void handleToggleDevice()
+    void handleToggleDevice(AsyncWebServerRequest *request)
     {
-        uint8_t tid = espServer->hasArg("tid") ? espServer->arg("tid").toInt() : 0xFF;
-        String action = espServer->hasArg("action") ? espServer->arg("action") : "none";
+        uint8_t tid = request->hasArg("tid") ? request->arg("tid").toInt() : 0xFF;
+        String action = request->hasArg("action") ? request->arg("action") : "none";
         action.toLowerCase();
 
         const int16_t x = DeviceInfo::dataOf(tid);
@@ -328,86 +328,49 @@ namespace HtmlServer
         int timeDiff = DeviceInfo::getTimeDifferenceSeconds(data.lastSeenISOTime);
         bool isOffline = (timeDiff == -1) || (timeDiff > 60);
         String status = isOffline ? "OffLine" : (data.status.length() == 0 ? "???" : data.status);
-        respStatus(tid, status);
+        respStatus(request, tid, status);
     }
 
-    void goHome()
+    void doOTAUpdate(AsyncWebServerRequest *request)
     {
-        espServer->sendHeader("Location", "/");
-        espServer->send(302, "text/plain", "Redirecting to home...");
     }
-    void initWebServer(WebServer *server)
+
+    void initWebServer(AsyncWebServer *server)
     {
         espServer = server;
 
         // Rotas principais
         espServer->on("/", HTTP_GET, handleRootRequest);
         espServer->on("/device", HTTP_GET, handleDeviceDetailsRequest);
-        espServer->on("/controlDevice", HTTP_POST, handleToggleDevice);
-        espServer->on("/reset", HTTP_GET, []()
+        espServer->on("/controlDevice", HTTP_POST, [](AsyncWebServerRequest *request)
+                      { handleToggleDevice(request); });
+        espServer->on("/reset", HTTP_GET, [](AsyncWebServerRequest *request)
                       {
             DeviceInfo::deviceRegList.clear(); 
             Prefers::saveRegs();
-            espServer->send(200, "text/plain", "OK"); 
+            request->send(200, "text/plain", "OK"); 
             ESP.restart(); });
 
-        espServer->on("/restart", HTTP_GET, []()
+        espServer->on("/restart", HTTP_GET, [](AsyncWebServerRequest *request)
                       {
-        goHome();
+            request->redirect ("/");
+            delay(1000);
                         ESP.restart(); });
 
-        espServer->on("/discovery", HTTP_POST, []()
+        espServer->on("/discovery", HTTP_POST, [](AsyncWebServerRequest *request)
                       {
-        if (espServer->hasArg("enable")) {
-            systemState.setDiscovery(espServer->arg("enable") == "1");
-            espServer->send(200, "text/plain", "OK");
+        if (request->hasArg("enable")) {
+            systemState.setDiscovery(request->arg("enable") == "1");
+            request->send(200, "text/plain", "OK");
         } else {
-            espServer->send(400, "text/plain", "Bad Request");
+            request->send(400, "text/plain", "Bad Request");
         } });
 
         // Rotas OTA
-        espServer->on("/ota", HTTP_GET, []()
-                      { generateOTAPage(); });
+        espServer->on("/ota", HTTP_GET, generateOTAPage);
 
-#ifdef ESP32
-        // Handler para upload de arquivo OTA
-        espServer->on("/update", HTTP_POST, []()
-                      {
-            espServer->sendHeader("Connection", "close");
-            espServer->send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-            ESP.restart(); }, []()
-                      {
-            HTTPUpload& upload = espServer->upload();
-            if (upload.status == UPLOAD_FILE_START) {
-                Serial.printf("Update: %s\n", upload.filename.c_str());
-                if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
-                    Update.printError(Serial);
-                }
-            } else if (upload.status == UPLOAD_FILE_WRITE) {
-                if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-                    Update.printError(Serial);
-                }
-            } else if (upload.status == UPLOAD_FILE_END) {
-                if (Update.end(true)) {
-                    Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-                } else {
-                    Update.printError(Serial);
-                }
-            } });
-#endif
-
-        // Handler para páginas não encontradas
-        /* espServer->onNotFound([]()
-                               {
-             if (espServer->method() == HTTP_GET) {
-                 String message = "Página não encontrada\n\n";
-                 message += "URI: " + espServer->uri() + "\n";
-                 message += "Method: " + ((espServer->method() == HTTP_GET) ? "GET" : "POST") + "\n";
-                 espServer->send(404, "text/plain", message);
-             } else {
-                 espServer->send(404, "text/plain", "Not found");
-             } });
-              */
+        espServer->on("/update", HTTP_POST, [](AsyncWebServerRequest *request)
+                      { doOTAUpdate(request); });
     }
 
     void begin()
@@ -418,7 +381,8 @@ namespace HtmlServer
 
     void process()
     {
-        espServer->handleClient();
+        // espServer-> ;
     }
 }
+
 #endif
