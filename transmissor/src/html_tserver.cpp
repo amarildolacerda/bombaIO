@@ -74,7 +74,7 @@ namespace HtmlServer
                 "    discoveryTimeout = setTimeout(() => {"
                 "      discoveryActive = false;"
                 "      btn.style.backgroundColor = '';"
-                "    }, 60000);" // 60 segundos
+                "    }, 60000*3);" // 3 minutos
                 "  } else {"
                 "    clearTimeout(discoveryTimeout);"
                 "    btn.style.backgroundColor = '';"

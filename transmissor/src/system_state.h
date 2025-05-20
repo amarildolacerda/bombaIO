@@ -41,7 +41,7 @@ public:
     void setDiscovery(bool enabled)
     {
         discoveryMode = enabled;
-        discoveryEndTime = millis() + 60000; // 60 segundos
+        discoveryEndTime = millis() + (60000 * 3); // 3 minutos
         const String msg = "Discovery mode " + (discoveryMode) ? "habilitado" : "desabilitado";
         Logger::info(msg.c_str());
         if (discoveryCallback != nullptr)
