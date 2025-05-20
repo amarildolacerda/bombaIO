@@ -346,6 +346,8 @@ void tloop()
         primeiraVez = false;
     }
 
+#ifdef SINRIC
+
     static long sinricTime = 0;
     if (millis() - sinricTime > 60000)
     {
@@ -353,6 +355,7 @@ void tloop()
         sinricTime = millis();
     }
     SinricPro.handle();
+#endif
 }
 
 void updateStateAlexa(uint8_t tid, String uniqueName, String value)
