@@ -76,6 +76,7 @@ void initWiFi()
 
     if (!wifiManager.autoConnect(Config::WIFI_AP_NAME))
     {
+        displayManager.message("Reiniciando: sem wifi");
         Logger::log(LogLevel::ERROR, "Falha ao conectar WiFi");
         delay(10000);
         ESP.restart();
