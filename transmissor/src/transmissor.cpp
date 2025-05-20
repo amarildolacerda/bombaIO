@@ -207,7 +207,7 @@ void initAlexa()
 
     for (auto dev : alexaDevices)
     {
-        Logger::warn(String("Reg Alexa(" + String(dev.alexaId) + "): " + String(dev.tid) + " Name: " + dev.name).c_str());
+        Logger::warn(String("Reg Alexa(" + String(dev.alexaId) + "): " + String(dev.tid) + " Name: " + dev.uniqueName()).c_str());
     }
 }
 
