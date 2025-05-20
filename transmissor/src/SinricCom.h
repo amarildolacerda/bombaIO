@@ -6,13 +6,18 @@
 
 #include "fauxmoESP.h"
 
-namespace SinricCom
+class SinricCom
 {
+private:
+    long sinricTime = 0;
+
+public:
     void setup();
     void loop();
-    void sinricUpdate();
+    void update();
+};
 
-}
+extern SinricCom sinricCom;
 
 #endif
 #endif

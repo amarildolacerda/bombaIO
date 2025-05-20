@@ -30,6 +30,10 @@
 
 #include "LoRaInterface.h"
 
+#ifdef SINRIC
+#include "SinricCom.h"
+#endif
+
 #include <ESPAsyncWebServer.h>
 AsyncWebServer server(Config::WEBSERVER_PORT);
 
@@ -145,6 +149,9 @@ void tsetup()
 #endif
     alexaCom.setup(&server, alexaDeviceCallback);
 
+#ifdef SINRIC
+    sinricCom.setup();
+#endif
     displayManager.updateDisplay();
 }
 
@@ -164,6 +171,10 @@ void tloop()
 #endif
     alexaCom.loop();
     systemState.handle();
+
+#ifdef SINRIC
+    sinricCom.loop();
+#endif
 
     displayManager.handle();
 

@@ -5,11 +5,18 @@
 #ifdef BT
 // ... outras inclusões ...
 
-namespace BluetoothCom
+class BluetoothCom
 {
+    private:
+        BluetoothSerial SerialBT;
+
+    public:
     void loop();
     void setup();
-}
+};
 
+
+
+extern BluetoothCom bluetoothCom;
 #endif
 #endif

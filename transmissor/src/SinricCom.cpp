@@ -18,47 +18,44 @@ extern "C"
 }
 #endif
 
-namespace SinricCom
+SinricCom sinricCom;
+
+void SinricCom::update()
 {
-    static long sinricTime = 0;
-
-    void sinricUpdate()
-    {
 #ifdef SINRIC
 
-        uint8_t temp_fahrenheit = temprature_sens_read();
-        float temp_celsius = (temp_fahrenheit - 32) / 1.8;
+    uint8_t temp_fahrenheit = temprature_sens_read();
+    float temp_celsius = (temp_fahrenheit - 32) / 1.8;
 
-        SinricProTemperaturesensor &mySensor = SinricPro[TEMP_SENSOR_ID]; // get temperaturesensor device
-        bool success = mySensor.sendTemperatureEvent(temp_celsius);       // send event
+    SinricProTemperaturesensor &mySensor = SinricPro[TEMP_SENSOR_ID]; // get temperaturesensor device
+    bool success = mySensor.sendTemperatureEvent(temp_celsius);       // send event
 
-        Logger::info(String("Temperatura: " + String(temp_celsius) + "c").c_str());
+    Logger::info(String("Temperatura: " + String(temp_celsius) + "c").c_str());
 #endif
-        sinricTime = millis();
-    }
-
-    void setup()
-    {
-#ifdef SINRIC
-        SinricProTemperaturesensor &mySensor = SinricPro[TEMP_SENSOR_ID];
-        // setup SinricPro
-        SinricPro.onConnected([]()
-                              { Serial.printf("Connected to SinricPro\r\n"); });
-        SinricPro.onDisconnected([]()
-                                 { Serial.printf("Disconnected from SinricPro\r\n"); });
-
-        SinricPro.begin(APP_KEY, APP_SECRET);
-#endif
-    }
-
-    void loop()
-    {
-        if (millis() - sinricTime > 60000)
-        {
-            sinricUpdate();
-        }
-        SinricPro.handle();
-    }
-
+    sinricTime = millis();
 }
+
+void SinricCom::setup()
+{
+#ifdef SINRIC
+    SinricProTemperaturesensor &mySensor = SinricPro[TEMP_SENSOR_ID];
+    // setup SinricPro
+    SinricPro.onConnected([]()
+                          { Serial.printf("Connected to SinricPro\r\n"); });
+    SinricPro.onDisconnected([]()
+                             { Serial.printf("Disconnected from SinricPro\r\n"); });
+
+    SinricPro.begin(APP_KEY, APP_SECRET);
+#endif
+}
+
+void SinricCom::loop()
+{
+    if (millis() - sinricTime > 60000)
+    {
+        update();
+    }
+    SinricPro.handle();
+}
+
 #endif
