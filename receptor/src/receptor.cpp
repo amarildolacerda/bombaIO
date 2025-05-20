@@ -10,11 +10,26 @@
 #include "logger.h"
 #include "html_server.h"
 
-#ifdef X__AVR__
+#ifdef __AVR__
 #include <avr/wdt.h>
-#define WDT_ENABLE() wdt_enable(WDTO_4S) // Habilita WDT com timeout de 4 segundos
-#define WDT_RESET() wdt_reset()          // Reinicia o contador do WDT ("alimenta o cachorro")
-#define WDT_DISABLE() wdt_disable()      // Desativa o WDT (use com cuidado)
+long wdtUpdate = 0;
+bool wdtEnable = true;
+void WDT_ENABLE()
+{
+    wdtEnable = true;
+    wdtUpdate = millis();
+}
+void WDT_RESET()
+{
+    wdtUpdate = millis();
+}
+void WDT_DISABLE()
+{
+    wdtEnable = false;
+}
+// #define WDT_ENABLE() wdt_enable(WDTO_30MS) // Habilita WDT com timeout de 4 segundos
+// #define WDT_RESET() wdt_reset()            // Reinicia o contador do WDT ("alimenta o cachorro")
+// #define WDT_DISABLE() wdt_disable()        // Desativa o WDT (use com cuidado)
 #else
 #define WDT_ENABLE()  // Nada em plataformas não-AVR
 #define WDT_RESET()   // Nada em plataformas não-AVR
@@ -440,10 +455,6 @@ bool zerou = false;
 void loop()
 {
 
-#ifdef __AVR__
-    WDT_RESET(); // Reinicia o contador do WDT (evita reset não desejado)
-#endif
-
     if ((!zerou) && (millis() - checaZeraContador > 60000))
     { // depois de um minuto rodando, reset o contador de reinicio;
         zeraContadorReinicio();
@@ -453,11 +464,15 @@ void loop()
     if ((!loraActive))
     {
         digitalWrite(Config::LED_PIN, HIGH);
-        delaySafe(1000);
+        delay(1000);
         digitalWrite(Config::LED_PIN, LOW);
-        delaySafe(500);
+        delay(500);
         return;
     }
+
+#ifdef __AVR__
+    WDT_RESET(); // Reinicia o contador do WDT (evita reset não desejado)
+#endif
 
 #ifdef LORA
     handleLoraIncomingMessages();

@@ -31,6 +31,6 @@ namespace Config
     constexpr int TX_PIN = 7;
     constexpr long STATUS_INTERVAL = 30000;
     constexpr long PRESENTATION_INTERVAL = 10000;
-    constexpr int MESSAGE_MAX_LEN = 96;
+    constexpr int MESSAGE_MAX_LEN = 128;
 };
 #endif

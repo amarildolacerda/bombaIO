@@ -88,12 +88,19 @@ public:
             if (rf95.recv((uint8_t *)buffer, &len))
             {
                 buffer[len] = '\0';
-                char msg[64];
-                snprintf(msg, 64, "From: %d To: %d id: %d Flag: %d bytes: %d",
+                static char msg[64];
+                memset(msg, 0, sizeof(msg));
+                snprintf(msg, sizeof(msg), "From: %d To: %d id: %d Flag: %d bytes: %d",
                          rf95.headerFrom(),
-                         rf95.headerTo(), rf95.headerId(), len, strlen(buffer));
+                         rf95.headerTo(), rf95.headerId(), rf95.headerFlags(), len);
 
                 Logger::log(LogLevel::RECEIVE, msg);
+
+                if (len != rf95.headerFlags())
+                {
+                    Logger::log(LogLevel::RECEIVE, "Pacote inválido");
+                    return false;
+                }
                 Logger::log(LogLevel::RECEIVE, (char *)buffer);
                 uint8_t mto = rf95.headerTo();
                 if (((mto == 0xFF) || (mto == _tid)) || (_promiscuos))

@@ -45,10 +45,10 @@ public:
         LoRa.write(tidTo > -1 ? tidTo : _tidTo);
         LoRa.write(_tid);
         LoRa.write(genHeaderId());
-        LoRa.write(strlen(message) + 3);
+        LoRa.write(strlen(message));
 
         char msg[64];
-        snprintf(msg, sizeof(msg), "SendMessage From: %d To: %d flag: %d", _tid, tidTo, strlen(message) + 3);
+        snprintf(msg, sizeof(msg), "SendMessage From: %d To: %d flag: %d", _tid, tidTo, strlen(message) );
         Logger::log(LogLevel::SEND, msg);
 
         int snd = LoRa.print(message);
