@@ -110,9 +110,8 @@ namespace HtmlServer
         html += "  </header>";
         html += "  <div class='device-list'>";
 
-        for (auto &device : DeviceInfo::deviceRegList)
+        for (auto &data : DeviceInfo::deviceRegList)
         {
-            DeviceRegData &data = device.second.second;
             data.name.toUpperCase();
             if (data.tid > 0)
             {
@@ -140,9 +139,8 @@ namespace HtmlServer
         html += "}";
         html += "document.addEventListener('DOMContentLoaded', () => {";
         html += "  const devices = [";
-        for (const auto &device : DeviceInfo::deviceRegList)
+        for (const auto &data : DeviceInfo::deviceRegList)
         {
-            DeviceRegData data = device.second.second;
             if (data.tid > 0)
             {
                 html += "'" + String(data.tid) + "',";
@@ -186,9 +184,11 @@ namespace HtmlServer
         generateMenu();
 
         const uint8_t idx = DeviceInfo::indexOf(tid);
-        const DeviceRegData &rdata = DeviceInfo::deviceRegList[idx].second;
-        const DeviceInfoData &data = DeviceInfo::deviceList[rdata.tid].second;
-        const uint8_t didx = DeviceInfo::dataOf(tid);
+        const DeviceRegData &rdata = DeviceInfo::deviceRegList[idx];
+        const uint16_t didx = DeviceInfo::dataOf(tid);
+        DeviceInfoData data;
+        if (didx >= 0)
+            data = DeviceInfo::deviceList[didx];
 
         html += "  <div class='card'>";
         html += "    <h2>" + rdata.name + "</h2>";
@@ -318,8 +318,8 @@ namespace HtmlServer
         String action = espServer->hasArg("action") ? espServer->arg("action") : "none";
         action.toLowerCase();
 
-        const auto &device = DeviceInfo::deviceList[tid];
-        const DeviceInfoData &data = device.second;
+        const int16_t x = DeviceInfo::dataOf(tid);
+        const DeviceInfoData &data = DeviceInfo::deviceList[x];
 
         if (action == "toggle")
         {

@@ -112,13 +112,13 @@ void aliveOffLineAlexa()
     for (auto &dev : alexaDevices)
     {
         int idx = DeviceInfo::dataOf(dev.tid);
-        int secs = 61;
+        int secs = 60;
         if (idx >= 0)
         {
-            DeviceInfoData &data = DeviceInfo::deviceList[idx].second;
+            DeviceInfoData &data = DeviceInfo::deviceList[idx];
             secs = DeviceInfo::getTimeDifferenceSeconds(data.lastSeenISOTime);
         }
-        if (secs > 60)
+        if (secs >= 60)
         {
             EspalexaDevice *d = espalexa.getDevice(dev.alexaId);
             if (d)
@@ -143,7 +143,7 @@ void initAlexa()
     uint8_t alexaId = 0;
     for (int i = 0; i < DeviceInfo::deviceRegList.size(); i++)
     {
-        const DeviceRegData reg = DeviceInfo::deviceRegList[i].second;
+        const DeviceRegData reg = DeviceInfo::deviceRegList[i];
         if (reg.tid == 0)
             continue;
         alexaDevices.push_back({reg.tid, alexaId++, reg.name});
@@ -162,7 +162,6 @@ void initAlexa()
              server.send(200,"text/plain","OK"); });
 
     espalexa.begin(&server);
-    // aliveOffLineAlexa();
     for (auto dev : alexaDevices)
     {
         Logger::warn(String("Reg Alexa(" + String(dev.alexaId) + "): " + String(dev.tid) + " Name: " + dev.name).c_str());

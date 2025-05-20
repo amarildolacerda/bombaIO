@@ -25,7 +25,7 @@ public:
         for (size_t i = 0; i < DeviceInfo::deviceRegList.size(); i++)
         {
             /* code */
-            DeviceRegData data = DeviceInfo::deviceRegList[i].second;
+            DeviceRegData data = DeviceInfo::deviceRegList[i];
             if (data.tid == 0)
                 continue;
             Serial.print("  ");

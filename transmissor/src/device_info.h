@@ -2,11 +2,7 @@
 #define DEVICE_INFO_H
 
 #include <Arduino.h>
-
-#ifndef __AVR__
-#include <map>
-#include <utility> // For std::pair
-#endif
+#include <vector>
 
 #ifndef __AVR__
 // Estrutura para armazenar informações do dispositivo
@@ -56,7 +52,7 @@ public:
 
         for (uint8_t i = 0; i < deviceRegList.size(); i++)
         {
-            if (deviceRegList[i].second.tid == tid)
+            if (deviceRegList[i].tid == tid)
                 return i;
         }
 
@@ -66,7 +62,7 @@ public:
     {
         for (uint8_t i = 0; i < deviceRegList.size(); i++)
         {
-            if (deviceRegList[i].second.name == name)
+            if (deviceRegList[i].name == name)
                 return i;
         }
 
@@ -79,7 +75,7 @@ public:
 #ifndef __AVR__
         for (uint8_t i = 0; i < deviceList.size(); i++)
         {
-            if (deviceList[i].second.tid == tid)
+            if (deviceList[i].tid == tid)
                 return i;
         }
 
@@ -87,12 +83,9 @@ public:
         return -1;
     }
 
-#ifndef __AVR__
     // Declaração correta de deviceList como membro estático
-    static std::map<uint8_t, std::pair<String, DeviceInfoData>> deviceList;
-    static std::map<uint8_t, std::pair<String, DeviceRegData>> deviceRegList;
-
-#endif
+    static std::vector<DeviceInfoData> deviceList;
+    static std::vector<DeviceRegData> deviceRegList;
 };
 
 #endif

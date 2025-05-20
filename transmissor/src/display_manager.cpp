@@ -64,7 +64,7 @@ void DisplayManager::updateDisplay()
         display.print(_tid);
         int id = DeviceInfo::indexOf(_tid);
         display.print(" ");
-        display.println(DeviceInfo::deviceRegList[id].second.name);
+        display.println(DeviceInfo::deviceRegList[id].name);
 
         setPos(3, 0);
         display.print("Estado: ");
