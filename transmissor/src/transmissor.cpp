@@ -402,10 +402,10 @@ void processIncoming(LoRaInterface *loraInstance)
                 displayManager.message("Novo: " + dname);
                 uint8_t alexaId = alexaDevices.size();
                 alexaDevices.push_back({tid, alexaId, dname});
-                espalexa.addDevice((reg.name + String(reg.tid)), alexaDeviceCallback, EspalexaDeviceType::onoff);
+                espalexa.addDevice((reg.name + ":" + String(reg.tid)), alexaDeviceCallback, EspalexaDeviceType::onoff);
                 systemState.setDiscovery(false);
-                delay(10000);
-                ESP.restart();
+                // delay(10000);
+                //  ESP.restart();
             }
             else
             {
