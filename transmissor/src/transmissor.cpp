@@ -103,6 +103,7 @@ void initNTP()
 void discoverableCallback(bool discoverable)
 {
     espalexa.setDiscoverable(discoverable);
+    Logger::info(String("Alexa Discoverable " + String(discoverable ? "OK" : "OFF")).c_str());
 }
 
 void aliveOffLineAlexa()
@@ -126,9 +127,9 @@ void aliveOffLineAlexa()
                 d->setValue(false);
                 d->setPercent(0);
 
-                d->setPropertyChanged(EspalexaDeviceProperty::none);
+                //                d->setPropertyChanged(EspalexaDeviceProperty::none);
 
-                Logger::warn(String("Alexa not alive: " + dev.name).c_str());
+                Logger::warn(String(dev.name + " esta a mais de " + String(secs) + "s sem conexao ").c_str());
                 delay(10);
             }
         }
@@ -148,7 +149,6 @@ void initAlexa()
         alexaDevices.push_back({reg.tid, alexaId++, reg.name});
         String name = reg.name + ":" + String(reg.tid);
         espalexa.addDevice(name, alexaDeviceCallback); //, EspalexaDeviceType::onoff);
-        Logger::info(String("Reg Alexa(" + String(i) + "): " + String(reg.tid) + " Name: " + name).c_str());
     }
 
     server.onNotFound([]()
@@ -162,7 +162,11 @@ void initAlexa()
              server.send(200,"text/plain","OK"); });
 
     espalexa.begin(&server);
-    aliveOffLineAlexa();
+    // aliveOffLineAlexa();
+    for (auto dev : alexaDevices)
+    {
+        Logger::warn(String("Reg Alexa(" + String(dev.alexaId) + "): " + String(dev.tid) + " Name: " + dev.name).c_str());
+    }
 }
 
 // ========== Main Setup and Loop ==========
