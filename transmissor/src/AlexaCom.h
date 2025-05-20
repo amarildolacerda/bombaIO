@@ -11,19 +11,20 @@ struct AlexaDeviceMap
     String name;     // Nome do dispositivo
     String uniqueName()
     {
-        if (name.indexOf(".") < 0)
-            return name + "." + String(tid);
-
-        return name;
+        return name + "." + String(tid);
     }
 };
 
 typedef std::function<void(unsigned char, const char *, bool, unsigned char)> AlexaCallbackType;
 
-namespace AlexaCom
+class AlexaCom
 {
-    static std::vector<AlexaDeviceMap> alexaDevices;
-    static AlexaCallbackType alexaDeviceCallback;
+private:
+    void DoCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value);
+
+public:
+    std::vector<AlexaDeviceMap> alexaDevices;
+    AlexaCallbackType alexaDeviceCallback;
 
     void setup(AsyncWebServer *server, AlexaCallbackType callback);
 
@@ -32,6 +33,8 @@ namespace AlexaCom
     void updateStateAlexa(uint8_t tid, String uniqueName, String value);
 
     void addDevice(uint8_t tid, const char *name);
-}
+};
+
+extern AlexaCom alexaCom;
 
 #endif

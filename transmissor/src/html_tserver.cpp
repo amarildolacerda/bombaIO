@@ -1,3 +1,4 @@
+#ifdef WS
 #include "html_tserver.h"
 #include "logger.h"
 #include <Arduino.h>
@@ -385,4 +386,5 @@ namespace HtmlServer
     }
 }
 
+#endif
 #endif
