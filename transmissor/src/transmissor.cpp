@@ -151,7 +151,7 @@ void initAlexa()
 {
     systemState.registerDiscoveryCallback(discoverableCallback);
     Logger::info("Alexa Init");
-    alexa.createServer(true);
+    alexa.createServer(false);
     alexa.setPort(80);
 
     alexa.enable(true);
@@ -189,16 +189,16 @@ void initAlexa()
     // These two callbacks are required for gen1 and gen3 compatibility
     server.onRequestBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
                          {
-                             Serial.print("onRequestBody");
-                             Serial.println(request->url());
+                             // Serial.print("onRequestBody");
+                             // Serial.println(request->url());
                              if (alexa.process(request->client(), request->method() == HTTP_GET, request->url(), String((char *)data)))
                                  return;
                              // Handle any other body request here...
                          });
     server.onNotFound([](AsyncWebServerRequest *request)
                       {
-                          Serial.print("onNotFound");
-                          Serial.println(request->url());
+                          // Serial.print("onNotFound");
+                          // Serial.println(request->url());
                           String body = (request->hasParam("body", true)) ? request->getParam("body", true)->value() : String();
                           if (alexa.process(request->client(), request->method() == HTTP_GET, request->url(), body))
                               return;
@@ -307,7 +307,7 @@ void tloop()
 void updateStateAlexa(uint8_t tid, String uniqueName, String value)
 {
     uint8_t ct = 0;
-    Serial.print(uniqueName);
+    // nt(uniqueName);
     for (auto &dev : alexaDevices)
     {
         if (dev.uniqueName() == uniqueName)
