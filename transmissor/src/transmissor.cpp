@@ -54,6 +54,7 @@ static std::vector<AlexaDeviceMap> alexaDevices;
 void alexaDeviceCallback(EspalexaDevice *d)
 {
     const uint8_t alexaId = d->getId();
+    Logger::log(LogLevel::DEBUG, String("Callback da Alexa ID: " + String(d->getId())).c_str());
     for (auto &dev : alexaDevices)
     {
         if (dev.alexaId == alexaId)
@@ -76,6 +77,7 @@ void initWiFi()
     if (!wifiManager.autoConnect(Config::WIFI_AP_NAME))
     {
         Logger::log(LogLevel::ERROR, "Falha ao conectar WiFi");
+        delay(10000);
         ESP.restart();
     }
 

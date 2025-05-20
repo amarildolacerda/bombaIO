@@ -52,3 +52,7 @@ bool Logger::log(LogLevel level, const __FlashStringHelper *message)
 
     return Logger::log(level, eventBuffer);
 }
+bool Logger::log(LogLevel level, String message)
+{
+    return log(level, message.c_str());
+}
