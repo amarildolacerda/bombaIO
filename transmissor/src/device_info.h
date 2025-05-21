@@ -33,6 +33,7 @@ struct DeviceRegData
     {
         return name + "." + String(tid);
     }
+
     bool fromString(String str)
     {
         int sepIndex = str.indexOf(':');
@@ -65,6 +66,13 @@ public:
         }
 
         return -1;
+    }
+    static String findName(uint8_t tid)
+    {
+        uint8_t x = indexOf(tid);
+        if (x < 0)
+            return "";
+        return deviceRegList[x].name;
     }
     static int16_t indexOfName(String name)
     {

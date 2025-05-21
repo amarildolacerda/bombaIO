@@ -10,7 +10,7 @@
 #endif
 
 #include <HTTPClient.h>
-#include <ArduinoJson.h>
+// #include <ArduinoJson.h>
 
 #include "transmissor.h"
 #include "logger.h"
@@ -75,7 +75,7 @@ void initWiFi()
 
     systemState.setWifiStatus(true);
     char ipBuffer[16]; // Buffer to store IP address as a string
-    snprintf(ipBuffer, sizeof(ipBuffer), "%s", WiFi.localIP().toString().c_str());
+    sprintf(ipBuffer, "%s", WiFi.localIP().toString().c_str());
     Logger::log(LogLevel::INFO, ipBuffer);
 }
 #endif
@@ -202,6 +202,9 @@ void processIncoming(LoRaInterface *loraInstance)
     if ((tid == 0) && (loraInstance->headerTo() == 0xFF)) // descarta pacotes proprios.
         return;
 
+    if ((tid == 0) || (tid == 0xFF))
+        return;
+
     // Remove caracteres não imprimíveis antes de desserializar
     for (uint8_t i = 0; i < len; i++)
     {
@@ -211,64 +214,43 @@ void processIncoming(LoRaInterface *loraInstance)
         }
     }
 
-    if (len <= 10)
+    char msg[Config::MESSAGE_LEN];
+    strcpy(msg, (char *)buf);
+
+    if ((strstr(msg, "ack") != NULL) || (strstr(msg, "nak") != NULL))
     {
         // não é um dado do protocolo alto (ACK,NAK)
+        Logger::info("Detectado " + String(msg));
         return;
     }
 
-    // Filtro: descarta mensagens que não começam com '{'
-    if (buf[0] != '{')
+    alexaCom.loop();
+    if (strchr(msg, '|') == NULL)
     {
         LoRaCom::ack(false, loraInstance->headerFrom());
-        Logger::log(LogLevel::ERROR, "Descartado pacote LoRa inválido (não começa com '{')");
+        Logger::log(LogLevel::ERROR, "Descartado pacote LoRa inválido (não tem '|')");
         Logger::log(LogLevel::ERROR, (const char *)buf);
         return;
     }
 
-    // Substituir DynamicJsonDocument por StaticJsonDocument para evitar alocação dinâmica
-    StaticJsonDocument<128> doc;                                          // Reduzido para 256 bytes
-    DeserializationError error = deserializeJson(doc, (const char *)buf); // Removido o uso de `len`
-    if (error)
-    {
-        Logger::log(LogLevel::ERROR, F("Falha ao converter buf em JSON"));
-        Logger::log(LogLevel::ERROR, (const char *)buf);
-        Logger::log(LogLevel::ERROR, error.c_str()); // Log detalhado do erro
-        return;
-    }
-    static String event;
-    if (doc.containsKey("event"))
-        event = doc["event"].as<String>();
-    static String value = "";
-    if (doc.containsKey("value"))
-        value = doc["value"].as<String>();
+    const char *event = strtok(msg, "|");
+    const char *value = strtok(NULL, "|");
 
-    static String dname = "UNKNOW";
-    if (doc.containsKey("dtype"))
-    {
-        dname = doc["dtype"].as<String>();
-    }
-    if ((tid == 0) || (tid == 0xFF))
-        return;
-
-    // Agora 'doc' contém o JSON parseado de 'buf'
     if (event)
     {
-#ifdef TTGO
         displayManager.setEvent(loraInstance->headerFrom(), event, value);
-#endif
-        if (event == "status")
+        if (strstr(event, "status") != NULL)
         {
+            Logger::info("Status dectado: " + String(value));
             DeviceInfoData data;
             data.tid = tid;
             data.event = event;
             data.value = value;
-            data.name = dname;
+            data.name = DeviceInfo::findName(tid);
             data.lastSeenISOTime = DeviceInfo::getISOTime();
             data.rssi = loraInstance->packetRssi();
             DeviceInfo::updateDeviceList(data.tid, data);
-
-            LoRaCom::ack(true, loraInstance->headerFrom());
+            //            LoRaCom::ack(true, loraInstance->headerFrom());
             systemState.updateState(value);
 
             if (!systemState.isDiscovering())
@@ -276,37 +258,33 @@ void processIncoming(LoRaInterface *loraInstance)
                 alexaCom.aliveOffLineAlexa();
                 alexaCom.updateStateAlexa(tid, data.uniqueName(), value);
             }
-            return;
+            handled = true;
         }
-        else
+        else if (event == "presentation")
         {
-            Logger::error("não achei alexa data");
-        }
-        return;
+            Logger::info("Presentation dectado: " + String(value));
 
-        if (event == "presentation")
-        {
             if (systemState.isDiscovering())
             {
-                LoRaCom::ack(true, loraInstance->headerFrom());
+                //  LoRaCom::ack(true, loraInstance->headerFrom());
                 DeviceRegData reg;
                 reg.tid = tid;
-                reg.name = dname;
+                reg.name = value;
                 DeviceInfo::updateRegList(tid, reg);
                 Prefers::saveRegs();
-                displayManager.message("Novo: " + dname);
+                displayManager.message("Novo: " + String(value));
 
-                alexaCom.addDevice(tid, dname.c_str());
+                alexaCom.addDevice(tid, value);
                 systemState.setDiscovery(false);
+                handled = true;
             }
             else
             {
                 Logger::log(LogLevel::ERROR, F("Não esta em espera para novo dispositivo"));
             }
-            return;
         }
     }
-    LoRaCom::ack(false, loraInstance->headerFrom());
+    LoRaCom::ack(handled, loraInstance->headerFrom());
 }
 
 #endif

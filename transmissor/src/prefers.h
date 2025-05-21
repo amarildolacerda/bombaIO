@@ -28,8 +28,8 @@ public:
             DeviceRegData data = DeviceInfo::deviceRegList[i];
             if (data.tid == 0)
                 continue;
-            Serial.print("  ");
-            Serial.println(data.toString());
+            // Serial.print("  ");
+            // Serial.println(data.toString());
             Preferences prefs;
             prefs.begin("devices", false);
             prefs.putString(("reg" + String(i)).c_str(), data.toString().c_str());
@@ -48,7 +48,7 @@ public:
             if (!prefs.isKey(key.c_str()))
                 break;
             String value = prefs.getString(key.c_str(), "");
-            Serial.print(value);
+            // Serial.print(value);
             if (value.length() == 0)
                 break;
             DeviceRegData data;

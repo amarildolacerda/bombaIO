@@ -48,7 +48,7 @@ public:
         LoRa.write(strlen(message));
 
         char msg[64];
-        snprintf(msg, sizeof(msg), "SendMessage From: %d To: %d flag: %d", _tid, tidTo, strlen(message) );
+        sprintf(msg, "SendMessage From: %d To: %d flag: %d", _tid, tidTo, strlen(message));
         Logger::log(LogLevel::SEND, msg);
 
         int snd = LoRa.print(message);
@@ -82,9 +82,9 @@ public:
 
 #ifdef DEBUG_ON
         char msg[64];
-        snprintf(msg, sizeof(msg), "Term: (%d) From: %d To: %d id: %d Flag: %d bytes: %d", _tid,
-                 headerFrom(), headerTo(), headerId(), hFlag,
-                 strlen((char *)buffer));
+        sprintf(msg, "Term: (%d) From: %d To: %d id: %d Flag: %d bytes: %d", _tid,
+                headerFrom(), headerTo(), headerId(), hFlag,
+                strlen((char *)buffer));
         Logger::log(LogLevel::RECEIVE, msg);
         Logger::log(LogLevel::RECEIVE, (char *)buffer);
 #endif

@@ -2,7 +2,7 @@
 #include "Arduino.h"
 #include "config.h"
 #ifndef x__AVR__
-#include "ArduinoJson.h"
+// #include "ArduinoJson.h"
 #endif
 #ifdef LORA
 #include <LoRaRF95.h>
@@ -10,22 +10,25 @@
 #include "logger.h"
 #include "html_server.h"
 
-#ifdef __AVR__
+#ifdef X__AVR__
 #include <avr/wdt.h>
 long wdtUpdate = 0;
 bool wdtEnable = true;
 void WDT_ENABLE()
 {
-    wdtEnable = true;
-    wdtUpdate = millis();
+    wdt_enable(WDTO_15MS);
+    // wdtEnable = true;
+    // wdtUpdate = millis();
 }
 void WDT_RESET()
 {
-    wdtUpdate = millis();
+    wdt_reset();
+    // wdtUpdate = millis();
 }
 void WDT_DISABLE()
 {
-    wdtEnable = false;
+    wdt_disable();
+    // wdtEnable = false;
 }
 // #define WDT_ENABLE() wdt_enable(WDTO_30MS) // Habilita WDT com timeout de 4 segundos
 // #define WDT_RESET() wdt_reset()            // Reinicia o contador do WDT ("alimenta o cachorro")
@@ -85,7 +88,7 @@ void delaySafe(unsigned long ms)
     unsigned long start = millis();
     while (millis() - start < ms)
     {
-        WDT_RESET();
+        // WDT_RESET();
         delay(1);
     }
 #else
@@ -195,7 +198,7 @@ void setup()
 {
 #ifdef __AVR__
     // Desabilita WDT imediatamente para evitar reset acidental durante a inicialização
-    MCUSR &= ~(1 << WDRF); // Limpa o flag de reset do WDT
+    // MCUSR &= ~(1 << WDRF); // Limpa o flag de reset do WDT
     WDT_DISABLE();
 #endif
 
@@ -251,8 +254,11 @@ void formatMessage(uint8_t tid, const char *event, const char *value = "")
 #ifdef LORA
     memset(messageBuffer, 0, sizeof(messageBuffer));
     snprintf(messageBuffer, sizeof(messageBuffer),
-             "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}",
-             Config::TERMINAL_NAME, event, value);
+             "%s|%s", event, value);
+    /* snprintf(messageBuffer, sizeof(messageBuffer),
+              "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}",
+              Config::TERMINAL_NAME, event, value);
+    */
 #endif
 }
 
@@ -271,7 +277,7 @@ void sendPresentation(uint8_t n)
     for (int attempt = 0; attempt < n && !ackReceived; ++attempt)
     {
         String attemptMessage = String(attempt + 1);
-        sendFormattedMessage(0, "presentation", ("RSSI:" + String(lora.getLastRssi())).c_str());
+        sendFormattedMessage(0, "presentation", Config::TERMINAL_NAME);
     }
 #endif
 }
@@ -279,6 +285,8 @@ void sendPresentation(uint8_t n)
 bool waitingACK = false;
 bool sendStatus()
 {
+    // WDT_RESET();
+
     bool currentState = digitalRead(Config::RELAY_PIN);
     savePinState(currentState);
     const char *status = currentState == HIGH ? "on" : "off";
@@ -299,7 +307,6 @@ void setTime(const char *tz)
 
 bool processAndRespondToMessage(const char *message)
 {
-    Serial.println(message);
 
 #ifdef LORA
     uint8_t tid = 0; // Placeholder for terminal ID
@@ -311,28 +318,28 @@ bool processAndRespondToMessage(const char *message)
     digitalWrite(Config::LED_PIN, HIGH);
 
     // const char *keywordsNoAck[] = {"ack", "nak"};
-    const char *keywordsAck[] = {"presentation", "get", "set", "gpio"};
+    const char *keywordsAck[] = {"presentation|", "get|", "set|", "gpio|"};
 
     if ((strstr_P(message, PSTR("get")) != nullptr) && (strstr_P(message, PSTR("status")) != nullptr))
     {
         systemState.pinStateChanged = true;
         handled = true;
     }
-    else if (strstr_P(message, PSTR("\"off\"")) != nullptr)
+    else if (strstr_P(message, PSTR("|off")) != nullptr)
     {
         digitalWrite(Config::RELAY_PIN, LOW);
         systemState.pinStateChanged = true;
         sendStatus();
         handled = Logger::log(LogLevel::INFO, F("Relay OFF"));
     }
-    else if (strstr_P(message, PSTR("\"on\"")) != nullptr)
+    else if (strstr_P(message, PSTR("|on")) != nullptr)
     {
         digitalWrite(Config::RELAY_PIN, HIGH);
         systemState.pinStateChanged = true;
         sendStatus();
         handled = Logger::log(LogLevel::INFO, F("Relay ON"));
     }
-    else if (strstr_P(message, PSTR("toggle")) != nullptr)
+    else if (strstr_P(message, PSTR("|toggle")) != nullptr)
     {
         int currentState = digitalRead(Config::RELAY_PIN);
         digitalWrite(Config::RELAY_PIN, !currentState);
@@ -340,7 +347,7 @@ bool processAndRespondToMessage(const char *message)
         sendStatus();
         handled = Logger::log(LogLevel::INFO, F("Relay toggled "));
     }
-    else if (strstr_P(message, PSTR("presentation")) != nullptr)
+    else if (strstr_P(message, PSTR("presentation|")) != nullptr)
     {
         systemState.mustPresentation = true;
         handled = true;
@@ -384,24 +391,34 @@ bool processAndRespondToMessage(const char *message)
         // Verifica se message contém algum dos valores no vetor (nao responde)
 #ifndef x__AVR__
         if (!handled)
+
         {
-            JsonDocument doc;
+            char buffer[sizeof(message)];
+            strcpy(buffer, message);
 
-            // Deserializa a string JSON
-            DeserializationError error = deserializeJson(doc, message);
+            // Divide a string usando '|' como delimitador
+            const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
+            const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
 
-            // Verifica se ocorreu um erro
-            if (error)
-            {
-                Logger::log(LogLevel::ERROR, F("Falha na deserialização"));
-                Logger::log(LogLevel::VERBOSE, message);
-                ack(false, tid);
-                return false;
-            }
+            /*   JsonDocument doc;
 
-            // Extrai o valor da chave "value"
-            const char *value = doc["value"];
-            const char *event = doc["event"];
+               // Deserializa a string JSON
+               DeserializationError error = deserializeJson(doc, message);
+
+               // Verifica se ocorreu um erro
+               if (error)
+               {
+                   Logger::log(LogLevel::ERROR, F("Falha na deserialização"));
+                   Logger::log(LogLevel::VERBOSE, message);
+                   ack(false, tid);
+                   return false;
+               }
+
+               // Extrai o valor da chave "value"
+               const char *value = doc["value"];
+               const char *event = doc["event"];
+              */
+
             if (strstr("time", event) != nullptr)
             {
                 setTime(value);
@@ -452,6 +469,8 @@ void handleLoraIncomingMessages()
 
 long checaZeraContador = millis();
 bool zerou = false;
+void (*restart)(void) = 0; // Declaração de ponteiro de função para endereço 0 (reset)
+
 void loop()
 {
 
@@ -463,22 +482,19 @@ void loop()
 
     if ((!loraActive))
     {
+        Serial.print("LoRa inativo");
         digitalWrite(Config::LED_PIN, HIGH);
         delay(1000);
         digitalWrite(Config::LED_PIN, LOW);
         delay(500);
+        restart();
         return;
     }
 
-#ifdef __AVR__
-    WDT_RESET(); // Reinicia o contador do WDT (evita reset não desejado)
-#endif
+    // WDT_DISABLE(); // Reinicia o contador do WDT (evita reset não desejado)
 
 #ifdef LORA
     handleLoraIncomingMessages();
-#ifdef __AVR__
-    WDT_RESET(); // Reinicia o contador do WDT (evita reset não desejado)
-#endif
     unsigned long status_internal = (systemState.pinStateChanged ? 5000 : Config::STATUS_INTERVAL);
     if ((millis() - systemState.previousMillis) >= status_internal)
     {
@@ -488,7 +504,9 @@ void loop()
 #endif
 
 #ifdef ESP8266
+    // WDT_RESET();
     processHtmlServer();
 #endif
     digitalWrite(Config::LED_PIN, LOW);
+    // WDT_ENABLE();
 }

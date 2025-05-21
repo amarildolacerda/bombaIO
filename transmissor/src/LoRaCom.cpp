@@ -91,12 +91,10 @@ void LoRaCom::handle()
 
 void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const char *value)
 {
-    String name = "gateway";
-#ifdef TTGO
-    name = "ttgo";
-#endif
+
     memset(message, 0, sizeof(message));
-    sprintf(message, "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}", name, event, value);
+    // sprintf(message, "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}", name, event, value);
+    sprintf(message, "%s|%s", event, value);
 }
 
 void LoRaCom::ack(bool ak, uint8_t tid)
@@ -139,8 +137,8 @@ void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
     for (int attempt = 0; attempt < n && !ackReceived; ++attempt)
     {
 
-        snprintf(nStr, sizeof(nStr), "%u", attempt + 1);
-        formatMessage(message, tid, "presentation", nStr);
+        // snprintf(nStr, sizeof(nStr), "%u", attempt + 1);
+        formatMessage(message, tid, "presentation", "ttgo");
         displayManager.message(message);
         loraInstance->setHeaderTo(tid);
         bool rt = loraInstance->print(message);
