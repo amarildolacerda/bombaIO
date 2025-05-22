@@ -9,6 +9,7 @@
 #endif
 #include "logger.h"
 #include "html_server.h"
+#include "timestamp.h"
 
 #ifdef X__AVR__
 #include <avr/wdt.h>
@@ -156,7 +157,7 @@ void checkAndHandleIdentificationMode()
 {
     uint8_t bootCount = EEPROM.read(EEPROM_ADDR_BOOT_COUNT);
     bootCount++;
-    Serial.print("Boot Count: ");
+    Serial.print(F("Boot Count: "));
     Serial.println(bootCount);
 
     // Salva novo estado
@@ -176,7 +177,7 @@ void checkAndHandleIdentificationMode()
 
     if (bootCount >= 3)
     {
-        Logger::log(LogLevel::WARNING, F("Entrando em modo de identificação do dispositivo!"));
+        Logger::log(LogLevel::WARNING, F("Apresentacao!"));
         // Modo identificação: envia apresentação continuamente
         for (int i = 0; i < 3; ++i)
         {
@@ -273,11 +274,14 @@ void sendFormattedMessage(uint8_t tid, const char *event, const char *value)
 void sendPresentation(uint8_t n)
 {
 #ifdef LORA
-    bool ackReceived = false;
-    for (int attempt = 0; attempt < n && !ackReceived; ++attempt)
+    if (loraActive)
     {
-        String attemptMessage = String(attempt + 1);
-        sendFormattedMessage(0, "presentation", Config::TERMINAL_NAME);
+        bool ackReceived = false;
+        for (int attempt = 0; attempt < n && !ackReceived; ++attempt)
+        {
+            String attemptMessage = String(attempt + 1);
+            sendFormattedMessage(0, "presentation", Config::TERMINAL_NAME);
+        }
     }
 #endif
 }
@@ -297,12 +301,6 @@ bool sendStatus()
     systemState.previousMillis = millis();
 
     return false;
-}
-
-void setTime(const char *tz)
-{
-    Serial.print("TimeZ: ");
-    Serial.println(tz);
 }
 
 bool processAndRespondToMessage(const char *message)
@@ -400,29 +398,25 @@ bool processAndRespondToMessage(const char *message)
             const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
             const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
 
-            /*   JsonDocument doc;
-
-               // Deserializa a string JSON
-               DeserializationError error = deserializeJson(doc, message);
-
-               // Verifica se ocorreu um erro
-               if (error)
-               {
-                   Logger::log(LogLevel::ERROR, F("Falha na deserialização"));
-                   Logger::log(LogLevel::VERBOSE, message);
-                   ack(false, tid);
-                   return false;
-               }
-
-               // Extrai o valor da chave "value"
-               const char *value = doc["value"];
-               const char *event = doc["event"];
-              */
-
-            if (strstr("time", event) != nullptr)
+            if (event != nullptr && value != nullptr)
             {
-                setTime(value);
-                handled = true;
+                if (strcmp(event, "time") == 0)
+                {
+                    // Verifica se a string de tempo tem o formato esperado
+                    if (timestamp.isValidTimeFormat(value))
+                    {
+                        timestamp.setCurrentTime(value);
+                        handled = true;
+
+                        // Confirmação (opcional)
+                        //  Serial.print("Tempo atualizado para: ");
+                        //  Serial.println(timestamp.asString());
+                    }
+                    else
+                    {
+                        Serial.println("Erro: Formato de tempo inválido");
+                    }
+                }
             }
         }
 #endif
@@ -482,12 +476,13 @@ void loop()
 
     if ((!loraActive))
     {
-        Serial.print("LoRa inativo");
+        Serial.print(F("LoRa inativo"));
         digitalWrite(Config::LED_PIN, HIGH);
         delay(1000);
         digitalWrite(Config::LED_PIN, LOW);
         delay(500);
-        restart();
+
+        loraActive = lora.reactive();
         return;
     }
 

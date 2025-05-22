@@ -21,6 +21,12 @@ private:
 
 public:
     LoRaRF95() : rf95(COMSerial) {}
+    bool reactive()
+    {
+        if (rf95.sleep())
+            return rf95.init();
+        return false;
+    }
     bool initialize(float frequency, uint8_t terminalId, bool promiscuous = true)
 
     {
@@ -96,9 +102,9 @@ public:
 
                 Logger::log(LogLevel::RECEIVE, msg);
 
-                if (len != rf95.headerFlags())
+                if (rf95.headerFlags() - len != 0)
                 {
-                    Logger::log(LogLevel::RECEIVE, "Pacote inválido");
+                    Logger::log(LogLevel::RECEIVE, F("Pacote inválido"));
                     return false;
                 }
                 Logger::log(LogLevel::RECEIVE, (char *)buffer);

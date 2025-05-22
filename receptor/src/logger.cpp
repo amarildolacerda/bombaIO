@@ -1,10 +1,16 @@
 #include "logger.h"
+#include "timestamp.h"
 
 LogLevel Logger::currentLogLevel = LogLevel::INFO; // Default log level
 
 void Logger::setLogLevel(LogLevel level)
 {
     currentLogLevel = level;
+}
+
+String getISOHour()
+{
+    return timestamp.asString().substring(11, 19);
 }
 
 bool Logger::log(LogLevel level, const char *message)
@@ -37,6 +43,9 @@ bool Logger::log(LogLevel level, const char *message)
     Serial.print(colorBuffer);
     Serial.print(levelBuffer);
     Serial.print(F(" "));
+    Serial.print(getISOHour());
+    Serial.print(F("-"));
+
     Serial.println(message);
     Serial.print(F("\033[0m")); // Reset color if used
     return true;

@@ -7,6 +7,25 @@ void Logger::setLogLevel(LogLevel level)
     currentLogLevel = level;
 }
 
+String getISOHour()
+{
+#ifdef __AVR__
+    return "1970-01-01T00:00:00Z"; // Fallback for AVR
+#else
+
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo))
+    {
+        // Logger::log(LogLevel::WARNING, "Failed to get NTP time");
+        return "1970-01-01T00:00:00Z";
+    }
+
+    char timeStr[25];
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
+    return String(timeStr);
+#endif
+}
+
 bool Logger::log(LogLevel level, const char *message)
 {
     if (static_cast<int>(level) > static_cast<int>(currentLogLevel))
@@ -37,6 +56,9 @@ bool Logger::log(LogLevel level, const char *message)
     Serial.print(colorBuffer);
     Serial.print(levelBuffer);
     Serial.print(F(" "));
+    Serial.print(getISOHour());
+    Serial.print(F("-"));
+
     Serial.println(message);
     Serial.print(F("\033[0m")); // Reset color if used
     return true;
