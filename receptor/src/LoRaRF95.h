@@ -18,17 +18,20 @@ class LoRaRF95
 private:
     bool _promiscuos : 1;
     uint8_t _tid = 0;
+    uint8_t _retryCount = 0;
+    const uint8_t MAX_RETRIES = 3;
 
 public:
     LoRaRF95() : rf95(COMSerial) {}
+
     bool reactive()
     {
         if (rf95.sleep())
             return rf95.init();
         return false;
     }
-    bool initialize(float frequency, uint8_t terminalId, bool promiscuous = true)
 
+    bool initialize(float frequency, uint8_t terminalId, bool promiscuous = true)
     {
 #ifdef ESP8266
         Serial.swap();
@@ -38,88 +41,99 @@ public:
             Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
             COMSerial.end();
             Serial.begin(115200);
-
             return false;
         }
+
         _promiscuos = promiscuous;
         _tid = terminalId;
         COMSerial.setTimeout(0);
         rf95.setFrequency(frequency);
-        rf95.setPromiscuous(true);
+        rf95.setPromiscuous(true); // Usa o parâmetro fornecido
         rf95.setHeaderTo(0xFF);
         rf95.setHeaderFrom(terminalId);
-        rf95.setTxPower(14);
+        rf95.setTxPower(14, false); // Melhor controle de potência
         rf95.setHeaderFlags(0, RH_FLAGS_NONE);
         Logger::log(LogLevel::INFO, "LoRa Server Ready");
         return true;
     }
 
-    void sendMessage(uint8_t tid, const char *message)
+    bool sendMessage(uint8_t tid, const char *message)
     {
+        uint8_t len = strlen(message);
+        if (len > RH_RF95_MAX_MESSAGE_LEN)
+        {
+            Logger::log(LogLevel::ERROR, "Message too long");
+            return false;
+        }
 
-        rf95.setModeTx();
-        rf95.setHeaderTo(tid);
-        rf95.setHeaderId(genHeaderId());
-        rf95.setHeaderFlags(strlen(message), 0xFF);
-        rf95.send((uint8_t *)message, strlen(message));
-        if (!rf95.waitPacketSent())
+        for (_retryCount = 0; _retryCount < MAX_RETRIES; _retryCount++)
         {
-            Logger::log(LogLevel::ERROR, "Failed to send message");
+            rf95.setModeTx();
+            rf95.setHeaderTo(tid);
+            rf95.setHeaderId(genHeaderId());
+            rf95.setHeaderFlags(len, 0xFF); // Flags separadas do tamanho
+
+            if (rf95.send((uint8_t *)message, len))
+            {
+                if (rf95.waitPacketSent(2000))
+                { // Timeout de 2s
+                    Logger::log(LogLevel::SEND, message);
+                    rf95.setModeRx();
+                    return true;
+                }
+            }
+            Logger::log(LogLevel::WARNING, "Retry sending...");
+            delay(100 * _retryCount); // Backoff exponencial
         }
-        else
-        {
-            Logger::log(LogLevel::SEND, message);
-        }
-        delay(50);
+
+        Logger::log(LogLevel::ERROR, "Failed to send message after retries");
         rf95.setModeRx();
-        delay(50);
+        return false;
     }
 
     bool available()
     {
         return rf95.available();
     }
-    uint8_t headerId()
-    {
-        return rf95.headerId();
-    }
-    int8_t headerFrom()
-    {
-        return rf95.headerFrom();
-    }
+
     bool receiveMessage(char *buffer, uint8_t &len)
     {
-        if (rf95.available())
+        if (!rf95.available())
+            return false;
+
+        uint8_t recvLen = RH_RF95_MAX_MESSAGE_LEN;
+        if (rf95.recv((uint8_t *)buffer, &recvLen))
         {
-            if (rf95.recv((uint8_t *)buffer, &len))
+            buffer[recvLen] = '\0';
+            len = recvLen;
+
+            // Verificação de pacote válido
+            // uint8_t expectedFlags = rf95.headerFlags();
+            if (rf95.headerFlags() != recvLen)
             {
-                buffer[len] = '\0';
-                static char msg[64];
-                memset(msg, 0, sizeof(msg));
-                snprintf(msg, sizeof(msg), "From: %d To: %d id: %d Flag: %d bytes: %d",
-                         rf95.headerFrom(),
-                         rf95.headerTo(), rf95.headerId(), rf95.headerFlags(), len);
-
-                Logger::log(LogLevel::RECEIVE, msg);
-
-                if (rf95.headerFlags() - len != 0)
-                {
-                    Logger::log(LogLevel::RECEIVE, F("Pacote inválido"));
-                    return false;
-                }
-                Logger::log(LogLevel::RECEIVE, (char *)buffer);
-                uint8_t mto = rf95.headerTo();
-                if (((mto == 0xFF) || (mto == _tid)) || (_promiscuos))
-                    return true;
+                Logger::log(LogLevel::WARNING, "Invalid packet: flags/tam mismatch");
+                return false;
             }
+
+            // Log detalhado (opcional)
+            /// if (Logger::getLevel() >= LogLevel::DEBUG)
+            // {
+            char logMsg[80];
+            snprintf(logMsg, sizeof(logMsg),
+                     "From:%d To:%d ID:%d RSSI:%ddBm Len:%d",
+                     rf95.headerFrom(), rf95.headerTo(),
+                     rf95.headerId(), rf95.lastRssi(), recvLen);
+            Logger::log(LogLevel::RECEIVE, logMsg);
+            // }
+
+            // Filtro de destino
+            uint8_t mto = rf95.headerTo();
+            return (mto == 0xFF) || (mto == _tid) || (_promiscuos);
         }
         return false;
     }
 
-    int getLastRssi()
-    {
-        return rf95.lastRssi();
-    }
+    int getLastRssi() { return rf95.lastRssi(); }
 
 private:
     RH_RF95<decltype(COMSerial)> rf95;
@@ -127,13 +141,11 @@ private:
 
     uint8_t genHeaderId()
     {
-        if (nHeaderId >= 255)
-            nHeaderId = 0;
-        return nHeaderId++;
+        return (nHeaderId >= 255) ? (nHeaderId = 0) : nHeaderId++;
     }
 };
 
-// Global instance of LoRaRF95
+// Global instance
 LoRaRF95 lora;
 
 #endif
