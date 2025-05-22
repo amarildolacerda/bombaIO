@@ -63,14 +63,14 @@ static char messageBuffer[Config::MESSAGE_MAX_LEN];
 static uint8_t loraBuffer[Config::MESSAGE_MAX_LEN];
 #endif
 
-#ifdef __AVR__
+// #ifdef __AVR__
 #include <EEPROM.h>
 #define EEPROM_ADDR_BOOT_COUNT 0
 #define EEPROM_ADDR_LAST_BOOT 4
 #define EEPROM_ADDR_PIN5_STATE 8
 #define IDENTIFICATION_TIMEOUT_MS 10000UL      // 10 segundos para zerar contagem
 #define IDENTIFICATION_POWER_WINDOW_MS 60000UL // 1 minuto para 3 boots
-#endif
+// #endif
 
 bool sendStatus();
 void sendPresentation(uint8_t n = 3);
@@ -100,11 +100,14 @@ void delaySafe(unsigned long ms)
 #endif
 }
 
-#ifdef __AVR__
-// Função para salvar o estado do pino 5 na EEPROM
 void savePinState(bool state)
 {
+#ifdef __AVR__
     EEPROM.update(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
+#else
+    EEPROM.put(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
+    EEPROM.commit(); // No ESP8266/ESP32 você PRECISA chamar commit() para salvar
+#endif
 }
 
 // Função para ler o estado do pino 5 da EEPROM
@@ -113,7 +116,6 @@ bool readPinState()
     return EEPROM.read(EEPROM_ADDR_PIN5_STATE) == 1;
 }
 
-// Função para inicializar o pino 5 com o estado salvo
 void initPinRelay()
 {
     pinMode(5, OUTPUT);
@@ -121,9 +123,7 @@ void initPinRelay()
     digitalWrite(Config::RELAY_PIN, savedState ? HIGH : LOW);
     Logger::info(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF");
 }
-#endif
 
-#ifdef __AVR__
 static bool waitingStatusACK = false;
 bool waitAck(const uint32_t timeout)
 {
@@ -158,6 +158,9 @@ void zeraContadorReinicio()
     EEPROM.write(EEPROM_ADDR_BOOT_COUNT, bootCount);
     Logger::log(LogLevel::INFO, F("Zerou contador de reinicio"));
 }
+
+#ifdef __AVR__
+
 void checkAndHandleIdentificationMode()
 {
     uint8_t bootCount = EEPROM.read(EEPROM_ADDR_BOOT_COUNT);
@@ -431,8 +434,7 @@ void handleLoraIncomingMessages()
 
 long checaZeraContador = millis();
 bool zerou = false;
-void (*restart)(void) = 0; // Declaração de ponteiro de função para endereço 0 (reset)
-
+bool checaLoraInative = millis();
 void loop()
 {
 
@@ -449,8 +451,20 @@ void loop()
         delay(1000);
         digitalWrite(Config::LED_PIN, LOW);
         delay(500);
-
+#ifdef __AVR__
         loraActive = lora.reactive();
+#else
+        if (millis() - checaLoraInative > 30000)
+        {
+            for (uint8_t i; i < 10; i++)
+                Serial.println("..............................");
+            Serial.println("LoRa inativo, reiniciando");
+            for (uint8_t i; i < 10; i++)
+                Serial.println("..............................");
+            delay(5000);
+            ESP.restart();
+        }
+#endif
         return;
     }
 
@@ -472,5 +486,6 @@ void loop()
     processHtmlServer();
 #endif
     digitalWrite(Config::LED_PIN, LOW);
+    checaLoraInative = millis();
     // WDT_ENABLE();
 }

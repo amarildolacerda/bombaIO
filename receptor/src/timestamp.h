@@ -13,17 +13,22 @@ private:
     unsigned long lastSyncTime = 0;  // Última sincronização (em millis)
     time_t lastSyncTimestamp = 0;    // Último timestamp válido recebido
 
-    // Variáveis temporárias para parsing
-    int tempYear, tempMonth, tempDay, tempHour, tempMinute, tempSecond;
+    // Buffer estático para formatação de tempo
+    static const size_t TIME_BUFFER_SIZE = 20;
+    char timeBuffer[TIME_BUFFER_SIZE];
 
 public:
     /**
      * @brief Converte string ISO8601 para timestamp Unix
-     * @param iso String no formato "YYYY-MM-DDTHH:MM:SSZ" ou com offset
+     * @param iso String no formato "YYYY-MM-DDTHH:MM:SSZ" ou com offset (max 64 caracteres)
      * @return time_t Timestamp Unix ou 0 em caso de erro
      */
     time_t parseISO8601(const char *iso)
     {
+        // Verifica tamanho máximo e ponteiro nulo
+        if (!iso || strlen(iso) > 64)
+            return 0;
+
         tmElements_t tm;
         memset(&tm, 0, sizeof(tm));
 
@@ -69,13 +74,12 @@ public:
         tm.Minute = minute;
         tm.Second = second;
 
-        time_t result = makeTime(tm) + totalOffsetSec;
-        return result;
+        return makeTime(tm) + totalOffsetSec;
     }
 
     /**
      * @brief Define o tempo atual e calcula compensação de drift
-     * @param time String ISO8601 com o novo tempo
+     * @param time String ISO8601 com o novo tempo (max 64 caracteres)
      */
     void setCurrentTime(const char *time)
     {
@@ -90,12 +94,9 @@ public:
         if (timestampInicial != 0 && millisInicial != 0)
         {
             unsigned long elapsedMillis = millis() - lastSyncTime;
-            // time_t expectedTime = lastSyncTimestamp + (elapsedMillis / 1000);
-            time_t actualTime = newTimestamp;
-
-            if (elapsedMillis > 1000)
-            { // Só calcula se passou >1s desde a última sync
-                driftCompensation = (float)(actualTime - lastSyncTimestamp) / (elapsedMillis / 1000.0f);
+            if (elapsedMillis > 1000) // Só calcula se passou >1s desde a última sync
+            {
+                driftCompensation = (float)(newTimestamp - lastSyncTimestamp) / (elapsedMillis / 1000.0f);
                 driftCompensation = constrain(driftCompensation, 0.9f, 1.1f); // Limita a ±10%
             }
 
@@ -112,7 +113,8 @@ public:
         lastSyncTimestamp = newTimestamp;
 #ifdef DEBUG_ON
         Serial.print(F("Tempo atualizado: "));
-        Serial.println(formatTime(newTimestamp));
+        formatTime(newTimestamp, timeBuffer, TIME_BUFFER_SIZE);
+        Serial.println(timeBuffer);
 #endif
     }
 
@@ -121,7 +123,7 @@ public:
      */
     static bool isValidTimeFormat(const char *timeStr)
     {
-        if (strlen(timeStr) < 19)
+        if (!timeStr || strlen(timeStr) < 19)
             return false;
         if (timeStr[4] != '-' || timeStr[7] != '-' ||
             timeStr[10] != 'T' || timeStr[13] != ':' ||
@@ -133,7 +135,7 @@ public:
     /**
      * @brief Retorna o tempo atual com compensação de drift
      */
-    time_t getCurrentTime()
+    time_t getCurrentTime() const
     {
         unsigned long elapsedMillis = millis() - millisInicial;
         return timestampInicial + (time_t)(elapsedMillis * driftCompensation / 1000);
@@ -143,28 +145,35 @@ public:
      * @brief Verifica se precisa de sincronização (útil para NTP periódico)
      * @param syncInterval Intervalo mínimo entre sincronizações (em ms)
      */
-    bool needsSync(unsigned long syncInterval = 3600000 /* 1h */)
+    bool needsSync(unsigned long syncInterval = 3600000 /* 1h */) const
     {
         return (millis() - lastSyncTime) > syncInterval;
     }
 
     /**
-     * @brief Retorna o tempo atual como string formatada
+     * @brief Retorna o tempo atual como string formatada (usa buffer interno)
      */
-    String asString()
+    const char *asString()
     {
-        return formatTime(getCurrentTime());
+        formatTime(getCurrentTime(), timeBuffer, TIME_BUFFER_SIZE);
+        return timeBuffer;
     }
 
     /**
      * @brief Formata timestamp Unix como "YYYY-MM-DD HH:MM:SS"
+     * @param t Timestamp a ser formatado
+     * @param buffer Buffer de saída
+     * @param size Tamanho do buffer (deve ser >= 20)
+     * @return bool True se formatado com sucesso
      */
-    static String formatTime(time_t t)
+    static bool formatTime(time_t t, char *buffer, size_t size)
     {
-        char buf[20];
-        snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d:%02d",
+        if (!buffer || size < TIME_BUFFER_SIZE)
+            return false;
+
+        snprintf(buffer, size, "%04d-%02d-%02d %02d:%02d:%02d",
                  year(t), month(t), day(t), hour(t), minute(t), second(t));
-        return String(buf);
+        return true;
     }
 };
 

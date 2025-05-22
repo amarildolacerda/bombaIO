@@ -26,6 +26,7 @@ public:
 
     bool reactive()
     {
+
         if (rf95.sleep())
             return rf95.init();
         return false;

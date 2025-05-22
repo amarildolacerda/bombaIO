@@ -15,7 +15,7 @@ void Logger::setLogLevel(LogLevel level)
 
 String getISOHour()
 {
-    return timestamp.asString().substring(11, 19);
+    return String(timestamp.asString()).substring(11, 19);
 }
 #endif
 
