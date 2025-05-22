@@ -121,7 +121,7 @@ void initPinRelay()
 #endif
 
 #ifdef __AVR__
-static bool waitingACK = false;
+static bool waitingStatusACK = false;
 bool waitAck(const uint32_t timeout)
 {
     char msg[Config::MESSAGE_MAX_LEN];
@@ -133,7 +133,12 @@ bool waitAck(const uint32_t timeout)
         {
             if (strstr("ack;nak", msg) != NULL)
             {
-                waitingACK = false;
+                if (waitingStatusACK)
+                {
+                    waitingStatusACK = false;
+                    systemState.pinStateChanged = false;
+                }
+                return true;
             }
             else
             {
@@ -176,6 +181,7 @@ void checkAndHandleIdentificationMode()
     {
         Logger::log(LogLevel::WARNING, F("Apresentacao!"));
         // Modo identificação: envia apresentação continuamente
+        zeraContadorReinicio();
         for (int i = 0; i < 3; ++i)
         {
             Serial.println(F("presentation"));
@@ -185,7 +191,6 @@ void checkAndHandleIdentificationMode()
                 break;
             }
         }
-        zeraContadorReinicio();
     }
 }
 #endif
@@ -295,7 +300,7 @@ bool sendStatus()
     sendFormattedMessage(0x00, "status", status);
     systemState.lastPinState = currentState;
     systemState.pinStateChanged = true;
-    waitingACK = true;
+    waitingStatusACK = true;
     systemState.previousMillis = millis();
     return waitAck(200);
     // return lora.available(200);
@@ -315,8 +320,11 @@ bool processAndRespondToMessage(const char *message)
     if (strstr("ack;nak;", message) != NULL)
     {
         // nao responde ACK nem NAK
-        waitingACK = false;
-        systemState.pinStateChanged = false;
+        if (waitingStatusACK)
+        {
+            waitingStatusACK = false;
+            systemState.pinStateChanged = false;
+        }
         int rssi = lora.getLastRssi();
         if (rssi != 0)
         {
@@ -446,6 +454,7 @@ void loop()
     unsigned long status_internal = (systemState.pinStateChanged ? 5000 : Config::STATUS_INTERVAL);
     if ((millis() - systemState.previousMillis) >= status_internal)
     {
+        systemState.previousMillis = millis();
         sendStatus();
     }
 
