@@ -1,5 +1,8 @@
 #include "logger.h"
+
+#ifdef TIMESTAMP
 #include "timestamp.h"
+#endif
 
 LogLevel Logger::currentLogLevel = LogLevel::INFO; // Default log level
 
@@ -8,10 +11,13 @@ void Logger::setLogLevel(LogLevel level)
     currentLogLevel = level;
 }
 
+#ifdef TIMESTAMP
+
 String getISOHour()
 {
     return timestamp.asString().substring(11, 19);
 }
+#endif
 
 bool Logger::log(LogLevel level, const char *message)
 {
@@ -42,8 +48,10 @@ bool Logger::log(LogLevel level, const char *message)
 
     Serial.print(colorBuffer);
     Serial.print(levelBuffer);
+#ifdef TIMESTAMP
     Serial.print(F(" "));
     Serial.print(getISOHour());
+#endif
     Serial.print(F("-"));
 
     Serial.println(message);

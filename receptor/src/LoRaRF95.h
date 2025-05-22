@@ -53,7 +53,7 @@ public:
         rf95.setHeaderFrom(terminalId);
         rf95.setTxPower(14, false); // Melhor controle de potência
         rf95.setHeaderFlags(0, RH_FLAGS_NONE);
-        Logger::log(LogLevel::INFO, "LoRa Server Ready");
+        // Logger::log(LogLevel::INFO, "LoRa Server Ready");
         return true;
     }
 
@@ -62,7 +62,7 @@ public:
         uint8_t len = strlen(message);
         if (len > RH_RF95_MAX_MESSAGE_LEN)
         {
-            Logger::log(LogLevel::ERROR, "Message too long");
+            // Logger::log(LogLevel::ERROR, "Message too long");
             return false;
         }
 
@@ -82,11 +82,11 @@ public:
                     return true;
                 }
             }
-            Logger::log(LogLevel::WARNING, "Retry sending...");
+            // Logger::log(LogLevel::WARNING, "Retry sending...");
             delay(100 * _retryCount); // Backoff exponencial
         }
 
-        Logger::log(LogLevel::ERROR, "Failed to send message after retries");
+        // Logger::log(LogLevel::ERROR, "Failed to send message after retries");
         rf95.setModeRx();
         return false;
     }
@@ -112,19 +112,25 @@ public:
             if (rf95.headerFlags() != recvLen)
             {
                 Logger::log(LogLevel::WARNING, "Invalid packet: flags/tam mismatch");
+                Serial.print(rf95.headerFlags());
+                Serial.print(":");
+                Serial.print(recvLen);
+                Serial.print(" ");
+                Serial.println(buffer);
                 return false;
             }
 
             // Log detalhado (opcional)
-            /// if (Logger::getLevel() >= LogLevel::DEBUG)
-            // {
-            char logMsg[80];
-            snprintf(logMsg, sizeof(logMsg),
-                     "From:%d To:%d ID:%d RSSI:%ddBm Len:%d",
-                     rf95.headerFrom(), rf95.headerTo(),
-                     rf95.headerId(), rf95.lastRssi(), recvLen);
-            Logger::log(LogLevel::RECEIVE, logMsg);
-            // }
+            if (Logger::getLevel() >= LogLevel::DEBUG)
+            {
+                char logMsg[80];
+                snprintf(logMsg, sizeof(logMsg),
+                         "From:%d To:%d ID:%d RSSI:%ddBm Len:%d",
+                         rf95.headerFrom(), rf95.headerTo(),
+                         rf95.headerId(), rf95.lastRssi(), recvLen);
+                Logger::log(LogLevel::RECEIVE, logMsg);
+                // Serial.println(buffer);
+            }
 
             // Filtro de destino
             uint8_t mto = rf95.headerTo();

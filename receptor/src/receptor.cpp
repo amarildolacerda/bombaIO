@@ -9,7 +9,10 @@
 #endif
 #include "logger.h"
 #include "html_server.h"
+
+#ifdef TIMESTAMP
 #include "timestamp.h"
+#endif
 
 #ifdef X__AVR__
 #include <avr/wdt.h>
@@ -308,6 +311,7 @@ bool sendStatus()
 
 bool processAndRespondToMessage(const char *message)
 {
+    Serial.println(message);
 
     uint8_t tid = 0; // Placeholder for terminal ID
     bool handled = false;
@@ -374,6 +378,8 @@ bool processAndRespondToMessage(const char *message)
         }
         else if (strcmp(event, "time") == 0)
         {
+#ifdef TIMESTAMP
+
             if (timestamp.isValidTimeFormat(value))
             {
                 timestamp.setCurrentTime(value);
@@ -383,6 +389,7 @@ bool processAndRespondToMessage(const char *message)
             {
                 Serial.println(F("Erro: Timestamp formato de tempo inválido"));
             }
+#endif
         }
     }
 
