@@ -97,6 +97,7 @@ void AlexaCom::updateStateAlexa(uint8_t tid, String uniqueName, String value)
 {
     uint8_t ct = 0;
     // nt(uniqueName);
+    uniqueName.toLowerCase();
     for (auto &dev : AlexaCom::alexaDevices)
     {
         if (dev.uniqueName().equals(uniqueName))

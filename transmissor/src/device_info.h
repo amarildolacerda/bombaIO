@@ -32,7 +32,9 @@ struct DeviceRegData
     }
     String uniqueName()
     {
-        return name + "." + String(tid);
+        String a = name + "." + String(tid);
+        a.toLowerCase();
+        return a;
     }
 
     bool fromString(String str)
