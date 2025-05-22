@@ -12,7 +12,7 @@ static RH_RF95<SoftwareSerial> rf(SSerial);
 void setup()
 {
     Serial.begin(115200);
-    Serial.println("Testando transmissor");
+    Serial.println(F("Testando transmissor"));
     rf.init();
     rf.setPromiscuous(true);
     rf.setFrequency(868.0);

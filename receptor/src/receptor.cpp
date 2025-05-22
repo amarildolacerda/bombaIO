@@ -121,29 +121,26 @@ void initPinRelay()
 #endif
 
 #ifdef __AVR__
-
+static bool waitingACK = false;
 bool waitAck(const uint32_t timeout)
 {
     char msg[Config::MESSAGE_MAX_LEN];
     uint8_t len = sizeof(msg);
-    const long start = millis();
-    delaySafe(10);
-    while (millis() - start < timeout)
+
+    if (lora.available(500))
     {
         if (lora.receiveMessage(msg, len))
         {
-            if (len == 3)
-                return true;
+            if (strstr("ack;nak", msg) != NULL)
+            {
+                waitingACK = false;
+            }
             else
             {
-                processAndRespondToMessage(msg);
-                return false;
+                return processAndRespondToMessage(msg);
             }
         }
-        delaySafe(10);
-        yield();
     }
-
     return false;
 }
 
@@ -281,12 +278,13 @@ void sendPresentation(uint8_t n)
         {
             String attemptMessage = String(attempt + 1);
             sendFormattedMessage(0, "presentation", Config::TERMINAL_NAME);
+            if (waitAck(200))
+                return;
         }
     }
 #endif
 }
 
-bool waitingACK = false;
 bool sendStatus()
 {
     // WDT_RESET();
@@ -299,14 +297,13 @@ bool sendStatus()
     systemState.pinStateChanged = true;
     waitingACK = true;
     systemState.previousMillis = millis();
-
-    return false;
+    return waitAck(200);
+    // return lora.available(200);
 }
 
 bool processAndRespondToMessage(const char *message)
 {
 
-#ifdef LORA
     uint8_t tid = 0; // Placeholder for terminal ID
     bool handled = false;
     if (message == nullptr)
@@ -315,51 +312,8 @@ bool processAndRespondToMessage(const char *message)
     }
     digitalWrite(Config::LED_PIN, HIGH);
 
-    // const char *keywordsNoAck[] = {"ack", "nak"};
-    const char *keywordsAck[] = {"presentation|", "get|", "set|", "gpio|"};
-
-    if ((strstr_P(message, PSTR("get")) != nullptr) && (strstr_P(message, PSTR("status")) != nullptr))
+    if (strstr("ack;nak;", message) != NULL)
     {
-        systemState.pinStateChanged = true;
-        handled = true;
-    }
-    else if (strstr_P(message, PSTR("|off")) != nullptr)
-    {
-        digitalWrite(Config::RELAY_PIN, LOW);
-        systemState.pinStateChanged = true;
-        sendStatus();
-        handled = Logger::log(LogLevel::INFO, F("Relay OFF"));
-    }
-    else if (strstr_P(message, PSTR("|on")) != nullptr)
-    {
-        digitalWrite(Config::RELAY_PIN, HIGH);
-        systemState.pinStateChanged = true;
-        sendStatus();
-        handled = Logger::log(LogLevel::INFO, F("Relay ON"));
-    }
-    else if (strstr_P(message, PSTR("|toggle")) != nullptr)
-    {
-        int currentState = digitalRead(Config::RELAY_PIN);
-        digitalWrite(Config::RELAY_PIN, !currentState);
-        systemState.pinStateChanged = true;
-        sendStatus();
-        handled = Logger::log(LogLevel::INFO, F("Relay toggled "));
-    }
-    else if (strstr_P(message, PSTR("presentation|")) != nullptr)
-    {
-        systemState.mustPresentation = true;
-        handled = true;
-    }
-    else if (strstr_P(message, PSTR("ping")) != nullptr)
-    {
-        lora.sendMessage(tid, "pong");
-        // nao responde com ack nem nak
-        return true;
-    }
-
-    else if (strstr_P(message, PSTR("ack")) != nullptr)
-    {
-
         // nao responde ACK nem NAK
         waitingACK = false;
         systemState.pinStateChanged = false;
@@ -368,65 +322,64 @@ bool processAndRespondToMessage(const char *message)
         {
             Logger::log(LogLevel::WARNING, String("RSSI: " + String(rssi) + " dBm").c_str());
         }
-        Logger::log(LogLevel::INFO, F("status ack OK"));
-        return true;
-    }
-    else if (strstr_P(message, PSTR("nak")) != nullptr)
-    {
         return true;
     }
     else
     {
+        char buffer[sizeof(message)];
+        strcpy(buffer, message);
+        // Divide a string usando '|' como delimitador
+        const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
+        const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
+        if ((event == NULL) || (value == NULL))
+            return false;
 
-        for (const char *keyword : keywordsAck)
+        if (strcmp(event, "gpio") == 0)
         {
-            if (strstr_P(message, keyword) != nullptr)
+            if (strstr("on;off", value) != NULL)
             {
+                digitalWrite(Config::RELAY_PIN, (strcmp(event, "on") == 0) ? HIGH : LOW);
+                systemState.pinStateChanged = true;
+
+                sendStatus();
+                handled = true;
+            }
+            else if (strcmp(value, "toggle") == 0)
+            {
+                int currentState = digitalRead(Config::RELAY_PIN);
+                digitalWrite(Config::RELAY_PIN, !currentState);
+                systemState.pinStateChanged = true;
+                sendStatus();
                 handled = true;
             }
         }
-
-        // Verifica se message contém algum dos valores no vetor (nao responde)
-#ifndef x__AVR__
-        if (!handled)
-
+        else if (strcmp(event, "presentation") == 0)
         {
-            char buffer[sizeof(message)];
-            strcpy(buffer, message);
-
-            // Divide a string usando '|' como delimitador
-            const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
-            const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
-
-            if (event != nullptr && value != nullptr)
+            systemState.mustPresentation = true;
+            handled = true;
+        }
+        else if (strcmp(event, "ping") == 0)
+        {
+            lora.sendMessage(tid, "pong");
+            // nao responde com ack nem nak
+            return true;
+        }
+        else if (strcmp(event, "time") == 0)
+        {
+            if (timestamp.isValidTimeFormat(value))
             {
-                if (strcmp(event, "time") == 0)
-                {
-                    // Verifica se a string de tempo tem o formato esperado
-                    if (timestamp.isValidTimeFormat(value))
-                    {
-                        timestamp.setCurrentTime(value);
-                        handled = true;
-
-                        // Confirmação (opcional)
-                        //  Serial.print("Tempo atualizado para: ");
-                        //  Serial.println(timestamp.asString());
-                    }
-                    else
-                    {
-                        Serial.println("Erro: Formato de tempo inválido");
-                    }
-                }
+                timestamp.setCurrentTime(value);
+                handled = true;
+            }
+            else
+            {
+                Serial.println(F("Erro: Timestamp formato de tempo inválido"));
             }
         }
-#endif
     }
 
     ack(handled, tid);
     return handled;
-#else
-    return false;
-#endif
 }
 
 void ack(bool ak, uint8_t tid)
@@ -450,7 +403,7 @@ void ack(bool ak, uint8_t tid)
 void handleLoraIncomingMessages()
 {
 #ifdef LORA
-    if (lora.available())
+    if (lora.available(200))
     {
         uint8_t len = sizeof(loraBuffer);
         if (lora.receiveMessage((char *)loraBuffer, len))

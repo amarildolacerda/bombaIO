@@ -41,9 +41,9 @@ void SinricCom::setup()
     SinricProTemperaturesensor &mySensor = SinricPro[TEMP_SENSOR_ID];
     // setup SinricPro
     SinricPro.onConnected([]()
-                          { Serial.printf("Connected to SinricPro\r\n"); });
+                          { Serial.printf(F("Connected to SinricPro\r\n")); });
     SinricPro.onDisconnected([]()
-                             { Serial.printf("Disconnected from SinricPro\r\n"); });
+                             { Serial.printf(F("Disconnected from SinricPro\r\n")); });
 
     SinricPro.begin(APP_KEY, APP_SECRET);
 #endif

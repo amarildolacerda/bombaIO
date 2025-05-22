@@ -82,7 +82,7 @@ public:
         time_t newTimestamp = parseISO8601(time);
         if (newTimestamp == 0)
         {
-            Serial.println("Erro: Formato de tempo inválido");
+            Serial.println(F("Erro: Formato de tempo inválido"));
             return;
         }
 
@@ -90,7 +90,7 @@ public:
         if (timestampInicial != 0 && millisInicial != 0)
         {
             unsigned long elapsedMillis = millis() - lastSyncTime;
-            time_t expectedTime = lastSyncTimestamp + (elapsedMillis / 1000);
+            // time_t expectedTime = lastSyncTimestamp + (elapsedMillis / 1000);
             time_t actualTime = newTimestamp;
 
             if (elapsedMillis > 1000)
@@ -99,8 +99,10 @@ public:
                 driftCompensation = constrain(driftCompensation, 0.9f, 1.1f); // Limita a ±10%
             }
 
-            Serial.print("Drift compensation: ");
+#ifdef DEBUG_ON
+            Serial.print(F("Drift compensation: "));
             Serial.println(driftCompensation, 6);
+#endif
         }
 
         // Atualiza referências
@@ -108,9 +110,10 @@ public:
         timestampInicial = newTimestamp;
         lastSyncTime = millisInicial;
         lastSyncTimestamp = newTimestamp;
-
-        Serial.print("Tempo atualizado: ");
+#ifdef DEBUG_ON
+        Serial.print(F("Tempo atualizado: "));
         Serial.println(formatTime(newTimestamp));
+#endif
     }
 
     /**

@@ -13,7 +13,9 @@ void BluetoothCom::setup()
 {
     Serial.begin(115200);
     SerialBT.begin("LoRaGateway"); // Nome para o dispositivo Bluetooth
-    Serial.println("O dispositivo está pronto para parear.");
+#ifdef DEBUG_ON
+    Serial.println(F("O dispositivo está pronto para parear."));
+#endif
 }
 
 // Função para enviar a lista de dispositivos via Bluetooth

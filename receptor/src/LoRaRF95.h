@@ -91,14 +91,14 @@ public:
         return false;
     }
 
-    bool available()
+    bool available(uint16_t timeout = 50)
     {
-        return rf95.available();
+        return rf95.waitAvailableTimeout(timeout);
     }
 
     bool receiveMessage(char *buffer, uint8_t &len)
     {
-        if (!rf95.available())
+        if (!rf95.waitAvailableTimeout(10))
             return false;
 
         uint8_t recvLen = RH_RF95_MAX_MESSAGE_LEN;

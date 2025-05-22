@@ -84,7 +84,7 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
      }
              */
     alexa.enable(true);
-    Serial.println("Alexa Enable(true)");
+    Serial.println(F("Alexa Enable(true)"));
 }
 
 void AlexaCom::loop()

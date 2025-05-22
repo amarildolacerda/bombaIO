@@ -262,7 +262,7 @@ void processIncoming(LoRaInterface *loraInstance)
         if (strstr(event, "status") != NULL)
         {
             Logger::info("Status dectado: " + String(value));
-            LoRaCom::ack(true, loraInstance->headerFrom());
+            // LoRaCom::ack(true, loraInstance->headerFrom());
             DeviceInfoData data;
             data.tid = tid;
             data.event = event;
