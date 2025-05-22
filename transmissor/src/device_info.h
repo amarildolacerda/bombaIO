@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <vector>
+#include "config.h"
 
 #ifndef __AVR__
 // Estrutura para armazenar informações do dispositivo

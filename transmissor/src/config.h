@@ -11,11 +11,12 @@
 namespace Config
 {
     constexpr const char *ALEXA_TERMOSTATO = "Termostato";
+    constexpr const uint8_t MAX_CLIENTS = 10;
 
     constexpr uint8_t LORA_RX_PIN = 10; // RX pin for RF95
     constexpr uint8_t LORA_TX_PIN = 11; // TX pin for RF95
     constexpr int TERMINAL_ID = 0x00;
-    constexpr int MESSAGE_LEN = 128;
+    constexpr int MESSAGE_LEN = 251;
     // Hardware - Pinos LoRa (TTGO LoRa32 v1)
     constexpr uint8_t LORA_CS_PIN = 18;    // GPIO18 - Chip Select
     constexpr uint8_t LORA_RESET_PIN = 14; // GPIO14 - Reset

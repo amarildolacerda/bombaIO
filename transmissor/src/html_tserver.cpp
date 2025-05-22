@@ -119,7 +119,7 @@ namespace HtmlServer
                 html += "    <div class='device-card'>";
                 html += "      <h3>";
                 html += "      <div style='cursor:pointer;' onclick=\"window.location='/device?tid=" + String(data.tid) + "'\">" + String(data.name) + "</div></h3>";
-                html += "     <hr/> <p id='device-status-" + String(data.tid) + "' style=\"cursor:pointer;\" onclick=\"fetch('/controlDevice?tid=" + String(data.tid) + "&action=toggle', {method: 'POST'}).then(() => updateStatus(" + String(data.tid) + "));\">...</p>";
+                html += "     <hr/> <p id='device-status-" + String(data.tid) + "' style=\"cursor:pointer;\" onclick=\"fetch('/ctlDevice?tid=" + String(data.tid) + "&action=toggle', {method: 'POST'}).then(() => updateStatus(" + String(data.tid) + "));\">...</p>";
                 html += "    </div>";
             }
         }
@@ -129,7 +129,7 @@ namespace HtmlServer
 
         html += "<script>";
         html += "async function updateStatus(id) {";
-        html += "  const res = await fetch(`/controlDevice?tid=${id}&action=status`, { method: 'POST' });";
+        html += "  const res = await fetch(`/ctlDevice?tid=${id}&action=status`, { method: 'POST' });";
         html += "  const statusElement = document.getElementById(`device-status-${id}`);";
         html += "  if (res.ok) {";
         html += "    const json = await res.json();";
@@ -185,43 +185,47 @@ namespace HtmlServer
         generateMenu();
 
         const uint8_t idx = DeviceInfo::indexOf(tid);
-        const DeviceRegData &rdata = DeviceInfo::deviceRegList[idx];
-        const uint16_t didx = DeviceInfo::dataOf(tid);
-        DeviceInfoData data;
-        if (didx >= 0)
-            data = DeviceInfo::deviceList[didx];
+        if (idx >= 0)
+        {
+            const DeviceRegData &rdata = DeviceInfo::deviceRegList[idx];
+            const uint16_t didx = DeviceInfo::dataOf(tid);
+            DeviceInfoData data;
+            if (didx >= 0)
+                data = DeviceInfo::deviceList[didx];
 
-        html += "  <div class='card'>";
-        html += "    <h2>" + rdata.name + "</h2>";
-        html += "    <p>RSSI: " + ((didx >= 0) ? String(data.rssi) : "") + " dBm</p>";
-        html += "    <p>Última Atualização: " + ((didx >= 0) ? data.lastSeenISOTime : "") + "</p>";
-        html += "    <p id='device-status'>Estado: Carregando...</p>";
-        html += "<script>";
-        html += "async function updateStatus() {";
-        html += "  const res = await fetch(`/controlDevice?tid=" + String(rdata.tid) + "&action=status`, { method: 'POST' });";
-        html += "  if (res.ok) {";
-        html += "    const json = await res.json();";
-        html += "    document.getElementById('device-status').innerText = 'Estado: ' + json.status;";
-        html += "  } else {";
-        html += "    document.getElementById('device-status').innerText = 'Estado: Erro ao obter';";
-        html += "  }";
-        html += "}";
-        html += "updateStatus();";
-        html += "setInterval(updateStatus, 1000);";
-        html += "</script>";
-        html += "    <button onclick=\"toggleDevice('" + String(rdata.tid) + "')\" class='btn-warning'>Alternar Estado</button>";
-        html += "  </div>";
-
+            html += "  <div class='card'>";
+            html += "    <h2>" + rdata.name + "</h2>";
+            html += "    <p>RSSI: " + ((didx >= 0) ? String(data.rssi) : "") + " dBm</p>";
+            html += "    <p>Última Atualização: " + ((didx >= 0) ? data.lastSeenISOTime : "") + "</p>";
+            html += "    <p id='device-status'>Estado: Carregando...</p>";
+            html += "<script>";
+            html += "async function updateStatus() {";
+            html += "  const res = await fetch(`/ctlDevice?tid=" + String(rdata.tid) + "&action=status`, { method: 'POST' });";
+            html += "  if (res.ok) {";
+            html += "    const json = await res.json();";
+            html += "    document.getElementById('device-status').innerText = 'Estado: ' + json.status;";
+            html += "  } else {";
+            html += "    document.getElementById('device-status').innerText = 'Estado: Erro ao obter';";
+            html += "  }";
+            html += "}";
+            html += "updateStatus();";
+            html += "setInterval(updateStatus, 1000);";
+            html += "</script>";
+            html += "    <button onclick=\"toggleDevice('" + String(rdata.tid) + "')\" class='btn-warning'>Alternar Estado</button>";
+            html += "  </div>";
+        }
         html += "  <a href='/' class='btn-info'>Voltar</a>";
         html += "</div>";
 
-        html += "<script>";
-        html += "async function toggleDevice(id) {";
-        html += "  await fetch(`/controlDevice?tid=${id}&action=toggle`, { method: 'POST' });";
-        html += "  location.reload();";
-        html += "}";
-        html += "</script>";
-
+        if (idx >= 0)
+        {
+            html += "<script>";
+            html += "async function toggleDevice(id) {";
+            html += "  await fetch(`/ctlDevice?tid=${id}&action=toggle`, { method: 'POST' });";
+            html += "  location.reload();";
+            html += "}";
+            html += "</script>";
+        }
         html += "</body></html>";
 
         request->send(200, "text/html", html.c_str());
@@ -320,15 +324,19 @@ namespace HtmlServer
         action.toLowerCase();
 
         const int16_t x = DeviceInfo::dataOf(tid);
-        const DeviceInfoData &data = DeviceInfo::deviceList[x];
-
-        if (action == "toggle")
+        String status = "???";
+        if (x >= 0)
         {
-            LoRaCom::sendCommand("gpio", "toggle", tid);
+            const DeviceInfoData &data = DeviceInfo::deviceList[x];
+
+            if (action == "toggle")
+            {
+                LoRaCom::sendCommand("gpio", "toggle", tid);
+            }
+            int timeDiff = DeviceInfo::getTimeDifferenceSeconds(data.lastSeenISOTime);
+            bool isOffline = (timeDiff == -1) || (timeDiff > 60);
+            status = isOffline ? "OffLine" : (data.status.length() == 0 ? "???" : data.status);
         }
-        int timeDiff = DeviceInfo::getTimeDifferenceSeconds(data.lastSeenISOTime);
-        bool isOffline = (timeDiff == -1) || (timeDiff > 60);
-        String status = isOffline ? "OffLine" : (data.status.length() == 0 ? "???" : data.status);
         respStatus(request, tid, status);
     }
 
@@ -343,7 +351,7 @@ namespace HtmlServer
         // Rotas principais
         espServer->on("/", HTTP_GET, handleRootRequest);
         espServer->on("/device", HTTP_GET, handleDeviceDetailsRequest);
-        espServer->on("/controlDevice", HTTP_POST, [](AsyncWebServerRequest *request)
+        espServer->on("/ctlDevice", HTTP_POST, [](AsyncWebServerRequest *request)
                       { handleToggleDevice(request); });
         espServer->on("/reset", HTTP_GET, [](AsyncWebServerRequest *request)
                       {

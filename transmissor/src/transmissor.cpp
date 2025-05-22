@@ -26,7 +26,9 @@
 #include "display_manager.h"
 #endif
 
+#ifdef ALEXA
 #include "AlexaCom.h"
+#endif
 
 #include "LoRaInterface.h"
 
@@ -34,8 +36,10 @@
 #include "SinricCom.h"
 #endif
 
+#ifdef WS
 #include <ESPAsyncWebServer.h>
 AsyncWebServer server(Config::WEBSERVER_PORT);
+#endif
 
 void processIncoming(LoRaInterface *loraInstance);
 
@@ -43,6 +47,7 @@ void processIncoming(LoRaInterface *loraInstance);
 
 void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
 {
+#ifdef ALEXA
     const uint8_t alexaId = (uint8_t)device_id;
     Logger::log(LogLevel::DEBUG, String("Callback da Alexa: " + String(device_name)).c_str());
     for (auto &dev : alexaCom.alexaDevices)
@@ -56,6 +61,7 @@ void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool 
             break;
         }
     }
+#endif
 }
 
 // ========== Network Functions Implementations ==========
@@ -75,7 +81,7 @@ void initWiFi()
 
     systemState.setWifiStatus(true);
     char ipBuffer[16]; // Buffer to store IP address as a string
-    sprintf(ipBuffer, "%s", WiFi.localIP().toString().c_str());
+    snprintf(ipBuffer, sizeof(ipBuffer), "%s", WiFi.localIP().toString().c_str());
     Logger::log(LogLevel::INFO, ipBuffer);
 }
 #endif
@@ -147,7 +153,19 @@ void tsetup()
     HtmlServer::initWebServer(&server);
     HtmlServer::begin();
 #endif
-    alexaCom.setup(&server, alexaDeviceCallback);
+
+#ifdef ALEXA
+
+    alexaCom.setup(
+#ifdef WS
+        &server
+#else
+        NULL
+#endif
+        ,
+        alexaDeviceCallback);
+
+#endif
 
 #ifdef SINRIC
     sinricCom.setup();
@@ -169,7 +187,10 @@ void tloop()
 #ifdef WS
     HtmlServer::process();
 #endif
+#ifdef ALEXA
+
     alexaCom.loop();
+#endif
     systemState.handle();
 
 #ifdef SINRIC
@@ -224,7 +245,6 @@ void processIncoming(LoRaInterface *loraInstance)
         return;
     }
 
-    alexaCom.loop();
     if (strchr(msg, '|') == NULL)
     {
         LoRaCom::ack(false, loraInstance->headerFrom());
@@ -242,6 +262,7 @@ void processIncoming(LoRaInterface *loraInstance)
         if (strstr(event, "status") != NULL)
         {
             Logger::info("Status dectado: " + String(value));
+            LoRaCom::ack(true, loraInstance->headerFrom());
             DeviceInfoData data;
             data.tid = tid;
             data.event = event;
@@ -250,13 +271,16 @@ void processIncoming(LoRaInterface *loraInstance)
             data.lastSeenISOTime = DeviceInfo::getISOTime();
             data.rssi = loraInstance->packetRssi();
             DeviceInfo::updateDeviceList(data.tid, data);
-            //            LoRaCom::ack(true, loraInstance->headerFrom());
+            LoRaCom::ack(true, loraInstance->headerFrom());
             systemState.updateState(value);
 
             if (!systemState.isDiscovering())
             {
+#ifdef ALEXA
+
                 alexaCom.aliveOffLineAlexa();
                 alexaCom.updateStateAlexa(tid, data.uniqueName(), value);
+#endif
             }
             handled = true;
         }
@@ -274,7 +298,9 @@ void processIncoming(LoRaInterface *loraInstance)
                 Prefers::saveRegs();
                 displayManager.message("Novo: " + String(value));
 
+#ifdef ALEXA
                 alexaCom.addDevice(tid, value);
+#endif
                 systemState.setDiscovery(false);
                 handled = true;
             }

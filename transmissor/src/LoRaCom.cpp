@@ -93,7 +93,7 @@ void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const
 {
 
     memset(message, 0, sizeof(message));
-    // sprintf(message, "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}", name, event, value);
+    // snprintf(message,sizeof(message), "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}", name, event, value);
     sprintf(message, "%s|%s", event, value);
 }
 
@@ -203,6 +203,7 @@ bool LoRaCom::waitAck()
 bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
 {
     char output[Config::MESSAGE_LEN];
+    memset(output, 0, sizeof(output));
     formatMessage(output, tid, event.c_str(), value.c_str());
     // Garante null-terminator
     output[Config::MESSAGE_LEN - 1] = '\0';

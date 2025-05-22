@@ -26,7 +26,6 @@ void AlexaCom::aliveOffLineAlexa()
         {
             alexa.setState(dev.uniqueName().c_str(), false, 0);
             Logger::warn(String(dev.name + " esta a mais de " + String(secs) + "s sem conexao ").c_str());
-            delay(10);
             //}
         }
     }
@@ -41,25 +40,23 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
     alexaDeviceCallback = callback;
     Logger::info("Alexa Init");
 
-    alexa.createServer(false);
+    alexa.createServer((server == NULL) ? true : false);
     alexa.setPort(80);
 
-    alexa.enable(true);
-
-    uint8_t alexaId = 0;
     for (int i = 0; i < DeviceInfo::deviceRegList.size(); i++)
     {
         DeviceRegData reg = DeviceInfo::deviceRegList[i];
         if (reg.tid == 0)
             continue;
-        alexaDevices.push_back({reg.tid, alexaId++, reg.name});
 
-        alexa.addDevice(reg.uniqueName().c_str());
+        // alexa.addDevice(reg.uniqueName().c_str());
+        addDevice(reg.tid, reg.name.c_str());
     }
 
     alexa.onSetState([](unsigned char device_id, const char *device_name, bool state, unsigned char value)
                      { alexaCom.DoCallback(device_id, device_name, state, value); });
 
+#ifdef WS
     // These two callbacks are required for gen1 and gen3 compatibility
     server->onRequestBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
                           {
@@ -78,11 +75,16 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
                                return;
                            // Handle not found request here...
                        });
+#endif
 
-    for (auto dev : alexaDevices)
-    {
-        Logger::warn(String("Reg Alexa(" + String(dev.alexaId) + "): " + String(dev.tid) + " Name: " + dev.uniqueName()).c_str());
-    }
+    /* for (auto dev : alexaDevices)
+     {
+         if (dev!=NULL)
+             Logger::warn(String("Reg Alexa(" + String(dev.alexaId) + "): " + String(dev.tid) + " Name: " + dev.uniqueName()).c_str());
+     }
+             */
+    alexa.enable(true);
+    Serial.println("Alexa Enable(true)");
 }
 
 void AlexaCom::loop()
@@ -97,18 +99,18 @@ void AlexaCom::updateStateAlexa(uint8_t tid, String uniqueName, String value)
     // nt(uniqueName);
     for (auto &dev : AlexaCom::alexaDevices)
     {
-        if (dev.uniqueName() == uniqueName)
+        if (dev.uniqueName().equals(uniqueName))
         {
             ct++;
             alexa.setState(dev.uniqueName().c_str(), value == "on", value == "on");
             char msg[64];
-            sprintf(msg, "Term: % d Alexa %s (%d): %s (%s)", tid, dev.uniqueName(), dev.alexaId, value.c_str(), value == "on" ? "true" : "false");
+            snprintf(msg, sizeof(msg), "Term: % d Alexa %s (%d): %s (%s)", tid, dev.uniqueName(), dev.alexaId, value.c_str(), value == "on" ? "true" : "false");
             Logger::info(msg);
             return;
         }
         if (ct == 0)
         {
-            Logger::error(String("nao achei alexa device" + String(tid)).c_str());
+            Logger::error(String("nao achei alexa device: " + String(uniqueName)).c_str());
         }
     }
 }
@@ -116,9 +118,10 @@ void AlexaCom::updateStateAlexa(uint8_t tid, String uniqueName, String value)
 void AlexaCom::addDevice(uint8_t tid, const char *name)
 {
     AlexaDeviceMap map;
-    map.alexaId = alexa.getDeviceId(name);
     map.tid = tid;
     map.name = name;
-    alexa.addDevice(map.uniqueName().c_str());
+    String aname = map.uniqueName();
+    alexa.addDevice(aname.c_str());
+    map.alexaId = alexa.getDeviceId(aname.c_str());
     alexaDevices.push_back(map);
 }
