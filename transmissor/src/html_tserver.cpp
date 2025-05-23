@@ -7,6 +7,7 @@
 #include "device_info.h"
 #include "LoRaCom.h"
 #include "prefers.h"
+#include "display_manager.h"
 #ifndef __AVR__
 
 #ifdef ESP32
@@ -75,7 +76,7 @@ namespace HtmlServer
                 "    discoveryTimeout = setTimeout(() => {"
                 "      discoveryActive = false;"
                 "      btn.style.backgroundColor = '';"
-                "    }, 60000*3);" // 3 minutos
+                "    }, 60000);" // 1 minutos
                 "  } else {"
                 "    clearTimeout(discoveryTimeout);"
                 "    btn.style.backgroundColor = '';"
@@ -356,8 +357,12 @@ namespace HtmlServer
         espServer->on("/reset", HTTP_GET, [](AsyncWebServerRequest *request)
                       {
             DeviceInfo::deviceRegList.clear(); 
+            DeviceInfo::deviceList.clear();
             Prefers::saveRegs();
-            request->send(200, "text/plain", "OK"); 
+            displayManager.message("Reset no dispositivos");
+//            request->send(200, "text/plain", "OK"); 
+            request->redirect("/");
+            delay(100);
             ESP.restart(); });
 
         espServer->on("/restart", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -369,7 +374,7 @@ namespace HtmlServer
         espServer->on("/discovery", HTTP_POST, [](AsyncWebServerRequest *request)
                       {
         if (request->hasArg("enable")) {
-            systemState.setDiscovery(request->arg("enable") == "1");
+            systemState.setDiscovery(request->arg("enable") == "1",60000);
             request->send(200, "text/plain", "OK");
         } else {
             request->send(400, "text/plain", "Bad Request");

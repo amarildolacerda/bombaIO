@@ -1,3 +1,4 @@
+#ifndef TEST
 #include "receptor.h"
 #include "Arduino.h"
 #include "config.h"
@@ -105,7 +106,7 @@ void savePinState(bool state)
 #ifdef __AVR__
     EEPROM.update(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
 #else
-    EEPROM.put(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
+    EEPROM.write(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
     EEPROM.commit(); // No ESP8266/ESP32 você PRECISA chamar commit() para salvar
 #endif
 }
@@ -159,8 +160,6 @@ void zeraContadorReinicio()
     Logger::log(LogLevel::INFO, F("Zerou contador de reinicio"));
 }
 
-#ifdef __AVR__
-
 void checkAndHandleIdentificationMode()
 {
     uint8_t bootCount = EEPROM.read(EEPROM_ADDR_BOOT_COUNT);
@@ -199,7 +198,6 @@ void checkAndHandleIdentificationMode()
         }
     }
 }
-#endif
 
 // Define systemState struct and global instance
 
@@ -212,11 +210,13 @@ void setup()
 #endif
 
     Logger::setLogLevel(LogLevel::VERBOSE);
-#ifdef __AVR__
-    ShowSerial.begin(115200);
-    COMSerial.begin(115200);
-    while (!ShowSerial)
+    // #ifdef __AVR__
+    Serial.begin(Config::SERIAL_SPEED);
+    while (!Serial)
         ;
+    Serial.print("SensorBeanIO");
+    Serial.flush();
+    // #endif
     if (!lora.initialize(Config::BAND, Config::TERMINAL_ID, Config::PROMISCUOS))
     {
         Logger::log(LogLevel::ERROR, F("LoRa initialization failed!"));
@@ -226,9 +226,14 @@ void setup()
     {
         loraActive = true;
     }
-    if (loraActive)
-        checkAndHandleIdentificationMode();
-#elif ESP8266
+    if (!loraActive)
+        lora.reactive();
+
+    //   if (loraActive)
+    checkAndHandleIdentificationMode();
+
+#ifdef ESP8266
+
     Serial.begin(115200);
     WiFiManager wifiManager;
     wifiManager.autoConnect("AutoConnectAP");
@@ -446,15 +451,19 @@ void loop()
 
     if ((!loraActive))
     {
-        Serial.print(F("LoRa inativo"));
-        digitalWrite(Config::LED_PIN, HIGH);
-        delay(1000);
-        digitalWrite(Config::LED_PIN, LOW);
-        delay(500);
-#ifdef __AVR__
         loraActive = lora.reactive();
+        if (!loraActive)
+        {
+            Serial.print(F("LoRa inativo"));
+            digitalWrite(Config::LED_PIN, HIGH);
+            delay(1000);
+            digitalWrite(Config::LED_PIN, LOW);
+            delay(500);
+        }
+
+#ifdef __AVR__
 #else
-        if (millis() - checaLoraInative > 30000)
+        else if (millis() - checaLoraInative > 30000)
         {
             for (uint8_t i; i < 10; i++)
                 Serial.println("..............................");
@@ -489,3 +498,5 @@ void loop()
     checaLoraInative = millis();
     // WDT_ENABLE();
 }
+
+#endif

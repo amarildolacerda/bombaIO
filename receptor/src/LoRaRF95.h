@@ -9,7 +9,7 @@
 SoftwareSerial SSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
 #define COMSerial SSerial
 #define ShowSerial Serial
-#elif ESP8266
+#elif ESP8266 || ESP32
 #define COMSerial Serial
 #endif
 
@@ -24,12 +24,23 @@ private:
 public:
     LoRaRF95() : rf95(COMSerial) {}
 
+    void stop()
+    {
+        rf95.sleep();
+        COMSerial.end();
+        delay(100);
+    }
+    void start()
+    {
+        COMSerial.begin(Config::LORA_SPEED);
+        rf95.setModeIdle();
+        rf95.setModeRx();
+    }
     bool reactive()
     {
-
-        if (rf95.sleep())
-            return rf95.init();
-        return false;
+        stop();
+        start();
+        return true;
     }
 
     bool initialize(float frequency, uint8_t terminalId, bool promiscuous = true)
@@ -37,10 +48,12 @@ public:
 #ifdef ESP8266
         Serial.swap();
 #endif
+        COMSerial.begin(Config::LORA_SPEED);
         if (!rf95.init())
         {
             Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
-            COMSerial.end();
+
+            start();
             Serial.begin(115200);
             return false;
         }
@@ -141,6 +154,11 @@ public:
     }
 
     int getLastRssi() { return rf95.lastRssi(); }
+
+    RH_RF95<decltype(COMSerial)> getRf95()
+    {
+        return rf95;
+    }
 
 private:
     RH_RF95<decltype(COMSerial)> rf95;

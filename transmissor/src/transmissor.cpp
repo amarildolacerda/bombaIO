@@ -171,6 +171,7 @@ void tsetup()
     sinricCom.setup();
 #endif
     displayManager.updateDisplay();
+    systemState.setDiscovery(true);
 }
 
 #ifndef TEST
@@ -268,6 +269,7 @@ void processIncoming(LoRaInterface *loraInstance)
             data.event = event;
             data.value = value;
             data.name = DeviceInfo::findName(tid);
+            data.name.toLowerCase();
             data.lastSeenISOTime = DeviceInfo::getISOTime();
             data.rssi = loraInstance->packetRssi();
             DeviceInfo::updateDeviceList(data.tid, data);
@@ -284,25 +286,27 @@ void processIncoming(LoRaInterface *loraInstance)
             }
             handled = true;
         }
-        else if (event == "presentation")
+        else if (strcmp(event, "presentation") == 0)
         {
-            Logger::info("Presentation dectado: " + String(value));
+            Logger::info("Se apresentando: " + String(value));
 
             if (systemState.isDiscovering())
             {
-                //  LoRaCom::ack(true, loraInstance->headerFrom());
+                LoRaCom::ack(true, loraInstance->headerFrom());
                 DeviceRegData reg;
                 reg.tid = tid;
+
                 reg.name = value;
+                reg.name.toLowerCase();
                 DeviceInfo::updateRegList(tid, reg);
                 Prefers::saveRegs();
-                displayManager.message("Novo: " + String(value));
+                displayManager.message("Novo: " + String(reg.name));
 
 #ifdef ALEXA
                 alexaCom.addDevice(tid, value);
 #endif
-                systemState.setDiscovery(false);
-                handled = true;
+                // systemState.setDiscovery(false);
+                return;
             }
             else
             {

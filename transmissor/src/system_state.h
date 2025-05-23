@@ -38,10 +38,10 @@ public:
     bool isLoraInitialized();
     bool isStateValid();
     void resetStateValid();
-    void setDiscovery(bool enabled)
+    void setDiscovery(bool enabled, long timeout = 60000)
     {
         discoveryMode = enabled;
-        discoveryEndTime = millis() + (60000 * 3); // 3 minutos
+        discoveryEndTime = millis() + (timeout); // 3 minutos
         const String msg = "Discovery mode " + (discoveryMode) ? "habilitado" : "desabilitado";
         Logger::info(msg.c_str());
         if (discoveryCallback != nullptr)

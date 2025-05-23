@@ -18,7 +18,9 @@ struct DeviceInfoData
     int rssi;
     String uniqueName()
     {
-        return name + "." + String(tid);
+        String a = name + "." + String(tid);
+        a.toLowerCase();
+        return a;
     }
     // Adicione outros campos conforme necessário
 };
@@ -28,6 +30,7 @@ struct DeviceRegData
     String name;
     String toString()
     {
+        name.toLowerCase();
         return String(tid) + ":" + name;
     }
     String uniqueName()
@@ -44,6 +47,7 @@ struct DeviceRegData
         {
             tid = str.substring(0, sepIndex).toInt();
             name = str.substring(sepIndex + 1);
+            name.toLowerCase();
             return true;
         }
         return false;
@@ -75,10 +79,12 @@ public:
         uint8_t x = indexOf(tid);
         if (x < 0)
             return "";
+        deviceRegList[x].name.toLowerCase();
         return deviceRegList[x].name;
     }
     static int16_t indexOfName(String name)
     {
+        name.toLowerCase();
         for (uint8_t i = 0; i < deviceRegList.size(); i++)
         {
             if (deviceRegList[i].name == name)

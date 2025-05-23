@@ -29,6 +29,8 @@ namespace Config
     constexpr int RELAY_PIN = 4;
     constexpr int RX_PIN = 6;
     constexpr int TX_PIN = 7;
+    constexpr int LORA_SPEED = 9600;
+    constexpr long SERIAL_SPEED = 115200;
     constexpr long STATUS_INTERVAL = 30000;
     constexpr long PRESENTATION_INTERVAL = 10000;
     constexpr int MESSAGE_MAX_LEN = 128;

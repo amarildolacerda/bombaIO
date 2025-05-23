@@ -54,8 +54,8 @@ void DisplayManager::updateDisplay()
     if (systemState.isDiscovering())
     {
         setPos(3, 0);
-        display.println("Esperando");
-        display.println("Novo dispositivo"); // redundante, so esta preenchendo espaço no display
+        display.println("  Modo pareamento");
+        display.println("   em andamento"); // redundante, so esta preenchendo espaço no display
     }
     else if (loraRcvEvent.length() > 0)
     {
