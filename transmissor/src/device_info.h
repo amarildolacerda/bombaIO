@@ -54,6 +54,13 @@ struct DeviceRegData
     }
 };
 
+struct DeviceInfoHistory
+{
+    uint8_t tid;
+    String name;
+    String value;
+};
+
 #endif
 class DeviceInfo
 {
@@ -111,6 +118,7 @@ public:
     // Declaração correta de deviceList como membro estático
     static std::vector<DeviceInfoData> deviceList;
     static std::vector<DeviceRegData> deviceRegList;
+    static std::vector<DeviceInfoHistory> history;
 };
 
 #endif

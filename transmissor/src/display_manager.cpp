@@ -47,9 +47,17 @@ void DisplayManager::updateDisplay()
     setPos(1, 0);
     display.print("Radio: ");
     display.print(loraInitialized ? (baixo) ? "Baixo" : "OK" : "FALHA");
-    display.print(" (");
-    display.print(rssi);
-    display.println(")");
+    display.print(" ");
+    if (!baixo)
+    {
+        setPos(1, 13);
+        display.println(systemState.lastUpdateTime);
+    }
+    else
+    {
+        display.println(rssi);
+    }
+    display.println("");
 
     if (systemState.isDiscovering())
     {
@@ -59,27 +67,38 @@ void DisplayManager::updateDisplay()
     }
     else if (loraRcvEvent.length() > 0)
     {
-        setPos(2, 0);
-        display.print("Term: ");
-        display.print(_tid);
-        int id = DeviceInfo::indexOf(_tid);
-        display.print(" ");
-        display.println(DeviceInfo::deviceRegList[id].name);
+        uint8_t i = 2;
+        for (const auto &d : DeviceInfo::history)
+        {
+            setPos(i, 0);
+            display.print(d.tid);
+            setPos(i, 3);
+            display.print(d.name.substring(0, 11));
+            setPos(i++, 15);
+            display.print(d.value);
+        }
+        /** setPos(2, 0);
+         display.print("Term: ");
+         display.print(_tid);
+         int id = DeviceInfo::indexOf(_tid);
+         display.print(" ");
+         display.println(DeviceInfo::deviceRegList[id].name);
 
-        setPos(3, 0);
-        display.print("Estado: ");
+         setPos(3, 0);
+         display.print("Estado: ");
 
-        display.println(relayState); // redundante, so esta preenchendo espaço no display
+         display.println(relayState); // redundante, so esta preenchendo espaço no display
 
-        setPos(4, 0);
-        display.print("Evento: ");
-        display.println(loraRcvEvent);
-        setPos(5, 0);
-        display.print("Value: ");
-        display.print(loraRcvValue);
-        // display.setCursor(Config::SCREEN_WIDTH - 49, Config::SCREEN_HEIGHT - (8.5 * 2));
-        setPos(5, 13);
-        display.println(systemState.lastUpdateTime);
+         setPos(4, 0);
+         display.print("Evento: ");
+         display.println(loraRcvEvent);
+         */
+
+        // setPos(5, 0);
+        // display.print("Value: ");
+        // display.print(loraRcvValue);
+        // setPos(5, 13);
+        // display.println(systemState.lastUpdateTime);
     }
     else
     {
@@ -119,16 +138,12 @@ void DisplayManager::handle()
 
 void DisplayManager::message(const String &event)
 {
-    // display.clearDisplay();
-    // display.setCursor(0, 0);
-    // display.setTextColor(BLACK, WHITE);
-    setPos(5, 0);
-    // display.println("Enviou:");
+    display.setTextColor(BLACK, WHITE);
+    setPos(6, 0);
     display.print("                     ");
-    setPos(5, 0);
+    setPos(6, 0);
     display.print(event);
-    // showFooter();
-    // display.setTextColor(WHITE, BLACK);
+    display.setTextColor(WHITE, BLACK);
 
     display.display();
     lastUpdate = millis();

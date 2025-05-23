@@ -4,6 +4,7 @@
 // Define o membro estático corretamente
 std::vector<DeviceInfoData> DeviceInfo::deviceList;
 std::vector<DeviceRegData> DeviceInfo::deviceRegList;
+std::vector<DeviceInfoHistory> DeviceInfo::history;
 
 void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
 {
@@ -41,6 +42,15 @@ void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
         }
         deviceList.push_back(data);
     }
+
+    while (history.size() >= 4)
+        history.erase(history.end());
+
+    DeviceInfoHistory hist;
+    hist.tid = data.tid;
+    hist.name = data.name;
+    hist.value = data.value;
+    history.insert(history.begin(), hist);
 }
 
 void DeviceInfo::updateRegList(u_int8_t tid, DeviceRegData data)

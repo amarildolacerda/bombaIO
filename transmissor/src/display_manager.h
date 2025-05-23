@@ -12,6 +12,7 @@
 
 extern Adafruit_SSD1306 display;
 
+
 class DisplayManager
 {
 private:
