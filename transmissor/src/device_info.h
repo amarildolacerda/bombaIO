@@ -18,7 +18,7 @@ struct DeviceInfoData
     int rssi;
     String uniqueName()
     {
-       // char *a = ESP.getChipId();
+        // char *a = ESP.getChipId();
         return name;
         // String a = name + "." + String(tid);
         // a.toLowerCase();

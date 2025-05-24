@@ -276,14 +276,14 @@ void processIncoming(LoRaInterface *loraInstance)
             LoRaCom::ack(true, loraInstance->headerFrom());
             systemState.updateState(value);
 
-            if (!systemState.isDiscovering())
-            {
+            //  if (!systemState.isDiscovering())
+            //  {
 #ifdef ALEXA
 
-                alexaCom.aliveOffLineAlexa();
-                alexaCom.updateStateAlexa(tid, data.uniqueName(), value);
+            alexaCom.aliveOffLineAlexa();
+            alexaCom.updateStateAlexa(tid, data.uniqueName(), value);
 #endif
-            }
+            //}
             handled = true;
         }
         else if (strcmp(event, "presentation") == 0)
