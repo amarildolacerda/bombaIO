@@ -12,7 +12,6 @@
 
 extern Adafruit_SSD1306 display;
 
-
 class DisplayManager
 {
 private:
@@ -49,6 +48,7 @@ public:
         relayState = st;
     }
     void message(const String &event);
+    void info(const String &event);
     void handle();
     void setEvent(const uint8_t id, const String event, const String value)
     {

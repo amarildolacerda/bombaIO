@@ -329,7 +329,7 @@ void processIncoming(LoRaInterface *loraInstance)
                 reg.name.toLowerCase();
                 DeviceInfo::updateRegList(tid, reg);
                 Prefers::saveRegs();
-                displayManager.message("Novo: " + String(reg.name));
+                displayManager.info("Encontrei '" + String(reg.name) + "'");
 
 #ifdef ALEXA
                 alexaCom.addDevice(tid, value);

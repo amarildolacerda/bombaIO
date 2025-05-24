@@ -150,6 +150,18 @@ void DisplayManager::message(const String &event)
     stateTimeout = 2000;
 }
 
+void DisplayManager::info(const String &event)
+{
+    setPos(5, 0);
+    display.print("                     ");
+    setPos(5, 0);
+    display.print(event);
+
+    display.display();
+    lastUpdate = millis();
+    stateTimeout = 5000;
+}
+
 DisplayManager displayManager;
 
 #endif

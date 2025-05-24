@@ -165,9 +165,9 @@ private:
     const String terminalName = Config::TERMINAL_NAME;
 
 public:
-    void begin(long speed)
+    void begin()
     {
-        Serial.begin(speed);
+        Serial.begin(Config::SERIAL_SPEED);
         while (!Serial)
             ;
         loraConnected = lora.begin(Config::TERMINAL_ID, Config::BAND, Config::PROMISCUOS);

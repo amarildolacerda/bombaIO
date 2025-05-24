@@ -1,9 +1,10 @@
 
 #ifndef TEST
 #include "receptor.h"
+// #include "repeater.h"
 void setup()
 {
-    app.begin(115200);
+    app.begin();
 }
 
 void loop()

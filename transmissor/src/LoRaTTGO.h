@@ -16,7 +16,7 @@ private:
     uint8_t hTo = 0;
     uint8_t hFrom = 0;
     uint8_t hId = 0;
-    uint8_t hFlag = 0;
+    uint8_t hLive = 0;
     bool inPromiscuous = false;
 
 public:
@@ -45,7 +45,7 @@ public:
         LoRa.write(tidTo > -1 ? tidTo : _tidTo);
         LoRa.write(_tid);
         LoRa.write(genHeaderId());
-        LoRa.write(strlen(message));
+        LoRa.write(3); // salto no mesh
 
         char msg[64];
         snprintf(msg, sizeof(msg), "SendMessage From: %d To: %d len: %d", _tid, tidTo, strlen(message));
@@ -70,7 +70,7 @@ public:
         hTo = LoRa.read();
         hFrom = LoRa.read();
         hId = LoRa.read();
-        hFlag = LoRa.read();
+        hLive = LoRa.read();
 
         memset(buffer, 0, sizeof(buffer));
         while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
@@ -79,13 +79,13 @@ public:
             buffer[len++] = (char)r;
         }
         buffer[len] = '\0';
-        if ((hFrom == _tid))
+        if ((hFrom == _tid) || (hTo == 0xFE))
             return false;
 
 #ifdef DEBUG_ON
         char msg[64];
-        snprintf(msg, sizeof(msg), "Term: (%d) From: %d To: %d id: %d len: %d bytes: %d", _tid,
-                 headerFrom(), headerTo(), headerId(), hFlag,
+        snprintf(msg, sizeof(msg), "Term: (%d) From: %d To: %d id: %d len: %d Live: %d", _tid,
+                 headerFrom(), headerTo(), headerId(), hLive,
                  strlen((char *)buffer));
         Logger::log(LogLevel::RECEIVE, msg);
         Logger::log(LogLevel::RECEIVE, (char *)buffer);
