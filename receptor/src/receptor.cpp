@@ -356,9 +356,12 @@ bool processAndRespondToMessage(const char *message)
 
         if (strcmp(event, "gpio") == 0)
         {
-            if (strstr("on;off", value) != NULL)
+            Serial.print(event);
+            Serial.println(value);
+            if (strcmp(value, "on") == 0 || strcmp(value, "off") == 0)
             {
-                digitalWrite(Config::RELAY_PIN, (strcmp(event, "on") == 0) ? HIGH : LOW);
+                Serial.print("Pin: " + (String)value);
+                digitalWrite(Config::RELAY_PIN, (strcmp(value, "on") == 0) ? HIGH : LOW);
                 systemState.pinStateChanged = true;
 
                 sendStatus();
