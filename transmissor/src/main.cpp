@@ -58,14 +58,13 @@ void loop()
 
 #else
 #include "transmissor.h"
-
 void setup()
 {
-    tsetup();
+    app.setup();
 }
 void loop()
 {
-    tloop();
+    app.loop();
 }
 
 #endif
