@@ -11,9 +11,10 @@ struct AlexaDeviceMap
     String name;     // Nome do dispositivo
     String uniqueName()
     {
-        String a = name + "." + String(tid);
-        a.toLowerCase();
-        return a;
+        return name;
+        // String a = name + "." + String(tid);
+        // a.toLowerCase();
+        // return a;
     }
 };
 

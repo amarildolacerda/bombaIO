@@ -18,9 +18,11 @@ struct DeviceInfoData
     int rssi;
     String uniqueName()
     {
-        String a = name + "." + String(tid);
-        a.toLowerCase();
-        return a;
+       // char *a = ESP.getChipId();
+        return name;
+        // String a = name + "." + String(tid);
+        // a.toLowerCase();
+        // return a;
     }
     // Adicione outros campos conforme necessário
 };
@@ -35,9 +37,11 @@ struct DeviceRegData
     }
     String uniqueName()
     {
-        String a = name + "." + String(tid);
-        a.toLowerCase();
-        return a;
+
+        return name;
+        // String a = name + "." + String(tid);
+        // a.toLowerCase();
+        // return a;
     }
 
     bool fromString(String str)

@@ -25,10 +25,21 @@ namespace Config
     constexpr int LED_PIN = LED_BUILTIN;
 
     constexpr int BAND = 868.0; // Grove funciona melhor em 868
-
+#ifndef VRELAY_PIN
     constexpr int RELAY_PIN = 4;
+#else
+    constexpr int RELAY_PIN = VRELAY_PIN;
+#endif
+#ifndef MIRX_PIN
     constexpr int RX_PIN = 6;
+#else
+    constexpr int RX_PIN = MIRX_PIN;
+#endif
+#ifndef MOTX_PIN
     constexpr int TX_PIN = 7;
+#else
+    constexpr int TX_PIN = MOTX_PIN;
+#endif
     constexpr int LORA_SPEED = 9600;
     constexpr long SERIAL_SPEED = 115200;
     constexpr long STATUS_INTERVAL = 30000;

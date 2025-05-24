@@ -49,7 +49,6 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
         if (reg.tid == 0)
             continue;
 
-        // alexa.addDevice(reg.uniqueName().c_str());
         addDevice(reg.tid, reg.name.c_str());
     }
 
@@ -98,8 +97,11 @@ void AlexaCom::updateStateAlexa(uint8_t tid, String uniqueName, String value)
     uint8_t ct = 0;
     // nt(uniqueName);
     uniqueName.toLowerCase();
+    // Serial.println("Procurando: " + uniqueName);
+    // Serial.println("--------------------------");
     for (auto &dev : AlexaCom::alexaDevices)
     {
+        // Serial.println(dev.uniqueName());
         if (dev.uniqueName().equals(uniqueName))
         {
             ct++;
@@ -109,10 +111,10 @@ void AlexaCom::updateStateAlexa(uint8_t tid, String uniqueName, String value)
             Logger::info(msg);
             return;
         }
-        if (ct == 0)
-        {
-            Logger::error(String("nao achei alexa device: " + String(uniqueName)).c_str());
-        }
+    }
+    if (ct == 0)
+    {
+        Logger::error(String("Nao achei alexa device: " + String(uniqueName)).c_str());
     }
 }
 
@@ -122,7 +124,10 @@ void AlexaCom::addDevice(uint8_t tid, const char *name)
     map.tid = tid;
     map.name = name;
     String aname = map.uniqueName();
-    alexa.addDevice(aname.c_str());
-    map.alexaId = alexa.getDeviceId(aname.c_str());
-    alexaDevices.push_back(map);
+    if (alexa.getDeviceId(aname.c_str()) < 0)
+    {
+        alexa.addDevice(aname.c_str());
+        map.alexaId = alexa.getDeviceId(aname.c_str());
+        alexaDevices.push_back(map);
+    }
 }
