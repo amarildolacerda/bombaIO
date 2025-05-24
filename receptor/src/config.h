@@ -40,10 +40,9 @@ namespace Config
 #else
     constexpr int TX_PIN = MOTX_PIN;
 #endif
-    constexpr int LORA_SPEED = 9600;
+    constexpr long LORA_SPEED = 115200;
     constexpr long SERIAL_SPEED = 115200;
-    constexpr long STATUS_INTERVAL = 30000;
-    constexpr long PRESENTATION_INTERVAL = 10000;
+    constexpr long STATUS_INTERVAL = 5000;
     constexpr int MESSAGE_MAX_LEN = 128;
 };
 #endif

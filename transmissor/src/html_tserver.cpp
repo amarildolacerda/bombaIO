@@ -334,6 +334,7 @@ namespace HtmlServer
             {
                 LoRaCom::sendCommand("gpio", "toggle", tid);
             }
+            LoRaCom::sendCommand("status", "get", tid);
             int timeDiff = DeviceInfo::getTimeDifferenceSeconds(data.lastSeenISOTime);
             bool isOffline = (timeDiff == -1) || (timeDiff > 60);
             status = isOffline ? "OffLine" : (data.status.length() == 0 ? "???" : data.status);

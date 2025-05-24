@@ -83,6 +83,7 @@ THE SOFTWARE.
 #include "templates.h"
 
 typedef std::function<void(unsigned char, const char *, bool, unsigned char)> TSetStateCallback;
+typedef std::function<void(unsigned char, const char *)> TGetStateCallback;
 typedef std::function<void(unsigned char, const char *, bool, unsigned char, byte *)> TSetStateWithColorCallback;
 
 typedef struct
@@ -110,6 +111,10 @@ public:
     void setDeviceUniqueId(unsigned char id, const char *uniqueid);
     void onSetState(TSetStateCallback fn) { _setStateCallback = fn; }
     void onSetState(TSetStateWithColorCallback fn) { _setStateWithColorCallback = fn; }
+    void onGetState(TGetStateCallback fn)
+    {
+        _getStateCallback = fn;
+    }
     bool setState(unsigned char id, bool state, unsigned char value);
     bool setState(const char *device_name, bool state, unsigned char value);
     bool setState(unsigned char id, bool state, unsigned char value, byte *rgb);
@@ -132,6 +137,7 @@ private:
     WiFiUDP _udp;
     AsyncClient *_tcpClients[FAUXMO_TCP_MAX_CLIENTS];
     TSetStateCallback _setStateCallback = NULL;
+    TGetStateCallback _getStateCallback = NULL;
     TSetStateWithColorCallback _setStateWithColorCallback = NULL;
 
     String _deviceJson(unsigned char id, bool all); // all = true means we are listing all devices so use full description template

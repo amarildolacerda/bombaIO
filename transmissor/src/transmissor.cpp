@@ -45,6 +45,17 @@ void processIncoming(LoRaInterface *loraInstance);
 
 // ========== Instâncias Globais ==========
 
+void alexaOnGetCallback(const char *device_name)
+{
+    for (auto &dev : alexaCom.alexaDevices)
+    {
+        if (dev.uniqueName().equals(device_name))
+        {
+            LoRaCom::sendCommand("status", "get", dev.tid);
+        }
+    }
+}
+
 void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
 {
 #ifdef ALEXA
@@ -58,6 +69,8 @@ void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool 
             // const bool state = (value > 0);
             Logger::info("Alexa(" + String(dev.alexaId) + "): " + dev.uniqueName() + " command: " + String(state ? "ON" : "OFF"));
             LoRaCom::sendCommand("gpio", state ? "on" : "off", dev.tid);
+            delay(50);
+            LoRaCom::sendCommand("status", "get", dev.tid);
             break;
         }
     }
@@ -166,6 +179,7 @@ void tsetup()
         alexaDeviceCallback);
 
 #endif
+    alexaCom.onGetCallback(alexaOnGetCallback);
 
 #ifdef SINRIC
     sinricCom.setup();
@@ -176,6 +190,7 @@ void tsetup()
 
 #ifndef TEST
 static bool primeiraVez = true;
+static long updatePressentation = 0;
 void tloop()
 {
     if (primeiraVez)
@@ -184,6 +199,12 @@ void tloop()
     }
 
     LoRaCom::handle(); // precisa pedir leitura rapida
+
+    if ((millis() - updatePressentation > 10000) && systemState.isDiscovering())
+    {
+        LoRaCom::sendCommand("presentation", "get", 0xFF);
+        updatePressentation = millis();
+    }
 
 #ifdef WS
     HtmlServer::process();
@@ -281,7 +302,7 @@ void processIncoming(LoRaInterface *loraInstance)
 #ifdef ALEXA
 
             alexaCom.aliveOffLineAlexa();
-            alexaCom.updateStateAlexa(tid, data.uniqueName(), value);
+            alexaCom.updateStateAlexa(data.uniqueName(), value);
 #endif
             //}
             handled = true;

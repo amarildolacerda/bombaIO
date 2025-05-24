@@ -1,5 +1,6 @@
+#ifdef OLD
 #ifndef TEST
-#include "receptor.h"
+#include "v1.h"
 #include "Arduino.h"
 #include "config.h"
 #ifndef x__AVR__
@@ -99,30 +100,6 @@ void delaySafe(unsigned long ms)
 #else
     delay(ms);
 #endif
-}
-
-void savePinState(bool state)
-{
-#ifdef __AVR__
-    EEPROM.update(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
-#else
-    EEPROM.write(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
-    EEPROM.commit(); // No ESP8266/ESP32 você PRECISA chamar commit() para salvar
-#endif
-}
-
-// Função para ler o estado do pino 5 da EEPROM
-bool readPinState()
-{
-    return EEPROM.read(EEPROM_ADDR_PIN5_STATE) == 1;
-}
-
-void initPinRelay()
-{
-    pinMode(5, OUTPUT);
-    bool savedState = readPinState();
-    digitalWrite(Config::RELAY_PIN, savedState ? HIGH : LOW);
-    Logger::info(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF");
 }
 
 static bool waitingStatusACK = false;
@@ -502,4 +479,5 @@ void loop()
     // WDT_ENABLE();
 }
 
+#endif
 #endif

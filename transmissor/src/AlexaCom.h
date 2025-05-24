@@ -19,21 +19,28 @@ struct AlexaDeviceMap
 };
 
 typedef std::function<void(unsigned char, const char *, bool, unsigned char)> AlexaCallbackType;
+typedef std::function<void(const char *)> AlexaOnGetCallback;
 
 class AlexaCom
 {
 private:
     void DoCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value);
+    void DoGetCallback(unsigned char device_id, const char *device_name);
 
 public:
     std::vector<AlexaDeviceMap> alexaDevices;
     AlexaCallbackType alexaDeviceCallback;
+    AlexaOnGetCallback onGetCallbackFn;
 
     void setup(AsyncWebServer *server, AlexaCallbackType callback);
+    void onGetCallback(AlexaOnGetCallback fn)
+    {
+        onGetCallbackFn = fn;
+    }
 
     void loop();
     void aliveOffLineAlexa();
-    void updateStateAlexa(uint8_t tid, String uniqueName, String value);
+    void updateStateAlexa(String uniqueName, String value);
 
     void addDevice(uint8_t tid, const char *name);
 };

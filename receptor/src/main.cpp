@@ -1,6 +1,15 @@
 
 #ifndef TEST
 #include "receptor.h"
+void setup()
+{
+    app.begin(115200);
+}
+
+void loop()
+{
+    app.loop();
+}
 #else
 
 // rf95_client.pde

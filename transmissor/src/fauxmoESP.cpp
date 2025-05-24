@@ -337,6 +337,10 @@ bool fauxmoESP::_onTCPControl(AsyncClient *client, String url, String body)
 		{
 
 			--id;
+			if (_getStateCallback)
+			{
+				_getStateCallback(id, _devices[id].name);
+			}
 
 			// Brightness
 			if ((pos = body.indexOf("bri")) > 0)

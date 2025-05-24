@@ -32,7 +32,15 @@ void AlexaCom::aliveOffLineAlexa()
 }
 void AlexaCom::DoCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
 {
-    alexaDeviceCallback(device_id, device_name, state, value);
+    if (alexaDeviceCallback)
+        alexaDeviceCallback(device_id, device_name, state, value);
+}
+void AlexaCom::DoGetCallback(unsigned char device_id, const char *device_name)
+{
+    if (onGetCallbackFn)
+    {
+        onGetCallbackFn(device_name);
+    }
 }
 
 void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
@@ -54,6 +62,8 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
 
     alexa.onSetState([](unsigned char device_id, const char *device_name, bool state, unsigned char value)
                      { alexaCom.DoCallback(device_id, device_name, state, value); });
+    alexa.onGetState([](unsigned char device_id, const char *device_name)
+                     { alexaCom.DoGetCallback(device_id, device_name); });
 
 #ifdef WS
     // These two callbacks are required for gen1 and gen3 compatibility
@@ -92,30 +102,16 @@ void AlexaCom::loop()
     alexa.handle();
 }
 
-void AlexaCom::updateStateAlexa(uint8_t tid, String uniqueName, String value)
+void AlexaCom::updateStateAlexa(String uniqueName, String value)
 {
-    uint8_t ct = 0;
-    // nt(uniqueName);
     uniqueName.toLowerCase();
-    // Serial.println("Procurando: " + uniqueName);
-    // Serial.println("--------------------------");
-    for (auto &dev : AlexaCom::alexaDevices)
-    {
-        // Serial.println(dev.uniqueName());
-        if (dev.uniqueName().equals(uniqueName))
-        {
-            ct++;
-            alexa.setState(dev.uniqueName().c_str(), value == "on", value == "on");
-            char msg[64];
-            snprintf(msg, sizeof(msg), "Term: % d Alexa %s (%d): %s (%s)", tid, dev.uniqueName(), dev.alexaId, value.c_str(), value == "on" ? "true" : "false");
-            Logger::info(msg);
-            return;
-        }
-    }
-    if (ct == 0)
+    int idx = alexa.getDeviceId(uniqueName.c_str());
+    if (idx < 0)
     {
         Logger::error(String("Nao achei alexa device: " + String(uniqueName)).c_str());
+        return;
     }
+    alexa.setState(idx, value == "on", value == "on");
 }
 
 void AlexaCom::addDevice(uint8_t tid, const char *name)
