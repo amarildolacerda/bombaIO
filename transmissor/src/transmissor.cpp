@@ -191,6 +191,7 @@ void tsetup()
 #ifndef TEST
 static bool primeiraVez = true;
 static long updatePressentation = 0;
+static uint8_t presentationCount = 0;
 void tloop()
 {
     if (primeiraVez)
@@ -200,10 +201,12 @@ void tloop()
 
     LoRaCom::handle(); // precisa pedir leitura rapida
 
-    if ((millis() - updatePressentation > 10000) && systemState.isDiscovering())
+    if ((presentationCount < 3) && (millis() - updatePressentation > 10000) && systemState.isDiscovering())
     {
         LoRaCom::sendCommand("presentation", "get", 0xFF);
         updatePressentation = millis();
+        if (presentationCount++ > 2)
+            systemState.setDiscovery(false);
     }
 
 #ifdef WS

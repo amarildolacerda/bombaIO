@@ -162,6 +162,7 @@ class App
 private:
     long statusUpdater = 0;
     bool loraConnected = false;
+    const String terminalName = Config::TERMINAL_NAME;
 
 public:
     void begin(long speed)
@@ -261,7 +262,8 @@ public:
         }
         else if (strcmp(event, "presentation") == 0)
         {
-            sendEvent(tfrom, "presentation", Config::TERMINAL_NAME);
+
+            sendEvent(tfrom, "presentation", terminalName);
             return true;
         }
         else if (strcmp(event, "reset") == 0)
