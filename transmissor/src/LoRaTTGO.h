@@ -29,6 +29,7 @@ public:
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
         LoRa.setTxPower(23);
         LoRa.setPreambleLength(8);
+
         inPromiscuous = promiscuous;
         LoRa.receive();
 

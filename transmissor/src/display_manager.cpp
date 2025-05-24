@@ -71,11 +71,14 @@ void DisplayManager::updateDisplay()
         for (const auto &d : DeviceInfo::history)
         {
             setPos(i, 0);
+            display.print("                     ");
+            setPos(i, 0);
             display.print(d.tid);
             setPos(i, 3);
             display.print(d.name.substring(0, 11));
             setPos(i++, 15);
             display.print(d.value);
+            // Serial.print(d.value);
         }
     }
     else

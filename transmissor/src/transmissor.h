@@ -315,7 +315,6 @@ protected:
 
         if (event)
         {
-            displayManager.setEvent(loraInstance->headerFrom(), event, value);
             if (strstr(event, "status") != NULL)
             {
                 Logger::info(String(PSTR("Status dectado: " + String(value))));
@@ -358,13 +357,15 @@ protected:
 #ifdef ALEXA
                     alexaCom.addDevice(tid, value);
 #endif
-                    return;
+                    handled = true;
                 }
                 else
                 {
                     Logger::log(LogLevel::ERROR, F("Não esta em espera para novo dispositivo"));
                 }
             }
+            if (handled)
+                displayManager.setEvent(loraInstance->headerFrom(), event, value);
         }
         LoRaCom::ack(handled, loraInstance->headerFrom());
     }
