@@ -51,7 +51,7 @@ public:
         COMSerial.begin(Config::LORA_SPEED);
         if (!rf95.init())
         {
-            Logger::log(LogLevel::ERROR, "LoRa initialization failed!");
+            Logger::log(LogLevel::ERROR, F("LoRa initialization failed!"));
 
             start();
             Serial.begin(115200);
@@ -67,7 +67,6 @@ public:
         rf95.setHeaderFrom(terminalId);
         rf95.setTxPower(14, false); // Melhor controle de potência
         rf95.setHeaderFlags(0, RH_FLAGS_NONE);
-        // Logger::log(LogLevel::INFO, "LoRa Server Ready");
         return true;
     }
 
@@ -76,7 +75,6 @@ public:
         uint8_t len = strlen(message);
         if (len > RH_RF95_MAX_MESSAGE_LEN)
         {
-            // Logger::log(LogLevel::ERROR, "Message too long");
             return false;
         }
 
@@ -96,11 +94,9 @@ public:
                     return true;
                 }
             }
-            // Logger::log(LogLevel::WARNING, "Retry sending...");
             delay(100 * _retryCount); // Backoff exponencial
         }
 
-        // Logger::log(LogLevel::ERROR, "Failed to send message after retries");
         rf95.setModeRx();
         return false;
     }
@@ -125,7 +121,7 @@ public:
             // uint8_t expectedFlags = rf95.headerFlags();
             if (rf95.headerFlags() != recvLen)
             {
-                Logger::log(LogLevel::WARNING, "Invalid packet: flags/tam mismatch");
+                Logger::log(LogLevel::WARNING, F("Invalid packet: flags/tam mismatch"));
                 Serial.print(rf95.headerFlags());
                 Serial.print(":");
                 Serial.print(recvLen);

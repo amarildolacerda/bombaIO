@@ -219,7 +219,7 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
         Logger::log(LogLevel::ERROR, F("Falha ao enviar comando LoRa"));
         return false;
     }
-    displayManager.message("Trm:" + (String)(tid) + "-" + event + ": " + value);
+    displayManager.message((String)(tid) + "->" + event + ": " + value);
     return true;
 }
 

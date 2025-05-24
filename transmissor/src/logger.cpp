@@ -16,7 +16,6 @@ String getISOHour()
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo))
     {
-        // Logger::log(LogLevel::WARNING, "Failed to get NTP time");
         return "1970-01-01T00:00:00Z";
     }
 

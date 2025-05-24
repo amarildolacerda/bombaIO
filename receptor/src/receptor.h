@@ -173,8 +173,7 @@ public:
         loraConnected = lora.begin(Config::TERMINAL_ID, Config::BAND, Config::PROMISCUOS);
         if (!loraConnected)
         {
-            // Logger::info("LoRa nao conectou");
-            Serial.print("LoRa nao iniciou");
+            Serial.print(F("LoRa nao iniciou"));
         };
         pinMode(Config::LED_PIN, OUTPUT);
         pinMode(Config::RELAY_PIN, OUTPUT);

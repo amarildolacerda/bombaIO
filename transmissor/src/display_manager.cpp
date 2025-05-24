@@ -62,8 +62,8 @@ void DisplayManager::updateDisplay()
     if (systemState.isDiscovering())
     {
         setPos(3, 0);
-        display.println("  Modo pareamento");
-        display.println("   em andamento"); // redundante, so esta preenchendo espaço no display
+        display.println(F("  Modo pareamento"));
+        display.println(F("   em andamento")); // redundante, so esta preenchendo espaço no display
     }
     else if (loraRcvEvent.length() > 0)
     {
@@ -77,32 +77,10 @@ void DisplayManager::updateDisplay()
             setPos(i++, 15);
             display.print(d.value);
         }
-        /** setPos(2, 0);
-         display.print("Term: ");
-         display.print(_tid);
-         int id = DeviceInfo::indexOf(_tid);
-         display.print(" ");
-         display.println(DeviceInfo::deviceRegList[id].name);
-
-         setPos(3, 0);
-         display.print("Estado: ");
-
-         display.println(relayState); // redundante, so esta preenchendo espaço no display
-
-         setPos(4, 0);
-         display.print("Evento: ");
-         display.println(loraRcvEvent);
-         */
-
-        // setPos(5, 0);
-        // display.print("Value: ");
-        // display.print(loraRcvValue);
-        // setPos(5, 13);
-        // display.println(systemState.lastUpdateTime);
     }
     else
     {
-        display.println("Evento: NENHUM");
+        display.println(F("Evento: NENHUM"));
     }
     showFooter();
     display.display();
@@ -116,7 +94,6 @@ void DisplayManager::showFooter()
     display.fillRect(0, Config::SCREEN_HEIGHT - 9, Config::SCREEN_WIDTH,
                      9, SSD1306_WHITE);
     display.setTextColor(BLACK, WHITE);
-    // display.setCursor(0, Config::SCREEN_HEIGHT - 8);
     setPos(6, 0);
     display.print("D:");
     display.print(dispCount);
@@ -124,7 +101,6 @@ void DisplayManager::showFooter()
     display.print(regCount);
     display.print(" v:");
     display.print(ver);
-    // display.setCursor(Config::SCREEN_WIDTH - 49, Config::SCREEN_HEIGHT - 8);
     setPos(6, 13);
     display.println(DeviceInfo::getISOTime().substring(11, 19)); // Mostra apenas HH:MM:SS
     display.setTextColor(WHITE, BLACK);

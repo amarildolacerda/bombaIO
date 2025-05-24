@@ -75,7 +75,7 @@ private:
     void discoverableCallback(bool discoverable)
     {
         // espalexa.setDiscoverable(discoverable);
-        Logger::info(String("Alexa Discoverable " + String(discoverable ? "OK" : "OFF")).c_str());
+        Logger::log(LogLevel::INFO, ("Alexa Discoverable " + String(discoverable ? "OK" : "OFF")).c_str());
     }
 
     static void alexaOnGetCallback(const char *device_name)
@@ -121,7 +121,7 @@ private:
         if (!wifiManager.autoConnect(Config::WIFI_AP_NAME))
         {
             displayManager.message("Reiniciando: sem wifi");
-            Logger::log(LogLevel::ERROR, "Falha ao conectar WiFi");
+            Logger::log(LogLevel::ERROR, F("Falha ao conectar WiFi"));
             delay(10000);
             ESP.restart();
         }
@@ -137,7 +137,7 @@ private:
     void initNTP()
     {
         configTime(Config::GMT_OFFSET_SEC, Config::DAYLIGHT_OFFSET_SEC, Config::NTP_SERVER);
-        Logger::log(LogLevel::INFO, "Sincronizando com NTP...");
+        Logger::log(LogLevel::INFO, F("Sincronizando com NTP..."));
         struct tm timeinfo;
 
         if (!getLocalTime(&timeinfo))
@@ -176,7 +176,7 @@ public:
         }
         else
         {
-            Logger::log(LogLevel::ERROR, "Falha ao iniciar display OLED");
+            Logger::log(LogLevel::ERROR, F("Falha ao iniciar display OLED"));
         }
 #endif
 
