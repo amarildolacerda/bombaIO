@@ -208,6 +208,11 @@ void tloop()
         if (presentationCount++ > 2)
             systemState.setDiscovery(false);
     }
+    if (millis() - updatePressentation > 60 * 60 * 60)
+    {
+        updatePressentation = millis();
+        LoRaCom::sendCommand("reset", "set", 0xFF);
+    }
 
 #ifdef WS
     HtmlServer::process();
