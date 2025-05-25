@@ -89,7 +89,7 @@ private:
         }
     }
 
-    static void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
+        static void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
     {
 #ifdef ALEXA
         const uint8_t alexaId = (uint8_t)device_id;
