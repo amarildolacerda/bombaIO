@@ -104,6 +104,9 @@ void AlexaCom::loop()
 
 void AlexaCom::updateStateAlexa(String uniqueName, String value)
 {
+    if (uniqueName.length() == 0)
+        return; // Add validation
+
     uniqueName.toLowerCase();
     int idx = alexa.getDeviceId(uniqueName.c_str());
     if (idx < 0)
@@ -111,7 +114,12 @@ void AlexaCom::updateStateAlexa(String uniqueName, String value)
         Logger::error(String("Nao achei alexa device: " + String(uniqueName)).c_str());
         return;
     }
-    alexa.setState(idx, value == "on", value == "on");
+
+    // Add null check for alexa instance
+    if (&alexa)
+    {
+        alexa.setState(idx, value == "on", value == "on");
+    }
 }
 
 void AlexaCom::addDevice(uint8_t tid, const char *name)

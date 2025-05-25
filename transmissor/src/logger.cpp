@@ -31,12 +31,13 @@ bool Logger::log(LogLevel level, const char *message)
     {
         return true; // mesmo quando descartar retorna true para indica que log foi tratado
     }
-    static const char levelStrings[][7] PROGMEM = {
-        "[ERRO]", "[WARN]", "[RECV]", "[SEND]", "[INFO]",
-        "[DBUG]",
-        "[VERB]"};
+    static const char levelStrings[][7] PROGMEM = {"CRIT",
+                                                   "[ERRO]", "[WARN]", "[RECV]", "[SEND]", "[INFO]",
+                                                   "[DBUG]",
+                                                   "[VERB]"};
 
     static const char colorCodes[][8] PROGMEM = {
+        "\033[31m", // ERRO - Red
         "\033[31m", // ERRO - Red
         "\033[34m", // WARN - Blue
         "\033[35m", // RECEIVE - Magenta

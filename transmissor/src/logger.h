@@ -5,6 +5,7 @@
 
 enum class LogLevel
 {
+    CRITICAL,
     ERROR,
     WARNING,
     RECEIVE,

@@ -64,6 +64,8 @@ public:
 
     bool receiveMessage(uint8_t *buffer, uint8_t &len) override
     {
+        if (!buffer)
+            return false;
         len = 0;
         if (!LoRa.available())
             return false;
