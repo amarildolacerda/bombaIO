@@ -45,11 +45,11 @@ public:
 
         LoRa.write(tidTo > -1 ? tidTo : _tidTo);
         LoRa.write(_tid);
-        LoRa.write(genHeaderId());
+        LoRa.write(nHeaderId++);
         LoRa.write(3); // salto no mesh
 
         char msg[64];
-        snprintf(msg, sizeof(msg), "SendMessage From: %d To: %d len: %d", _tid, tidTo, strlen(message));
+        snprintf(msg, sizeof(msg), "Enviando de: %d para: %d bytes: %d", _tid, tidTo, strlen(message));
         Logger::log(LogLevel::SEND, msg);
 
         int snd = LoRa.print(message);
@@ -72,8 +72,9 @@ public:
         hFrom = LoRa.read();
         hId = LoRa.read();
         hLive = LoRa.read();
+        buffer = {0};
 
-        memset(buffer, 0, sizeof(buffer));
+        // memset(buffer, 0, sizeof(buffer));
         while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
         {
             uint8_t r = LoRa.read();

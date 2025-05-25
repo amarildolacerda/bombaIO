@@ -101,15 +101,7 @@ void LoRaCom::ack(bool ak, uint8_t tid)
 {
     loraInstance->setHeaderTo(tid);
     bool rt = loraInstance->print((ak) ? "ack" : "nak");
-    displayManager.message((ak) ? "ack" : "nak");
-}
-
-uint8_t nHeaderId = 0;
-uint8_t LoRaCom::genHeaderId()
-{
-    if (nHeaderId >= 255)
-        nHeaderId = 0;
-    return nHeaderId++;
+    displayManager.message((String)tid + "->" + (ak) ? "ack" : "nak");
 }
 
 void LoRaCom::sendHeaderTo(uint8_t tid)

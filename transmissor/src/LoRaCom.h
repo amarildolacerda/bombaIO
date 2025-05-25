@@ -8,6 +8,7 @@ class LoRaCom
 {
 private:
     static LoRaInterface *loraInstance;
+    uint8_t nHeaderId = 0;
 
 protected:
     static void (*onReceiveCallback)(LoRaInterface *);
