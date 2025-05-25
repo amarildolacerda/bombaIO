@@ -2,194 +2,254 @@
 #define TRANSMISSOR_H
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
-#include "prefers.h"
-#ifdef ESP32
-#include "display_manager.h"
-#include <WiFi.h>
-#include <time.h>
-#include <esp_task_wdt.h>
-#elif ESP8266
-#include "ESP8266WebServer.h"
-#include "ESP8266WiFi.h"
-#include "ESP8266httpUpdate.h"
-#endif
-
-#ifndef __AVR__
-#include <WiFiManager.h>
-#endif
-
+#include <vector>
+#include "config.h"
 #include "LoRaCom.h"
 #include "logger.h"
-#include "config.h"
-#ifdef WS
-#include "html_tserver.h"
-#endif
 #include "device_info.h"
 #include "system_state.h"
-
-#ifdef TTGO
+#include <WiFiManager.h>
+#include "prefers.h"
 #include "display_manager.h"
-#endif
 
 #ifdef ALEXA
 #include "AlexaCom.h"
 #endif
 
-#include "LoRaInterface.h"
-
-#ifdef SINRIC
-#include "SinricCom.h"
-#endif
-
 #ifdef WS
 #include <ESPAsyncWebServer.h>
-AsyncWebServer server(Config::WEBSERVER_PORT);
+AsyncWebServer server(80);
 #endif
 
-// Buffer estático para mensagens
-static char staticMsgBuffer[Config::MESSAGE_LEN + 1];
+// Strings constantes em PROGMEM
+const char PROGMEM str_system_starting[] = "System starting...";
+const char PROGMEM str_first_loop[] = "First loop";
+const char PROGMEM str_lora_init_failed[] = "LoRa init failed";
+const char PROGMEM str_safe_restart[] = "Safe restart...";
+const char PROGMEM str_wifi_failed[] = "WiFi failed - Restarting";
+const char PROGMEM str_ntp_syncing[] = "Syncing NTP...";
+const char PROGMEM str_ntp_failed[] = "NTP sync failed";
+const char PROGMEM str_invalid_packet[] = "Invalid packet (no separator)";
+const char PROGMEM str_alexa_cmd[] = "Alexa cmd: ";
+
+// Comandos LoRa em PROGMEM
+const char PROGMEM cmd_status[] = "status";
+const char PROGMEM cmd_get[] = "get";
+const char PROGMEM cmd_gpio[] = "gpio";
+const char PROGMEM cmd_on[] = "on";
+const char PROGMEM cmd_off[] = "off";
+const char PROGMEM cmd_presentation[] = "presentation";
+const char PROGMEM cmd_reset[] = "reset";
+const char PROGMEM cmd_set[] = "set";
 
 class App
 {
 private:
-    bool primeiraVez = true;
-    long updatePressentation = 0;
+    bool firstLoop = true;
+    unsigned long lastPresentationTime = 0;
     uint8_t presentationCount = 0;
 
-    //----------------------- ALEXA ----------------------
-    void discoverableCallback(bool discoverable)
+    // Alexa callbacks
+    static void alexaOnGet(const char *device_name)
     {
-        char logMsg[64];
-        snprintf(logMsg, sizeof(logMsg), "Alexa Discoverable %s", discoverable ? "OK" : "OFF");
-        Logger::log(LogLevel::INFO, logMsg);
-    }
-
-    static void alexaOnGetCallback(const char *device_name)
-    {
-        for (auto &dev : alexaCom.alexaDevices)
+        for (auto &dev : alexaCom.devices)
         {
             if (strcmp(dev.uniqueName().c_str(), device_name) == 0)
             {
-                LoRaCom::sendCommand("status", "get", dev.tid);
+                char cmd_status_pgm[10];
+                char cmd_get_pgm[10];
+                strcpy_P(cmd_status_pgm, cmd_status);
+                strcpy_P(cmd_get_pgm, cmd_get);
+                LoRaCom::sendCommand(cmd_status_pgm, cmd_get_pgm, dev.tid);
+                break;
             }
         }
     }
 
-    static void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
+    static void alexaCallback(uint8_t device_id, const char *device_name, bool state, uint8_t value)
     {
 #ifdef ALEXA
-        const uint8_t alexaId = (uint8_t)device_id;
-        char logMsg[128];
-        snprintf(logMsg, sizeof(logMsg), "Callback da Alexa: %s", device_name);
-        Logger::log(LogLevel::DEBUG, logMsg);
-
-        for (auto &dev : alexaCom.alexaDevices)
+        for (auto &dev : alexaCom.devices)
         {
             if (dev.uniqueName().equals(device_name))
             {
-                snprintf(logMsg, sizeof(logMsg), "Alexa(%d): %s command: %s",
-                         dev.alexaId, dev.uniqueName().c_str(), state ? "ON" : "OFF");
-                Logger::info(logMsg);
+                char log_msg[50];
+                char alexa_cmd_pgm[20];
+                strcpy_P(alexa_cmd_pgm, str_alexa_cmd);
+                snprintf_P(log_msg, sizeof(log_msg), PSTR("%s%s%s"), alexa_cmd_pgm, device_name, (state ? " ON" : " OFF"));
+                Logger::info(log_msg);
 
-                LoRaCom::sendCommand("gpio", state ? "on" : "off", dev.tid);
+                char cmd_gpio_pgm[10];
+                char cmd_on_pgm[10];
+                char cmd_off_pgm[10];
+                char cmd_status_pgm[10];
+                char cmd_get_pgm[10];
+
+                strcpy_P(cmd_gpio_pgm, cmd_gpio);
+                strcpy_P(cmd_on_pgm, cmd_on);
+                strcpy_P(cmd_off_pgm, cmd_off);
+                strcpy_P(cmd_status_pgm, cmd_status);
+                strcpy_P(cmd_get_pgm, cmd_get);
+
+                LoRaCom::sendCommand(cmd_gpio_pgm, state ? cmd_on_pgm : cmd_off_pgm, dev.tid);
                 delay(50);
-                LoRaCom::sendCommand("status", "get", dev.tid);
+                LoRaCom::sendCommand(cmd_status_pgm, cmd_get_pgm, dev.tid);
                 break;
             }
         }
 #endif
     }
 
-    //----------------------- WiFi ----------------------
+    // WiFi initialization
 #if defined(ESP8266) || defined(ESP32)
     void initWiFi()
     {
         WiFi.mode(WIFI_STA);
         WiFiManager wifiManager;
-        wifiManager.setConnectTimeout(Config::WIFI_TIMEOUT_S);
-        wifiManager.setConfigPortalTimeout(Config::WIFI_TIMEOUT_S);
+        wifiManager.setConnectTimeout(180);
 
         if (!wifiManager.autoConnect(Config::WIFI_AP_NAME))
         {
-            Logger::log(LogLevel::ERROR, F("Falha ao conectar WiFi - Reiniciando"));
+            char error_msg[30];
+            strcpy_P(error_msg, str_wifi_failed);
+            Logger::error(error_msg);
             safeRestart();
         }
 
-        delay(500); // Estabilização após conexão
         systemState.setWifiStatus(true);
-
-        char ipBuffer[16];
-        snprintf(ipBuffer, sizeof(ipBuffer), "%s", WiFi.localIP().toString().c_str());
-        Logger::log(LogLevel::INFO, ipBuffer);
+        Logger::info(WiFi.localIP().toString().c_str());
     }
 #endif
 
-    //----------------------- NTP ----------------------
+    // NTP initialization
 #if defined(ESP8266) || defined(ESP32)
     void initNTP()
     {
-        configTzTime(Config::TIMEZONE, Config::NTP_SERVER);
-        Logger::log(LogLevel::INFO, F("Sincronizando com NTP..."));
+        /*    char info_msg[20];
+            strcpy_P(info_msg, str_ntp_syncing);
+            Logger::info(info_msg);
 
-        struct tm timeinfo;
-        if (!getLocalTime(&timeinfo, 5000))
-        { // Timeout de 5 segundos
-            Logger::log(LogLevel::WARNING, F("Falha ao obter tempo NTP"));
-            return;
-        }
+            struct tm timeinfo;
+            if (!getLocalTime(&timeinfo, 5000))
+            {
+                char warn_msg[20];
+                strcpy_P(warn_msg, str_ntp_failed);
+                Logger::warn(warn_msg);
+            }
+                */
     }
 #endif
 
     void safeRestart()
     {
-        Logger::log(LogLevel::INFO, F("Reinício seguro iniciado"));
+        char info_msg[20];
+        strcpy_P(info_msg, str_safe_restart);
+        Logger::info(info_msg);
         delay(1000);
         ESP.restart();
     }
 
+    // Process incoming LoRa messages
+    static void processMessage(LoRaInterface *lora)
+    {
+        if (!lora)
+            return;
+
+        uint8_t buf[Config::MESSAGE_LEN + 1] = {0};
+        uint8_t len = Config::MESSAGE_LEN;
+
+        if (!lora->receiveMessage(buf, len))
+        {
+            return;
+        }
+
+        uint8_t tid = lora->headerFrom();
+        if (tid == 0 || tid == 0xFF)
+            return;
+
+        // Sanitize buffer
+        for (uint8_t i = 0; i < len && i < Config::MESSAGE_LEN; i++)
+        {
+            if (buf[i] < 32 || buf[i] > 126)
+                buf[i] = ' ';
+        }
+        buf[len] = '\0';
+
+        char *separator = strchr((char *)buf, '|');
+        if (!separator)
+        {
+            LoRaCom::ack(false, tid);
+            char error_msg[30];
+            strcpy_P(error_msg, str_invalid_packet);
+            Logger::error(error_msg);
+            return;
+        }
+
+        *separator = '\0';
+        const char *event = (char *)buf;
+        const char *value = separator + 1;
+
+        bool handled = false;
+        DeviceInfoData data;
+        data.tid = tid;
+        data.rssi = lora->packetRssi();
+
+        char cmd_status_pgm[10];
+        strcpy_P(cmd_status_pgm, cmd_status);
+
+        if (strstr(event, cmd_status_pgm) != NULL)
+        {
+            data.event = event;
+            data.value = value;
+            data.name = DeviceInfo::findName(tid);
+            data.lastSeenISOTime = DeviceInfo::getISOTime();
+            DeviceInfo::updateDeviceList(data.tid, data);
+
+#ifdef ALEXA
+            alexaCom.checkOffline();
+            alexaCom.updateState(data.name, value);
+#endif
+            handled = true;
+        }
+
+        char cmd_presentation_pgm[15];
+        strcpy_P(cmd_presentation_pgm, cmd_presentation);
+
+        if (strcmp(event, cmd_presentation_pgm) == 0 && systemState.isDiscovering())
+        {
+            DeviceRegData reg;
+            reg.tid = tid;
+            reg.name = value;
+            DeviceInfo::updateRegList(tid, reg);
+            Prefers::saveRegs();
+
+#ifdef ALEXA
+            alexaCom.addDevice(tid, value);
+#endif
+            handled = true;
+        }
+
+        if (handled)
+        {
+            displayManager.setEvent(tid, event, value);
+        }
+        LoRaCom::ack(handled, tid);
+    }
+
 public:
-    // ========== Main Setup ==========
     void setup()
     {
-        // Configurar watchdog
-        esp_task_wdt_init(30, true);
-
-        // Inicialização segura da Serial
         Serial.begin(Config::SERIAL_BAUD);
-        uint32_t serialTimeout = millis();
-        while (!Serial && (millis() - serialTimeout < 5000))
+        while (!Serial && millis() < 5000)
             ;
 
-#ifdef DEBUG_ON
-        Serial.println("\n\nStarting with debug...");
-        // Enable detailed crash reports
-        esp_log_level_set("*", ESP_LOG_VERBOSE);
-        Logger::setLogLevel(LogLevel::VERBOSE);
-#endif
-        Logger::log(LogLevel::INFO, F("Iniciando sistema..."));
+        char info_msg[20];
+        strcpy_P(info_msg, str_system_starting);
+        Logger::info(info_msg);
 
         try
         {
             Prefers::restoreRegs();
-
-#if defined(ESP32)
-            if (display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS))
-            {
-                display.setTextSize(1);
-                display.setTextColor(SSD1306_WHITE);
-                display.clearDisplay();
-                display.setCursor(0, 0);
-                display.println("Iniciando...");
-                display.display();
-            }
-            else
-            {
-                Logger::log(LogLevel::ERROR, F("Falha ao iniciar display OLED"));
-            }
-#elif defined(ESP8266)
-            Logger::log(LogLevel::WARNING, F("ESP8266 não possui display."));
-#endif
 
 #if defined(ESP32) || defined(ESP8266)
             initWiFi();
@@ -198,15 +258,12 @@ public:
 
             if (!LoRaCom::initialize())
             {
-                throw std::runtime_error("Falha na inicialização do LoRa");
+                char error_msg[30];
+                strcpy_P(error_msg, str_lora_init_failed);
+                throw std::runtime_error(error_msg);
             }
 
-            LoRaCom::setReceiveCallback(processIncoming);
-
-#ifdef WS
-            HtmlServer::initWebServer(&server);
-            HtmlServer::begin();
-#endif
+            LoRaCom::setReceiveCallback(processMessage);
 
 #ifdef ALEXA
             alexaCom.setup(
@@ -216,12 +273,8 @@ public:
                 NULL
 #endif
                 ,
-                alexaDeviceCallback);
-            alexaCom.onGetCallback(alexaOnGetCallback);
-#endif
-
-#ifdef SINRIC
-            sinricCom.setup();
+                alexaCallback);
+            alexaCom.onGetCallback(alexaOnGet);
 #endif
 
             displayManager.updateDisplay();
@@ -229,177 +282,55 @@ public:
         }
         catch (const std::exception &e)
         {
-            Logger::log(LogLevel::CRITICAL, e.what());
+            Logger::error(e.what());
             safeRestart();
         }
     }
 
-    // ========== Main Loop ==========
     void loop()
     {
-        esp_task_wdt_reset(); // Reset do watchdog
-
-        if (primeiraVez)
+        if (firstLoop)
         {
-            Logger::log(LogLevel::VERBOSE, F("Loop iniciado"));
+            char debug_msg[20];
+            strcpy_P(debug_msg, str_first_loop);
+            Logger::debug(debug_msg);
+            firstLoop = false;
         }
 
         LoRaCom::handle();
 
-        if ((presentationCount < 3) && (millis() - updatePressentation > 10000) && systemState.isDiscovering())
+        // Send presentation every 10s (max 3 times)
+        if (presentationCount < 3 && millis() - lastPresentationTime > 10000 && systemState.isDiscovering())
         {
-            LoRaCom::sendCommand("presentation", "get", 0xFF);
-            updatePressentation = millis();
+            char cmd_presentation_pgm[15];
+            char cmd_get_pgm[10];
+            strcpy_P(cmd_presentation_pgm, cmd_presentation);
+            strcpy_P(cmd_get_pgm, cmd_get);
+            LoRaCom::sendCommand(cmd_presentation_pgm, cmd_get_pgm, 0xFF);
+            lastPresentationTime = millis();
             if (presentationCount++ > 2)
             {
                 systemState.setDiscovery(false);
             }
         }
 
-        if (millis() - updatePressentation > 60 * 60 * 1000)
-        { // Corrigido para 1 hora
-            updatePressentation = millis();
-            LoRaCom::sendCommand("reset", "set", 0xFF);
+        // Hourly reset
+        if (millis() - lastPresentationTime > 3600000)
+        {
+            lastPresentationTime = millis();
+            char cmd_reset_pgm[10];
+            char cmd_set_pgm[10];
+            strcpy_P(cmd_reset_pgm, cmd_reset);
+            strcpy_P(cmd_set_pgm, cmd_set);
+            LoRaCom::sendCommand(cmd_reset_pgm, cmd_set_pgm, 0xFF);
         }
-
-#ifdef WS
-        HtmlServer::process();
-#endif
 
 #ifdef ALEXA
         alexaCom.loop();
 #endif
 
         systemState.handle();
-
-#ifdef SINRIC
-        sinricCom.loop();
-#endif
-
         displayManager.handle();
-
-        if (primeiraVez)
-        {
-            Logger::log(LogLevel::VERBOSE, F("Loop finalizado"));
-            primeiraVez = false;
-        }
-    }
-
-protected:
-    static void processIncoming(LoRaInterface *loraInstance)
-    {
-        if (!loraInstance)
-            return;
-
-        uint8_t buf[Config::MESSAGE_LEN + 1];
-        memset(buf, 0, sizeof(buf)); // Clear buffer first
-        uint8_t len = Config::MESSAGE_LEN;
-
-        if (!loraInstance->receiveMessage(buf, len))
-        {
-            Logger::log(LogLevel::INFO, F("Não pegou ou descartou"));
-            return;
-        }
-
-        uint8_t tid = loraInstance->headerFrom();
-        if ((tid == 0) || (tid == 0xFF) || (loraInstance->headerTo() == 0xFF))
-        {
-            return; // Descarta pacotes próprios ou inválidos
-        }
-
-        // Sanitiza o buffer
-        for (uint8_t i = 0; i < len && i < Config::MESSAGE_LEN; i++)
-        {
-            if (buf[i] < 32 || buf[i] > 126)
-            {
-                buf[i] = ' ';
-            }
-        }
-        buf[len] = '\0'; // Garante terminação nula
-
-        // Usa buffer estático para evitar alocação na pilha
-        strncpy(staticMsgBuffer, (char *)buf, Config::MESSAGE_LEN);
-        staticMsgBuffer[Config::MESSAGE_LEN] = '\0';
-
-        if (strstr(staticMsgBuffer, "ack") != NULL || strstr(staticMsgBuffer, "nak") != NULL)
-        {
-            char logMsg[64];
-            snprintf(logMsg, sizeof(logMsg), "Detectado %s", staticMsgBuffer);
-            Logger::info(logMsg);
-            return;
-        }
-
-        char *separator = strchr(staticMsgBuffer, '|');
-        if (!separator)
-        {
-            LoRaCom::ack(false, tid);
-            Logger::log(LogLevel::ERROR, F("Pacote inválido (sem separador '|')"));
-            return;
-        }
-
-        *separator = '\0'; // Separa evento e valor
-        const char *event = staticMsgBuffer;
-        const char *value = separator + 1;
-
-        bool handled = false;
-        DeviceInfoData data;
-        data.tid = tid;
-        data.rssi = loraInstance->packetRssi();
-
-        if (strstr(event, "status") != NULL)
-        {
-            char logMsg[128];
-            snprintf(logMsg, sizeof(logMsg), "Status detectado: %s", value);
-            Logger::info(logMsg);
-
-            data.event = event;
-            data.value = value;
-            data.name = DeviceInfo::findName(tid);
-            data.lastSeenISOTime = DeviceInfo::getISOTime();
-            DeviceInfo::updateDeviceList(data.tid, data);
-
-            systemState.updateState(value);
-
-#ifdef ALEXA
-            alexaCom.aliveOffLineAlexa();
-            alexaCom.updateStateAlexa(data.uniqueName(), value);
-#endif
-            handled = true;
-        }
-        else if (strcmp(event, "presentation") == 0)
-        {
-            char logMsg[128];
-            snprintf(logMsg, sizeof(logMsg), "Se apresentando: %s", value);
-            Logger::info(logMsg);
-
-            if (systemState.isDiscovering())
-            {
-                DeviceRegData reg;
-                reg.tid = tid;
-                reg.name = value;
-                DeviceInfo::updateRegList(tid, reg);
-                Prefers::saveRegs();
-
-                char displayMsg[64];
-                snprintf(displayMsg, sizeof(displayMsg), "Encontrei '%s'", reg.name.c_str());
-                displayManager.info(displayMsg);
-
-#ifdef ALEXA
-                alexaCom.addDevice(tid, value);
-#endif
-                handled = true;
-            }
-            else
-            {
-                Logger::log(LogLevel::ERROR, F("Não está em modo discovery"));
-            }
-        }
-
-        if (handled)
-        {
-            displayManager.setEvent(tid, event, value);
-        }
-        LoRaCom::ack(handled, tid);
     }
 };
 
