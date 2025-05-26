@@ -354,7 +354,7 @@ protected:
 
             data.event = event;
             data.value = value;
-            data.name = DeviceInfo::findName(tid);
+            // data.name = DeviceInfo::findName(tid);
             data.lastSeenISOTime = DeviceInfo::getISOTime();
             DeviceInfo::updateDeviceList(data.tid, data);
 
@@ -362,7 +362,7 @@ protected:
 
 #ifdef ALEXA
             alexaCom.aliveOffLineAlexa();
-            alexaCom.updateStateAlexa(data.uniqueName(), value);
+            alexaCom.updateStateAlexa(DeviceInfo::findName(tid), value);
 #endif
             handled = true;
         }

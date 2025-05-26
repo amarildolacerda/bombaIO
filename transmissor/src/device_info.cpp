@@ -22,11 +22,11 @@ void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
             device.value = data.value;
             device.rssi = data.rssi;
             device.lastSeenISOTime = data.lastSeenISOTime;
-            if (data.event == "status")
-            {
-                data.value.toUpperCase();
-                device.status = data.value;
-            }
+            // if (data.event == "status")
+            // {
+            // data.value.toUpperCase();
+            // device.status = data.value;
+            // }
             break;
         }
     }
@@ -35,11 +35,11 @@ void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
     if (!found)
     {
         data.tid = deviceId; // Ensure the ID is set
-        if (data.event == "status")
-        {
-            data.value.toUpperCase();
-            data.status = data.value;
-        }
+        // if (data.event == "status")
+        //{
+        // data.value.toUpperCase();
+        // data.status = data.value;
+        //}
         deviceList.push_back(data);
     }
 
@@ -48,7 +48,7 @@ void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
 
     DeviceInfoHistory hist;
     hist.tid = data.tid;
-    hist.name = data.name;
+    hist.name = DeviceInfo::findName(data.tid);
     hist.value = data.value;
     history.insert(history.begin(), hist);
 }

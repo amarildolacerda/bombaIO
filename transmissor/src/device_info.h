@@ -12,19 +12,9 @@ struct DeviceInfoData
     uint8_t tid;
     String event;
     String value;
-    String name;
     String lastSeenISOTime;
-    String status;
+    // String status;
     int rssi;
-    String uniqueName()
-    {
-        // char *a = ESP.getChipId();
-        return name;
-        // String a = name + "." + String(tid);
-        // a.toLowerCase();
-        // return a;
-    }
-    // Adicione outros campos conforme necessário
 };
 struct DeviceRegData
 {
