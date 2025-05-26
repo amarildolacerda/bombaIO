@@ -27,10 +27,6 @@ public:
     }
     static bool log(const LogLevel level, const String msg)
     {
-        return log(level, "%s", msg);
-    }
-    static bool log(const LogLevel level, const char *format, ...)
-    {
         static const char levelStrings[][7] PROGMEM = {
             "[ERRO]", "[WARN]", "[RECV]", "[SEND]", "[INFO]",
             "[DBUG]",
@@ -46,15 +42,6 @@ public:
             "\033[37m"  // VERB - White
         };
 
-        // 1. Processa os argumentos variáveis
-        va_list args;
-        va_start(args, format);
-        int len = vsnprintf(NULL, 255, format, args);
-        char buffer[len]; // Buffer para a mensagem formatada
-
-        vsnprintf(buffer, sizeof(buffer), format, args);
-        va_end(args);
-
         int idx = static_cast<int>(level);
         char levelBuffer[7];
         char colorBuffer[8];
@@ -69,7 +56,7 @@ public:
 #endif
         Serial.print(F("-"));
 
-        Serial.println(buffer);
+        Serial.println(msg);
         Serial.print(F("\033[0m")); // Reset color if used
         return true;
     }
