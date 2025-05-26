@@ -20,6 +20,9 @@ private:
     uint8_t terminalId = 0;
     uint8_t _retryCount = 0;
     const uint8_t MAX_RETRIES = 3;
+    const uint8_t STX = '{';
+    const uint8_t ETX = '}';
+    uint8_t sender = 0xFF;
 
 public:
     LoRaRF95() : rf95(COMSerial) {}
@@ -60,12 +63,12 @@ public:
 
         _promiscuos = promiscuous;
         terminalId = terminal_Id;
-        COMSerial.setTimeout(0);
+        COMSerial.setTimeout(10);
         rf95.setFrequency(frequency);
         rf95.setPromiscuous(true); // Usa o parâmetro fornecido
         rf95.setHeaderTo(0xFF);
         rf95.setHeaderFrom(terminalId);
-        rf95.setTxPower(14, false); // Melhor controle de potência
+        rf95.setTxPower(14, true); // Melhor controle de potência
         rf95.setHeaderFlags(0, RH_FLAGS_NONE);
         return true;
     }
@@ -86,8 +89,7 @@ public:
             return false;
         }
 
-        message[len] = '\n';
-        message[len + 1] = '\0';
+        message[len] = '\0';
 
         for (_retryCount = 0; _retryCount < MAX_RETRIES; _retryCount++)
         {
@@ -97,22 +99,22 @@ public:
             if (seq == 0)
                 seq = ++nHeaderId;
             rf95.setHeaderId(seq);
-            rf95.setHeaderFlags(len, 0xFF); // Flags separadas do tamanho
+            rf95.setHeaderFlags(salto, 0xFF); // Flags separadas do tamanho
 
-            if (rf95.send((uint8_t *)message, len + 1))
+            // enviar sender e STX ETX
+            char fullMessage[Config::MESSAGE_MAX_LEN + 3];
+            fullMessage[0] = terminalId;
+            fullMessage[1] = STX;
+            memcpy(fullMessage + 2, message, len);
+            fullMessage[len + 2] = ETX;
+            fullMessage[len + 3] = '\0';
+
+            if (rf95.send((uint8_t *)fullMessage, strlen(fullMessage)))
             {
                 if (rf95.waitPacketSent(2000))
                 { // Timeout de 2s
 #ifdef DEBUG_ON
-                    Serial.print("HEX: ");
-                    for (size_t i = 0; i < (uint8_t)len + 1; i++)
-                    {
-                        if (message[i] < 0x10)
-                            Serial.print('0'); // zero padding para valores < 0x10
-                        Serial.print(message[i], HEX);
-                        Serial.print(' ');
-                    }
-                    Serial.println("");
+                    printHex(fullMessage, len + 2);
 #endif
                     Logger::log(LogLevel::SEND, message);
                     rf95.setModeRx();
@@ -126,6 +128,22 @@ public:
         return false;
     }
 
+    void printHex(char *fullMessage, uint8_t len)
+    {
+        Serial.println(fullMessage);
+        Serial.print("HEX: ");
+        Serial.print(len);
+        Serial.print(" bytes: ");
+        for (size_t i = 0; i < (uint8_t)len + 1; i++)
+        {
+            if (fullMessage[i] < 0x10)
+                Serial.print('0'); // zero padding para valores < 0x10
+            Serial.print(fullMessage[i], HEX);
+            Serial.print(' ');
+        }
+        Serial.println("");
+    }
+
     bool available(uint16_t timeout = 50)
     {
         return rf95.waitAvailableTimeout(timeout);
@@ -136,30 +154,43 @@ public:
         if (!rf95.waitAvailableTimeout(10))
             return false;
 
-        uint8_t recvLen = RH_RF95_MAX_MESSAGE_LEN;
-        if (rf95.recv((uint8_t *)buffer, &recvLen))
+        uint8_t recvLen = Config::MESSAGE_MAX_LEN + 3;
+        //  memset(buffer, 0, recvLen + 4); // +1 para o terminador nulo
+        char localBuffer[recvLen] = {0};
+        Serial.println("---RX--------------------------");
+        if (rf95.recv((uint8_t *)localBuffer, &recvLen))
         {
-            buffer[recvLen] = '\0';
-
-#ifdef DEBUG_ON
-            Serial.print("HEX: ");
-            for (size_t i = 0; i < recvLen; i++)
+            localBuffer[recvLen] = '\0';
+            // posicao 0 é o sender, retirar ele da mensagem
+            if (recvLen < 3)
             {
-                if (buffer[i] < 0x10)
-                    Serial.print('0'); // zero padding para valores < 0x10
-                Serial.print(buffer[i], HEX);
-                Serial.print(' ');
-            }
-            Serial.println();
-#endif
-
-            if (buffer[recvLen - 1] != '\n')
-            {
-                Serial.print("incompleto: ");
-                Serial.println(buffer);
+                Serial.println("Mensagem muito curta");
                 return false;
             }
-            buffer[--recvLen] = '\0';
+            if (localBuffer[1] != STX || localBuffer[recvLen - 1] != ETX)
+            {
+                Serial.print("Mensagem inválida: ");
+                Serial.println(localBuffer);
+                return false;
+            }
+
+#ifdef DEBUG_ON
+            printHex(localBuffer, strlen(localBuffer));
+#endif
+            sender = localBuffer[0];
+            // copiar para message o byte 2 em diante e largar o ETX
+            recvLen -= 3; // -2 para STX e ETX
+            if (recvLen > Config::MESSAGE_MAX_LEN)
+            {
+                Serial.println("Mensagem muito longa");
+                return false;
+            }
+            strncpy(buffer, localBuffer + 2, recvLen);
+            buffer[recvLen] = '\0'; // Garantir que a string esteja terminada
+#ifdef DEBUG_ON
+            printHex(buffer, recvLen);
+#endif
+
             *len = recvLen;
 
             // Filtro de destino

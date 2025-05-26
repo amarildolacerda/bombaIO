@@ -19,7 +19,7 @@ String getISOHour()
 }
 #endif
 
-bool Logger::log(LogLevel level, const char *message)
+bool Logger::log(LogLevel level, const char *format, ...)
 {
     if (static_cast<int>(level) > static_cast<int>(currentLogLevel))
     {
@@ -40,6 +40,14 @@ bool Logger::log(LogLevel level, const char *message)
         "\033[37m"  // VERB - White
     };
 
+    char buffer[128]; // Buffer para a mensagem formatada
+
+    // 1. Processa os argumentos variáveis
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
     int idx = static_cast<int>(level);
     char levelBuffer[7];
     char colorBuffer[8];
@@ -54,7 +62,7 @@ bool Logger::log(LogLevel level, const char *message)
 #endif
     Serial.print(F("-"));
 
-    Serial.println(message);
+    Serial.println(buffer);
     Serial.print(F("\033[0m")); // Reset color if used
     return true;
 }

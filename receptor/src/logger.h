@@ -35,7 +35,7 @@ public:
         log(LogLevel::DEBUG, message);
     }
 
-    static bool log(LogLevel level, const char *message);
+    static bool log(LogLevel level, const char *format, ...);
     static bool log(LogLevel level, const __FlashStringHelper *message);
     static LogLevel getLevel()
     {

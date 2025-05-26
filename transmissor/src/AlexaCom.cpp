@@ -25,7 +25,7 @@ void AlexaCom::aliveOffLineAlexa()
         if (secs >= 60)
         {
             alexa.setState(dev.uniqueName().c_str(), false, 0);
-            Logger::warn(String(dev.name + " esta a mais de " + String(secs) + "s sem conexao ").c_str());
+            // Logger::warn(String(dev.name + " esta a mais de " + String(secs) + "s sem conexao ").c_str());
             //}
         }
     }

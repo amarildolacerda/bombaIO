@@ -41,7 +41,7 @@ void DisplayManager::updateDisplay()
     if (millis() - ultimoBaixo > 10000)
     {
         baixo = (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD);
-        Logger::log(LogLevel::WARNING, String("Sinal LoRa baixo: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
+        // Logger::log(LogLevel::WARNING, String("Sinal LoRa baixo: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
         ultimoBaixo = millis();
     }
     setPos(1, 0);

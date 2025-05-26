@@ -10,14 +10,17 @@
 class LoRaTTGO : public LoRaInterface
 {
 private:
-    uint8_t _tid = 0xFF;
+    uint8_t terminalId = 0xFF;
     uint8_t _tidTo = 0xFF;
     long lastAvailable = 0;
     uint8_t hTo = 0;
     uint8_t hFrom = 0;
     uint8_t hId = 0;
     uint8_t hLive = 0;
+    uint8_t sender = 0xFF;
     bool inPromiscuous = false;
+    const uint8_t STX = '{';
+    const uint8_t ETX = '}';
 
 public:
     bool beginSetup(float frequency, bool promiscuous = true) override
@@ -46,19 +49,25 @@ public:
         LoRa.beginPacket();
 
         LoRa.write(tidTo > -1 ? tidTo : _tidTo);
-        LoRa.write(_tid);
+        LoRa.write(terminalId);
         LoRa.write(nHeaderId++);
+        uint8_t len = strlen(message);
         LoRa.write(3); // salto no mesh
+        LoRa.write(terminalId);
 
-        char msg[64];
-        snprintf(msg, sizeof(msg), "De: %d para: %d bytes: %d", _tid, tidTo, strlen(message));
-        Logger::log(LogLevel::SEND, msg);
+        char buffer[Config::MESSAGE_LEN] = {0};
+        buffer[0] = STX;
+        memcpy(buffer + 1, message, len);
+        buffer[len] = ETX;
+        buffer[len + 1] = '\0';
 
-        int snd = LoRa.print(message);
-        LoRa.write('\n');
+        int snd = LoRa.print(buffer);
 
         bool rt = LoRa.endPacket() > 0;
-        Logger::log(LogLevel::SEND, message);
+
+        char msg[Config::MESSAGE_LEN + 64];
+        snprintf(msg, sizeof(msg), "[%d→%d] L: %d B: %s", terminalId, tidTo, strlen(buffer), buffer);
+        Logger::log(LogLevel::SEND, msg);
 
         delay(50);
         LoRa.receive();
@@ -84,16 +93,21 @@ public:
         hFrom = LoRa.read();
         hId = LoRa.read();
         hLive = LoRa.read();
-
+        sender = LoRa.read(); // terminal que enviou a mensagem
         memset(buffer, 0, sizeof(buffer));
         while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
         {
             uint8_t r = LoRa.read();
             buffer[len++] = (char)r;
         }
-
-        if (len == 0)
+        buffer[len] = '\0';
+        if (len == 0 || sender == terminalId)
             return false;
+
+        Serial.print("RxSender: ");
+        Serial.print(sender);
+        Serial.print(" ");
+        Serial.println((char *)buffer);
 
         Serial.print("HEX: ");
         for (size_t i = 0; i < len; i++)
@@ -105,14 +119,25 @@ public:
         }
         Serial.println();
 
-        if (buffer[len - 1] != '\n')
+        if (buffer[len - 1] != ETX && buffer[len - 1] != '\n')
         {
-            Serial.print("Incompleto: ");
+            // Se o último caractere não for '}' ou '\n', é um erro de formatação
+            Serial.println("Erro: mensagem incompleta ou mal formatada.");
             Serial.println((char *)buffer);
+            return false;
         }
-        buffer[--len] = '\0'; // retira o chr(13)
+        buffer[--len] = '\0'; // retira o }
+        if (len > 1 && buffer[0] == STX)
+        {
+            for (int i = 1; i < len; i++)
+            {
+                buffer[i - 1] = buffer[i];
+            }
+        }
+        buffer[--len] = '\0'; // retira o }
+        Serial.println((char *)buffer);
 
-        if ((hFrom == _tid) || (hTo == 0xFE))
+        if ((hFrom == terminalId || sender == terminalId))
         {
 #ifdef DEBUG_ON
             Serial.println("saindo false receivemessage");
@@ -120,14 +145,12 @@ public:
             return false;
         }
 
-#ifdef DEBUG_ON
-        char msg[64];
-        snprintf(msg, sizeof(msg), "Term: (%d) From: %d To: %d id: %d len: %d Live: %d", _tid,
-                 headerFrom(), headerTo(), headerId(), hLive,
-                 strlen((char *)buffer));
+        char msg[Config::MESSAGE_LEN + 64];
+        snprintf(msg, sizeof(msg), "[%d→%d] L: %d Live: %d B: %s",
+                 headerFrom(), headerTo(), hLive,
+                 strlen((char *)buffer), buffer);
         Logger::log(LogLevel::RECEIVE, msg);
-        Logger::log(LogLevel::RECEIVE, (char *)buffer);
-#endif
+
         if (!inPromiscuous)
         {
 
@@ -135,7 +158,7 @@ public:
             Serial.println("saiu receivemessage");
 #endif
 
-            return (hTo == 0xFF || hTo == _tid);
+            return (hTo == 0xFF || hTo == terminalId);
         }
 #ifdef DEBUG_ON
         Serial.println("saindo  true receivemessage");
@@ -153,7 +176,7 @@ public:
     }
     void setHeaderFrom(uint8_t tid) override
     {
-        _tid = tid;
+        terminalId = tid;
     }
 
     void setPins(int cs, int reset, int irq) override
