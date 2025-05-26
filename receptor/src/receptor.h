@@ -311,7 +311,7 @@ public:
         }
         else if (strcmp(event, "ping") == 0)
         {
-            lora.sendMessage(tfrom, "pong");
+            lora.sendMessage(tfrom, (char *)"pong");
             // nao responde com ack nem nak
             return true;
         }
@@ -337,7 +337,7 @@ public:
     }
     void ack(uint8_t tid, bool handled)
     {
-        lora.sendMessage(tid, "ack", 0xFF, 3);
+        lora.sendMessage(tid, (char *)"ack", 0xFF, 3);
     }
 };
 

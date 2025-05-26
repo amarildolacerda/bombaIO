@@ -78,13 +78,16 @@ public:
     {
         return rf95.headerFrom();
     }
-    bool sendMessage(uint8_t tid, const char *message, uint8_t from = 0xFF, uint8_t salto = 3, uint8_t seq = 0)
+    bool sendMessage(uint8_t tid, char *message, uint8_t from = 0xFF, uint8_t salto = 3, uint8_t seq = 0)
     {
         uint8_t len = strlen(message);
         if (len > RH_RF95_MAX_MESSAGE_LEN)
         {
             return false;
         }
+
+        message[len] = '\n';
+        message[len + 1] = '\0';
 
         for (_retryCount = 0; _retryCount < MAX_RETRIES; _retryCount++)
         {
@@ -96,10 +99,21 @@ public:
             rf95.setHeaderId(seq);
             rf95.setHeaderFlags(len, 0xFF); // Flags separadas do tamanho
 
-            if (rf95.send((uint8_t *)message, len))
+            if (rf95.send((uint8_t *)message, len + 1))
             {
                 if (rf95.waitPacketSent(2000))
                 { // Timeout de 2s
+#ifdef DEBUG_ON
+                    Serial.print("HEX: ");
+                    for (size_t i = 0; i < (uint8_t)len + 1; i++)
+                    {
+                        if (message[i] < 0x10)
+                            Serial.print('0'); // zero padding para valores < 0x10
+                        Serial.print(message[i], HEX);
+                        Serial.print(' ');
+                    }
+                    Serial.println("");
+#endif
                     Logger::log(LogLevel::SEND, message);
                     rf95.setModeRx();
                     return true;
@@ -126,6 +140,26 @@ public:
         if (rf95.recv((uint8_t *)buffer, &recvLen))
         {
             buffer[recvLen] = '\0';
+
+#ifdef DEBUG_ON
+            Serial.print("HEX: ");
+            for (size_t i = 0; i < recvLen; i++)
+            {
+                if (buffer[i] < 0x10)
+                    Serial.print('0'); // zero padding para valores < 0x10
+                Serial.print(buffer[i], HEX);
+                Serial.print(' ');
+            }
+            Serial.println();
+#endif
+
+            if (buffer[recvLen - 1] != '\n')
+            {
+                Serial.print("incompleto: ");
+                Serial.println(buffer);
+                return false;
+            }
+            buffer[--recvLen] = '\0';
             *len = recvLen;
 
             // Filtro de destino

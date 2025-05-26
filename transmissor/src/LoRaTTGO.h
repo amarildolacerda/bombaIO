@@ -55,6 +55,7 @@ public:
         Logger::log(LogLevel::SEND, msg);
 
         int snd = LoRa.print(message);
+        LoRa.write('\n');
 
         bool rt = LoRa.endPacket() > 0;
         Logger::log(LogLevel::SEND, message);
@@ -90,7 +91,27 @@ public:
             uint8_t r = LoRa.read();
             buffer[len++] = (char)r;
         }
-        buffer[len] = '\0';
+
+        if (len == 0)
+            return false;
+
+        Serial.print("HEX: ");
+        for (size_t i = 0; i < len; i++)
+        {
+            if (buffer[i] < 0x10)
+                Serial.print('0'); // zero padding para valores < 0x10
+            Serial.print(buffer[i], HEX);
+            Serial.print(' ');
+        }
+        Serial.println();
+
+        if (buffer[len - 1] != '\n')
+        {
+            Serial.print("Incompleto: ");
+            Serial.println((char *)buffer);
+        }
+        buffer[--len] = '\0'; // retira o chr(13)
+
         if ((hFrom == _tid) || (hTo == 0xFE))
         {
 #ifdef DEBUG_ON
