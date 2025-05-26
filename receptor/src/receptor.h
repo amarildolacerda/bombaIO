@@ -10,6 +10,7 @@
 #define IDENTIFICATION_TIMEOUT_MS 10000UL      // 10 segundos para zerar contagem
 #define IDENTIFICATION_POWER_WINDOW_MS 60000UL // 1 minuto para 3 boots
 
+/*
 //--------------------------------------------------LOG
 enum class LogLevel
 {
@@ -68,7 +69,9 @@ public:
         return true;
     }
 };
-
+*/
+#include "LoRaRF95.h"
+/*
 //--------------------------------------------------RF
 SoftwareSerial RFSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
 
@@ -98,28 +101,6 @@ public:
     {
         return true;
     }
-    bool receive(char *buffer, uint8_t *len)
-    {
-        bool result = false;
-        if (rf95.waitAvailableTimeout(100))
-        {
-            buffer = {0};
-            result = rf95.recv((uint8_t *)buffer, len);
-            if (result)
-            {
-                _hto = rf95.headerTo();
-                _hfrom = rf95.headerFrom();
-                if (_hfrom == tId)
-                    return false;
-                if ((_hto != 0xFF) && (!_promiscuos) && (_hto != tId))
-                {
-                    return false;
-                }
-                Logger::log(LogLevel::RECEIVE, "From: " + (String)_hfrom + " " + (String)buffer);
-            }
-        }
-        return result;
-    }
     uint8_t headerTo()
     {
         return rf95.headerTo();
@@ -130,16 +111,16 @@ public:
     }
     bool send(uint8_t tTo, String buffer)
     {
-        return send(tTo, (char *)buffer.c_str(), buffer.length());
+        return send(tTo, (char *)buffer.c_str(), buffer.length(), 0xFF, 3);
     }
-    bool send(uint8_t tTo, char *buffer, uint8_t len)
+    bool send(uint8_t tTo, char *buffer, uint8_t len, uint8_t from, uint8_t salto)
     {
         bool result = false;
         rf95.setModeTx();
-        rf95.setHeaderFrom(tId);
+        rf95.setHeaderFrom(from != 0xFF ? from : tId);
         rf95.setHeaderTo(tTo);
         rf95.setHeaderId(msgId++);
-        rf95.setHeaderFlags(len, 0xFF);
+        rf95.setHeaderFlags(salto, 0xFF);
         if (rf95.send((uint8_t *)buffer, len))
         {
             result = rf95.waitPacketSent(1000);
@@ -150,13 +131,49 @@ public:
         Logger::log(LogLevel::SEND, "To: " + (String)tTo + " " + (String)buffer);
         return result;
     }
+    bool receive(char *buffer, uint8_t *len)
+    {
+        bool result = false;
+        if (rf95.waitAvailableTimeout(100))
+        {
+            uint8_t rec[Config::MESSAGE_MAX_LEN] = {0};
+            uint8_t recLen = sizeof(buffer);
+            result = rf95.recv(rec, &recLen);
+            if (result)
+            {
+                *len = recLen;
+                if (recLen == 0)
+                    return false;
+                strncpy(buffer, (char *)rec, recLen);
+                Serial.print((char *)rec);
+                _hto = rf95.headerTo();
+                _hfrom = rf95.headerFrom();
+                uint8_t salto = rf95.headerFlags();
+
+                if (_hfrom == tId)
+                    return false;
+                Logger::log(LogLevel::RECEIVE, "From: " + (String)_hfrom + " " + (String)buffer);
+                if (_hto != tId && salto > 1)
+                {
+                    uint8_t n = sizeof(buffer);
+                    salto--;
+                    send(_hto, buffer, n, _hfrom, salto);
+                }
+                if ((_hto != 0xFF) && (!_promiscuos) && (_hto != tId))
+                {
+                    return false;
+                }
+            }
+        }
+        return result;
+    }
     bool available()
     {
         return rf95.available();
     }
 };
 static LoraRF lora;
-
+*/
 //-------------------------------------------------Setup
 class App
 {
@@ -171,7 +188,7 @@ public:
         Serial.begin(Config::SERIAL_SPEED);
         while (!Serial)
             ;
-        loraConnected = lora.begin(Config::TERMINAL_ID, Config::BAND, Config::PROMISCUOS);
+        loraConnected = lora.initialize(Config::BAND, Config::TERMINAL_ID, Config::PROMISCUOS);
         if (!loraConnected)
         {
             Serial.print(F("LoRa nao iniciou"));
@@ -187,7 +204,7 @@ public:
         {
             char buf[Config::MESSAGE_MAX_LEN] = {0};
             uint8_t len = sizeof(buf);
-            if (lora.receive(buf, &len))
+            if (lora.receiveMessage(buf, &len))
             {
                 handleMessage(buf);
             }
@@ -204,7 +221,7 @@ public:
     {
         char msg[Config::MESSAGE_MAX_LEN] = {0};
         sprintf(msg, String(event + "|" + value).c_str());
-        lora.send(tid, msg, sizeof(msg));
+        lora.sendMessage(tid, msg, 0xFF, 3);
     }
     void sendStatus(uint8_t tid)
     {
@@ -294,7 +311,7 @@ public:
         }
         else if (strcmp(event, "ping") == 0)
         {
-            lora.send(tfrom, "pong");
+            lora.sendMessage(tfrom, "pong");
             // nao responde com ack nem nak
             return true;
         }
@@ -320,7 +337,7 @@ public:
     }
     void ack(uint8_t tid, bool handled)
     {
-        lora.send(tid, "ack");
+        lora.sendMessage(tid, "ack", 0xFF, 3);
     }
 };
 

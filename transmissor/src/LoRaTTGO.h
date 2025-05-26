@@ -40,7 +40,7 @@ public:
     {
 
 #ifdef DEBUG_ON
-        Serial.println("entrou LoRa.sendmessage()");
+        Serial.print("entrou LoRa.sendmessage()");
 #endif
         LoRa.idle();
         LoRa.beginPacket();
@@ -62,7 +62,7 @@ public:
         delay(50);
         LoRa.receive();
 #ifdef DEBUG_ON
-        Serial.print("saindo LoRa.sendmessage()");
+        Serial.println("saindo LoRa.sendmessage()");
 #endif
         return rt;
     }
@@ -73,7 +73,7 @@ public:
         if (!buffer)
             return false;
 #ifdef DEBUG_ON
-        Serial.println("entrou receiveMessage");
+        Serial.print("entrou receiveMessage");
 #endif
         len = 0;
         if (!LoRa.available())
@@ -94,7 +94,7 @@ public:
         if ((hFrom == _tid) || (hTo == 0xFE))
         {
 #ifdef DEBUG_ON
-            Serial.print("saindo false receivemessage");
+            Serial.println("saindo false receivemessage");
 #endif
             return false;
         }
@@ -111,13 +111,13 @@ public:
         {
 
 #ifdef DEBUG_ON
-            Serial.print("saiu receivemessage");
+            Serial.println("saiu receivemessage");
 #endif
 
             return (hTo == 0xFF || hTo == _tid);
         }
 #ifdef DEBUG_ON
-        Serial.print("saindo  true receivemessage");
+        Serial.println("saindo  true receivemessage");
 #endif
         return true;
     }
