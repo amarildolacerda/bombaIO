@@ -44,26 +44,13 @@ public:
     bool receive(char *buffer, uint8_t *len)
     {
         return receiveMessage(buffer, len);
-        /*
-        bool result = false;
-        if (rf95.waitAvailableTimeout(100))
-        {
-            buffer = {0};
-            result = rf95.recv((uint8_t *)buffer, len);
-            if (result)
-            {
-                _hto = rf95.headerTo();
-                _hfrom = rf95.headerFrom();
-                if (_hfrom == terminalId)
-                    return false;
-                if ((_hto != 0xFF) && (!_promiscuos) && (_hto != terminalId))
-                {
-                    return false;
-                }
-                Logger::log(LogLevel::RECEIVE, "From: " + (String)_hfrom + " " + (String)buffer);
-            }
-        }
-        return result;*/
+    }
+
+    void printRow(const char *msg)
+    {
+        Serial.println();
+        Serial.print(msg);
+        Serial.println("------------------------------------------------");
     }
 
     bool receiveMessage(char *buffer, uint8_t *len)
@@ -73,6 +60,7 @@ public:
 
         uint8_t recvLen = Config::MESSAGE_MAX_LEN + 3;
         char localBuffer[recvLen] = {0};
+        printRow("Entra RX");
         if (rf95.recv((uint8_t *)localBuffer, &recvLen))
         {
             localBuffer[recvLen] = '\0';
@@ -132,13 +120,15 @@ public:
                 Logger::log(LogLevel::RECEIVE, fullLogMsg);
                 Logger::log(LogLevel::RECEIVE, buffer);
             }
+            //   printRow("Saindo RX");
 #ifdef MESH
             uint8_t salto = rf95.headerFlags();
             if (salto > 1)
             {
                 if (mto != terminalId)
                 {
-                    // send(rf95.headerTo(), buffer, rf95.headerFrom(), --salto, rf95.headerId(), "LoRaRF95::receiveMessage[mesh]");
+                    salto--;
+                    send(rf95.headerTo(), buffer, rf95.headerFrom(), salto, rf95.headerId());
                 }
             }
 #endif
@@ -161,6 +151,7 @@ public:
     }
     bool send(uint8_t tid, char *message, uint8_t from = 0xFF, uint8_t salto = 3, uint8_t seq = 0)
     {
+        printRow("Entra TX");
         bool result = false;
         uint8_t len = strlen(message);
         uint8_t fromAjustado = (from == 0xFF) ? terminalId : from;
@@ -200,6 +191,7 @@ public:
         };
         rf95.setModeRx();
 
+        // printRow("Saindo TX");
         return result;
     }
 
