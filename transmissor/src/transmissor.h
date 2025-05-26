@@ -167,7 +167,7 @@ public:
         esp_log_level_set("*", ESP_LOG_VERBOSE);
         Logger::setLogLevel(LogLevel::VERBOSE);
 #endif
-        Logger::log(LogLevel::INFO, F("Iniciando sistema..."));
+        Serial.println(F("Iniciando sistema..."));
 
         try
         {
