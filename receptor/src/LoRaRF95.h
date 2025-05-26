@@ -53,6 +53,11 @@ public:
         Serial.println("------------------------------------------------");
     }
 
+    void ackIf(bool ack = false)
+    {
+        if (rf95.headerTo() == terminalId)
+            send(rf95.headerFrom(), (ack) ? "ack" : "nak");
+    }
     bool receiveMessage(char *buffer, uint8_t *len)
     {
         if (!rf95.waitAvailableTimeout(10))
@@ -67,13 +72,15 @@ public:
             // posicao 0 é o sender, retirar ele da mensagem
             if (recvLen < 3)
             {
-                Serial.println("Mensagem muito curta");
+                Logger::error("Mensagem muito curta");
+                ackIf(false);
                 return false;
             }
             if (localBuffer[1] != STX || localBuffer[recvLen - 1] != ETX)
             {
-                Serial.print("Mensagem inválida: ");
-                Serial.println(localBuffer);
+                Logger::error("Mensagem inválida ");
+                Logger::error(localBuffer);
+                ackIf(false);
                 return false;
             }
 
@@ -89,7 +96,8 @@ public:
             recvLen -= 3; // -2 para STX e ETX
             if (recvLen > Config::MESSAGE_MAX_LEN)
             {
-                Serial.println("Mensagem muito longa");
+                Logger::error("Mensagem muito longa");
+                ackIf(false);
                 return false;
             }
             strncpy(buffer, localBuffer + 2, recvLen);
