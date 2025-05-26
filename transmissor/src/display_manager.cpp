@@ -102,8 +102,8 @@ void DisplayManager::showFooter()
     display.print(dispCount);
     display.print("/");
     display.print(regCount);
-    display.print(" v:");
-    display.print(ver);
+    // display.print(" v:");
+    // display.print(ver);
     setPos(6, 13);
     display.println(DeviceInfo::getISOTime().substring(11, 19)); // Mostra apenas HH:MM:SS
     display.setTextColor(WHITE, BLACK);

@@ -27,7 +27,7 @@ public:
         LoRa.setSignalBandwidth(125E3); // 125kHz
         LoRa.setCodingRate4(5);         // 4/5 coding rate
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
-        LoRa.setTxPower(23);
+        LoRa.setTxPower(14);
         LoRa.setPreambleLength(8);
 
         inPromiscuous = promiscuous;
@@ -38,8 +38,10 @@ public:
 
     bool sendMessage(uint8_t tidTo, const char *message) override
     {
-        char m[251] = {0}; // Reduzido para evitar uso excessivo de memória
 
+#ifdef DEBUG_ON
+        Serial.println("entrou LoRa.sendmessage()");
+#endif
         LoRa.idle();
         LoRa.beginPacket();
 
@@ -49,7 +51,7 @@ public:
         LoRa.write(3); // salto no mesh
 
         char msg[64];
-        snprintf(msg, sizeof(msg), "Enviando de: %d para: %d bytes: %d", _tid, tidTo, strlen(message));
+        snprintf(msg, sizeof(msg), "De: %d para: %d bytes: %d", _tid, tidTo, strlen(message));
         Logger::log(LogLevel::SEND, msg);
 
         int snd = LoRa.print(message);
@@ -59,13 +61,20 @@ public:
 
         delay(50);
         LoRa.receive();
+#ifdef DEBUG_ON
+        Serial.print("saindo LoRa.sendmessage()");
+#endif
         return rt;
     }
 
     bool receiveMessage(uint8_t *buffer, uint8_t &len) override
     {
+
         if (!buffer)
             return false;
+#ifdef DEBUG_ON
+        Serial.println("entrou receiveMessage");
+#endif
         len = 0;
         if (!LoRa.available())
             return false;
@@ -74,9 +83,8 @@ public:
         hFrom = LoRa.read();
         hId = LoRa.read();
         hLive = LoRa.read();
-        buffer = {0};
 
-        // memset(buffer, 0, sizeof(buffer));
+        memset(buffer, 0, sizeof(buffer));
         while (LoRa.available() && len < Config::MESSAGE_LEN - 1)
         {
             uint8_t r = LoRa.read();
@@ -84,7 +92,12 @@ public:
         }
         buffer[len] = '\0';
         if ((hFrom == _tid) || (hTo == 0xFE))
+        {
+#ifdef DEBUG_ON
+            Serial.print("saindo false receivemessage");
+#endif
             return false;
+        }
 
 #ifdef DEBUG_ON
         char msg[64];
@@ -97,8 +110,15 @@ public:
         if (!inPromiscuous)
         {
 
+#ifdef DEBUG_ON
+            Serial.print("saiu receivemessage");
+#endif
+
             return (hTo == 0xFF || hTo == _tid);
         }
+#ifdef DEBUG_ON
+        Serial.print("saindo  true receivemessage");
+#endif
         return true;
     }
 

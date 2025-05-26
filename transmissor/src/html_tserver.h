@@ -2,7 +2,6 @@
 #ifndef HTML_SERVER_H
 #define HTML_SERVER_H
 
-
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 
@@ -18,7 +17,9 @@ namespace HtmlServer
     void initWebServer(AsyncWebServer *ws = nullptr);
 
     void process();
-    void begin();
+    bool begin();
+    void respStatus(AsyncWebServerRequest *request, uint8_t tid, String status);
+    void handleToggleDevice(AsyncWebServerRequest *request);
 
 } // namespace HtmlServer
 

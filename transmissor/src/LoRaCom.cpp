@@ -14,7 +14,6 @@
 #include "system_state.h"
 #include "display_manager.h"
 #include "device_info.h"
-#include <ArduinoJson.h>
 
 // Define the static member
 LoRaInterface *LoRaCom::loraInstance = nullptr;
@@ -123,6 +122,9 @@ void LoRaCom::sendTime()
 
 void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
 {
+#ifdef DEBUG_ON
+    Serial.print("enter presentation");
+#endif
     char message[Config::MESSAGE_LEN];
     char nStr[8];
     bool ackReceived = false;
@@ -143,10 +145,16 @@ void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
         Logger::info("Presentation");
         Logger::log(LogLevel::DEBUG, String((String)message + " (tentativa " + String(attempt + 1) + ")").c_str());
     }
+#ifdef DEBUG_ON
+    Serial.print("saiu prensentation");
+#endif
 }
 
 bool LoRaCom::waitAck()
 {
+#ifdef DEBUG_ON
+    Serial.print("entrou waitAck()");
+#endif
     // Wait for acknowledgment
     unsigned long start = millis();
     unsigned long lastCheck = millis();
@@ -183,6 +191,9 @@ bool LoRaCom::waitAck()
         systemState.loraRcv(payload);
 
         Logger::log(LogLevel::INFO, payload);
+#ifdef DEBUG_ON
+        Serial.print("saiu waitAck()");
+#endif
         return true;
     }
 
@@ -194,6 +205,9 @@ bool LoRaCom::waitAck()
 
 bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
 {
+#ifdef DEBUG_ON
+    Serial.print("entrou sendCommand");
+#endif
     char output[Config::MESSAGE_LEN];
     memset(output, 0, sizeof(output));
     formatMessage(output, tid, event.c_str(), value.c_str());
@@ -206,6 +220,10 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
     }
     loraInstance->setHeaderTo(tid);
     bool rt = loraInstance->sendMessage(tid, output);
+
+#ifdef DEBUG_ON
+    Serial.print("saindo sendMessage");
+#endif
     if (!rt)
     {
         Logger::log(LogLevel::ERROR, F("Falha ao enviar comando LoRa"));
