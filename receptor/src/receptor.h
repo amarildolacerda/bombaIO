@@ -22,7 +22,7 @@ private:
     const uint8_t terminalId = Config::TERMINAL_ID;
 
 public:
-    void begin()
+    void setup()
     {
         Serial.begin(Config::SERIAL_SPEED);
         while (!Serial)

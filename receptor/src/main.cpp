@@ -4,7 +4,7 @@
 // #include "repeater.h"
 void setup()
 {
-    app.begin();
+    app.setup();
 }
 
 void loop()

@@ -43,6 +43,8 @@ public:
     }
     bool receive(char *buffer, uint8_t *len)
     {
+        return receiveMessage(buffer, len);
+        /*
         bool result = false;
         if (rf95.waitAvailableTimeout(100))
         {
@@ -61,8 +63,90 @@ public:
                 Logger::log(LogLevel::RECEIVE, "From: " + (String)_hfrom + " " + (String)buffer);
             }
         }
-        return result;
+        return result;*/
     }
+
+    bool receiveMessage(char *buffer, uint8_t *len)
+    {
+        if (!rf95.waitAvailableTimeout(10))
+            return false;
+
+        uint8_t recvLen = Config::MESSAGE_MAX_LEN + 3;
+        char localBuffer[recvLen] = {0};
+        if (rf95.recv((uint8_t *)localBuffer, &recvLen))
+        {
+            localBuffer[recvLen] = '\0';
+            // posicao 0 é o sender, retirar ele da mensagem
+            if (recvLen < 3)
+            {
+                Serial.println("Mensagem muito curta");
+                return false;
+            }
+            if (localBuffer[1] != STX || localBuffer[recvLen - 1] != ETX)
+            {
+                Serial.print("Mensagem inválida: ");
+                Serial.println(localBuffer);
+                return false;
+            }
+
+#ifdef DEBUG_ON
+            printHex(localBuffer, strlen(localBuffer));
+#endif
+            sender = localBuffer[0];
+
+            if (sender == terminalId)
+                return false;
+
+            // copiar para message o byte 2 em diante e largar o ETX
+            recvLen -= 3; // -2 para STX e ETX
+            if (recvLen > Config::MESSAGE_MAX_LEN)
+            {
+                Serial.println("Mensagem muito longa");
+                return false;
+            }
+            strncpy(buffer, localBuffer + 2, recvLen);
+            buffer[recvLen] = '\0'; // Garantir que a string esteja terminada
+#ifdef DEBUG_ON
+            printHex(buffer, recvLen);
+#endif
+
+            *len = recvLen;
+
+            // Filtro de destino
+            uint8_t mto = rf95.headerTo();
+            uint8_t mfrom = rf95.headerFrom();
+            if (mfrom == terminalId)
+                return false;
+
+            if ((mto == terminalId) || (mto = 0xFF))
+            {
+
+                char fullLogMsg[64];
+
+                snprintf(fullLogMsg, sizeof(fullLogMsg),
+                         "[%d→%d] L:%d",
+                         rf95.headerFrom(),
+                         rf95.headerTo(),
+                         recvLen);
+
+                Logger::log(LogLevel::RECEIVE, fullLogMsg);
+                Logger::log(LogLevel::RECEIVE, buffer);
+            }
+#ifdef MESH
+            uint8_t salto = rf95.headerFlags();
+            if (salto > 1)
+            {
+                if (mto != terminalId)
+                {
+                    // send(rf95.headerTo(), buffer, rf95.headerFrom(), --salto, rf95.headerId(), "LoRaRF95::receiveMessage[mesh]");
+                }
+            }
+#endif
+            return _promiscuos;
+        }
+        return false;
+    }
+
     uint8_t headerTo()
     {
         return rf95.headerTo();
@@ -99,9 +183,6 @@ public:
         {
             if (rf95.waitPacketSent(2000))
             {
-#ifdef _DEBUG_ON
-                printHex(fullMessage, len + 2);
-#endif
 
                 char fullLogMsg[64];
 
@@ -111,7 +192,10 @@ public:
                          tid,
                          len);
                 Logger::log(LogLevel::SEND, fullLogMsg);
+#ifdef _DEBUG_ON
+                printHex(fullMessage, len + 2);
                 // Logger::log(LogLevel::SEND, fullMessage);
+#endif
             }
         };
         rf95.setModeRx();
