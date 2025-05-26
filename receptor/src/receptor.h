@@ -21,19 +21,32 @@ private:
     const uint8_t terminalId = Config::TERMINAL_ID;
 
 public:
+    void ponto()
+    {
+        Serial.print(".");
+    }
     void begin()
     {
         Serial.begin(Config::SERIAL_SPEED);
         while (!Serial)
             ;
+        Serial.print("Carregando ");
+        Serial.print(terminalId);
+        Serial.print(" ");
+        Serial.print(terminalName);
+
+        ponto();
         loraConnected = lora.initialize(Config::BAND, terminalId, Config::PROMISCUOS);
         if (!loraConnected)
         {
             Serial.print(F("LoRa nao iniciou"));
         };
+        ponto();
         pinMode(Config::LED_PIN, OUTPUT);
         pinMode(Config::RELAY_PIN, OUTPUT);
+        ponto();
         initPinRelay();
+        Serial.println("... pronto");
     }
     void loop()
     {
@@ -69,30 +82,36 @@ public:
         sendEvent(tid, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off", caller);
         statusUpdater = millis();
     }
-    void (*resetFunc)(void) = 0;
+    // void (*resetFunc)(void) = 0;
 
     void savePinState(bool state)
     {
+#ifdef DEBUG_ON
 #ifdef __AVR__
         EEPROM.update(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
 #else
         EEPROM.write(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
         EEPROM.commit(); // No ESP8266/ESP32 você PRECISA chamar commit() para salvar
 #endif
+#endif
     }
 
     // Função para ler o estado do pino 5 da EEPROM
     bool readPinState()
     {
+#ifdef DEBUG_ON
         return EEPROM.read(EEPROM_ADDR_PIN5_STATE) == 1;
+#endif
     }
 
     void initPinRelay()
     {
-        pinMode(5, OUTPUT);
+#ifdef DEBUG_ON
+        pinMode(Config::RELAY_PIN, OUTPUT);
         bool savedState = readPinState();
         digitalWrite(Config::RELAY_PIN, savedState ? HIGH : LOW);
         Logger::info(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF");
+#endif
     }
 
     bool handleMessage(char *message)
@@ -127,7 +146,7 @@ public:
         }
         else if (strcmp(event, "reset") == 0)
         {
-            resetFunc();
+            // resetFunc();
             return true;
         }
         else if (strcmp(event, "gpio") == 0)
