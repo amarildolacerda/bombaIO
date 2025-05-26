@@ -28,7 +28,7 @@ public:
     LoraRF() : rf95(RFSerial) {}
     bool begin(uint8_t terminal_Id, long band, bool promisc = true)
     {
-        terminalId = terminal_Id;
+        terminalId = Config::TERMINAL_ID;
         RFSerial.begin(Config::LORA_SPEED);
         bool result = rf95.init();
         _promiscuos = promisc;
@@ -136,6 +136,7 @@ public:
                 if (mto != terminalId)
                 {
                     salto--;
+                    Logger::info("MESH-> live: " + String(salto));
                     send(rf95.headerTo(), buffer, rf95.headerFrom(), salto, rf95.headerId());
                 }
             }
@@ -159,7 +160,10 @@ public:
     }
     bool send(uint8_t tid, char *message, uint8_t from = 0xFF, uint8_t salto = 3, uint8_t seq = 0)
     {
-        printRow("Entra TX");
+        if (salto == 3)
+        { // quando é MESH nao mostra
+            printRow("Entra TX");
+        }
         bool result = false;
         uint8_t len = strlen(message);
         uint8_t fromAjustado = (from == 0xFF) ? terminalId : from;
