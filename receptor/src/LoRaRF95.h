@@ -8,6 +8,9 @@
 #ifdef __AVR__
 #include <SoftwareSerial.h>
 #endif
+
+#define ALIVE_PACKET 3
+
 //--------------------------------------------------RF
 SoftwareSerial RFSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
 
@@ -65,7 +68,9 @@ public:
 
         uint8_t recvLen = Config::MESSAGE_MAX_LEN + 3;
         char localBuffer[recvLen] = {0};
+#ifdef DEBUG_ON
         printRow("Entra RX");
+#endif
         if (rf95.recv((uint8_t *)localBuffer, &recvLen))
         {
             localBuffer[recvLen] = '\0';
@@ -131,7 +136,7 @@ public:
             //   printRow("Saindo RX");
 #ifdef MESH
             uint8_t salto = rf95.headerFlags();
-            if (salto > 1)
+            if (salto > 1 && salto <= ALIVE_PACKET)
             {
                 if (mto != terminalId)
                 {
@@ -158,12 +163,15 @@ public:
     {
         return send(tid, (char *)buffer.c_str(), buffer.length());
     }
-    bool send(uint8_t tid, char *message, uint8_t from = 0xFF, uint8_t salto = 3, uint8_t seq = 0)
+    bool send(uint8_t tid, char *message, uint8_t from = 0xFF, uint8_t salto = ALIVE_PACKET, uint8_t seq = 0)
     {
-        if (salto == 3)
+
+#ifdef DEBUG_ON
+        if (salto == ALIVE_PACKET)
         { // quando é MESH nao mostra
             printRow("Entra TX");
         }
+#endif
         bool result = false;
         uint8_t len = strlen(message);
         uint8_t fromAjustado = terminalId;
@@ -171,8 +179,10 @@ public:
         {
             fromAjustado = from;
         }
+#ifdef DEBUG_ON
         Serial.print(F("Enviando mensagem de "));
         Serial.println(fromAjustado);
+#endif
         rf95.setModeTx();
         rf95.setHeaderFrom(fromAjustado);
         rf95.setHeaderTo(tid);
@@ -201,9 +211,10 @@ public:
                          tid,
                          len);
                 Logger::log(LogLevel::SEND, fullLogMsg);
-#ifdef _DEBUG_ON
+#ifdef DEBUG_ON
                 printHex(fullMessage, len + 2);
-                // Logger::log(LogLevel::SEND, fullMessage);
+#else
+                Logger::log(LogLevel::SEND, fullMessage);
 #endif
             }
         };
@@ -215,6 +226,7 @@ public:
 
     void printHex(char *fullMessage, uint8_t len)
     {
+#ifdef DEBUG_ON
 
         Serial.println(fullMessage);
         Serial.print("HEX: ");
@@ -228,6 +240,7 @@ public:
             Serial.print(' ');
         }
         Serial.println("");
+#endif
     }
     bool available()
     {

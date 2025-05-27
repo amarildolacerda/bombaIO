@@ -64,6 +64,7 @@ public:
     }
     void sendStatus(uint8_t tid, String caller = "")
     {
+#ifdef DEBUG_ON
         if (caller.length() > 0)
         {
             Serial.print(F("Enviando status para "));
@@ -79,6 +80,7 @@ public:
             }
             Serial.println(caller);
         }
+#endif
         sendEvent(tid, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off");
         statusUpdater = millis();
     }
