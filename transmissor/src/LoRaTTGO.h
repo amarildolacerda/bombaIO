@@ -44,22 +44,24 @@ public:
 
 #ifdef DEBUG_ON
         Serial.print("entrou LoRa.sendmessage()");
+        Serial.print(message);
 #endif
+        uint8_t len = strlen(message);
+
         LoRa.idle();
         LoRa.beginPacket();
 
         LoRa.write(tidTo > -1 ? tidTo : _tidTo);
         LoRa.write(terminalId);
         LoRa.write(nHeaderId++);
-        uint8_t len = strlen(message);
         LoRa.write(3); // salto no mesh
         LoRa.write(terminalId);
 
         char buffer[Config::MESSAGE_LEN] = {0};
         buffer[0] = STX;
         memcpy(buffer + 1, message, len);
-        buffer[len] = ETX;
-        buffer[len + 1] = '\0';
+        buffer[len + 1] = ETX;
+        buffer[len + 2] = '\0';
 
         int snd = LoRa.print(buffer);
 

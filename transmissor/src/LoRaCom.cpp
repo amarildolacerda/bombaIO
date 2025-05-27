@@ -212,13 +212,13 @@ bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
     memset(output, 0, sizeof(output));
     formatMessage(output, tid, event.c_str(), value.c_str());
     // Garante null-terminator
-    output[Config::MESSAGE_LEN - 1] = '\0';
+    // output[Config::MESSAGE_LEN - 1] = '\0';
     size_t msgLen = strlen(output);
-    if (msgLen == 0 || output[msgLen - 1] != '\0')
-    {
-        output[msgLen] = '\0';
-    }
-    loraInstance->setHeaderTo(tid);
+    // if (msgLen == 0 || output[msgLen - 1] != '\0')
+    // {
+    //     output[msgLen] = '\0';
+    // }
+    // loraInstance->setHeaderTo(tid);
     bool rt = loraInstance->sendMessage(tid, output);
 
 #ifdef DEBUG_ON
