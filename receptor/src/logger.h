@@ -27,6 +27,11 @@ public:
     }
     static bool log(const LogLevel level, const String msg)
     {
+
+#ifndef DEBOG_ON
+        Serial.println(msg);
+        return true;
+#else
         static const char levelStrings[][7] PROGMEM = {
             "[ERRO]", "[WARN]", "[RECV]", "[SEND]", "[INFO]",
             "[DBUG]",
@@ -59,6 +64,7 @@ public:
         Serial.println(msg);
         Serial.print(F("\033[0m")); // Reset color if used
         return true;
+#endif
     }
 };
 

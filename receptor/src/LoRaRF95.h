@@ -28,17 +28,19 @@ private:
     uint8_t nHeaderId = 0;
 
 public:
+    bool connected = false;
     LoraRF() : rf95(RFSerial) {}
     bool begin(uint8_t terminal_Id, long band, bool promisc = true)
     {
         terminalId = Config::TERMINAL_ID;
         RFSerial.begin(Config::LORA_SPEED);
-        bool result = rf95.init();
+        connected = rf95.init();
         _promiscuos = promisc;
         rf95.setPromiscuous(true); // ajusta situaçoes que não reconhece
         rf95.setFrequency(band);
         rf95.setHeaderFlags(0, RH_FLAGS_NONE);
-        return result;
+        rf95.setTxPower(14, false);
+        return connected;
     }
     bool loop()
     {
@@ -51,9 +53,11 @@ public:
 
     void printRow(const char *msg)
     {
+#ifdef DEBUG_ON
         Serial.println();
         Serial.print(msg);
         Serial.println("------------------------------------------------");
+#endif
     }
 
     void ackIf(bool ack = false)
@@ -121,7 +125,7 @@ public:
 
             if ((mto == terminalId) || (mto = 0xFF))
             {
-
+#ifdef DEBUG_ON
                 char fullLogMsg[64];
 
                 snprintf(fullLogMsg, sizeof(fullLogMsg),
@@ -132,8 +136,9 @@ public:
 
                 Logger::log(LogLevel::RECEIVE, fullLogMsg);
                 Logger::log(LogLevel::RECEIVE, buffer);
-                if (mto==terminalId)
-                  return true;
+#endif
+                if (mto == terminalId)
+                    return true;
             }
             //   printRow("Saindo RX");
 #ifdef MESH
@@ -204,7 +209,7 @@ public:
         {
             if (rf95.waitPacketSent(2000))
             {
-
+#ifdef DEBUG_ON
                 char fullLogMsg[64];
 
                 snprintf(fullLogMsg, sizeof(fullLogMsg),
@@ -213,6 +218,7 @@ public:
                          tid,
                          len);
                 Logger::log(LogLevel::SEND, fullLogMsg);
+#endif
 #ifdef DEBUG_ON
                 printHex(fullMessage, len + 2);
 #else
@@ -246,7 +252,7 @@ public:
     }
     bool available()
     {
-        return rf95.available();
+        return rf95.waitAvailableTimeout(10);
     }
 };
 static LoraRF lora;
