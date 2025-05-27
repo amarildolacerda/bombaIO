@@ -132,6 +132,8 @@ public:
 
                 Logger::log(LogLevel::RECEIVE, fullLogMsg);
                 Logger::log(LogLevel::RECEIVE, buffer);
+                if (mto==terminalId)
+                  return true;
             }
             //   printRow("Saindo RX");
 #ifdef MESH
@@ -146,9 +148,9 @@ public:
                 }
             }
 #endif
-            return _promiscuos;
+            return _promiscuos || (mto == 0xFF);
         }
-        return false;
+        return true;
     }
 
     uint8_t headerTo()

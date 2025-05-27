@@ -45,6 +45,11 @@ public:
             uint8_t len = sizeof(buf);
             if (lora.receive(buf, &len))
             {
+#ifdef DEBUG_ON
+                Serial.print(F(" Recebido de "));
+                Serial.println(lora.headerFrom());
+                Serial.println(buf);
+#endif
                 handleMessage(buf);
             }
         }
@@ -114,6 +119,10 @@ public:
     {
         uint8_t tfrom = lora.headerFrom();
         bool handled = false;
+#ifdef DEBUG_ON
+        Serial.print("Recebido: ");
+        Serial.println(message);
+#endif
         if (strcmp(message, "ack") == 0)
             return true;
         if (strcmp(message, "nak") == 0)
@@ -126,6 +135,15 @@ public:
         // Divide a string usando '|' como delimitador
         const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
         const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
+
+#ifdef DEBUG_ON
+        Serial.println("Tratando os dados");
+        Serial.print("Evento: ");
+        Serial.print(event);
+        Serial.print(" Valor: ");
+        Serial.println(value);
+#endif
+
         if ((event == NULL) || (value == NULL))
             return false;
 
