@@ -52,7 +52,7 @@ public:
         {
             if (millis() - statusUpdater > Config::STATUS_INTERVAL)
             {
-                sendStatus(0);
+                sendStatus(0, "loop.status");
             }
         }
     }
@@ -60,10 +60,25 @@ public:
     {
         char msg[Config::MESSAGE_MAX_LEN] = {0};
         sprintf(msg, String(event + "|" + value).c_str());
-        lora.send(tid, msg, sizeof(msg));
+        lora.send(tid, msg);
     }
-    void sendStatus(uint8_t tid)
+    void sendStatus(uint8_t tid, String caller = "")
     {
+        if (caller.length() > 0)
+        {
+            Serial.print(F("Enviando status para "));
+            Serial.print("[");
+            Serial.print(terminalId);
+            Serial.print("-");
+            Serial.print(tid);
+            Serial.print("]");
+            if (!loraConnected)
+            {
+                Logger::error("LoRa nao conectado");
+                return;
+            }
+            Serial.println(caller);
+        }
         sendEvent(tid, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off");
         statusUpdater = millis();
     }
@@ -114,7 +129,7 @@ public:
 
         if (strcmp(event, "status") == 0)
         {
-            sendStatus(tfrom);
+            sendStatus(tfrom, "get.status");
             return true;
         }
         else if (strcmp(event, "presentation") == 0)
@@ -134,7 +149,7 @@ public:
             {
                 digitalWrite(Config::RELAY_PIN, (strcmp(value, "on") == 0) ? HIGH : LOW);
 
-                sendStatus(tfrom);
+                sendStatus(tfrom, "gpio.set");
                 savePinState(strcmp(value, "on") == 0);
                 handled = true;
             }
@@ -143,7 +158,7 @@ public:
                 int currentState = digitalRead(Config::RELAY_PIN);
                 digitalWrite(Config::RELAY_PIN, !currentState);
                 systemState.pinStateChanged = true;
-                sendStatus(tfrom);
+                sendStatus(tfrom, "gpio.toggle");
                 savePinState(!currentState);
                 handled = true;
             }

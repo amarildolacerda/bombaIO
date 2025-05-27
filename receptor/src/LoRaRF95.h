@@ -166,7 +166,13 @@ public:
         }
         bool result = false;
         uint8_t len = strlen(message);
-        uint8_t fromAjustado = (from == 0xFF) ? terminalId : from;
+        uint8_t fromAjustado = terminalId;
+        if (from != 0xFF)
+        {
+            fromAjustado = from;
+        }
+        Serial.print(F("Enviando mensagem de "));
+        Serial.println(fromAjustado);
         rf95.setModeTx();
         rf95.setHeaderFrom(fromAjustado);
         rf95.setHeaderTo(tid);
