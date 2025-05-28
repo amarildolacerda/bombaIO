@@ -54,11 +54,14 @@ bool LoRaCom::initialize()
     return true;
 }
 
-long lastSendTime = -20000;
+long lastSendTime = 25000;
+long lastPing = 51111;
+long lastReceive = 0;
 void LoRaCom::handle()
 {
     if (loraInstance->available())
     {
+        lastReceive = millis();
         if (onReceiveCallback)
         {
             onReceiveCallback(loraInstance);
@@ -85,6 +88,20 @@ void LoRaCom::handle()
     {
         lastSendTime = millis();
         LoRaCom::sendTime();
+    }
+    if (millis() - lastPing > 60000)
+    {
+        lastPing = millis();
+        for (const auto dev : DeviceInfo::deviceRegList)
+        {
+            yield();
+            delay(50);
+            sendCommand("alive", "gw", dev.tid);
+        }
+    }
+    if (millis() - lastReceive > 60000)
+    {
+        ESP.restart();
     }
 }
 

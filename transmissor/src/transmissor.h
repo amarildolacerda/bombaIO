@@ -93,8 +93,7 @@ private:
                 Logger::info(logMsg);
 
                 LoRaCom::sendCommand("gpio", state ? "on" : "off", dev.tid);
-                delay(50);
-                LoRaCom::sendCommand("status", "get", dev.tid);
+
                 break;
             }
         }

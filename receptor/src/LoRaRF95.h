@@ -57,6 +57,7 @@ public:
     {
         if (mesh.active)
         {
+            delay(100);
             mesh.active = false;
             Serial.print("MESH ");
             send(mesh.to, mesh.msg, mesh.from, mesh.live, mesh.id);
