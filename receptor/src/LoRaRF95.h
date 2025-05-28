@@ -10,6 +10,9 @@
 #endif
 
 #define ALIVE_PACKET 3
+#define MESH_TIMEOUT_MS 1000
+#define MAX_DEVICES 255
+#define MESSAGE_TIMEOUT_MS 2000
 
 //--------------------------------------------------RF
 SoftwareSerial RFSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
@@ -22,7 +25,40 @@ struct meshrec
     char msg[128];
     uint8_t live;
     uint8_t id;
+    uint32_t lastSentTime = 0;
 };
+
+uint8_t noMesh[(MAX_DEVICES + 7) / 8] = {0}; // 32 bytes (256 bits)
+
+// Funções de manipulação do bitmask
+void setDeviceActive(uint8_t deviceId)
+{
+    if (deviceId <= MAX_DEVICES)
+    {
+        noMesh[deviceId / 8] |= (1 << (deviceId % 8));
+    }
+}
+
+bool isDeviceActive(uint8_t deviceId)
+{
+    if (deviceId > MAX_DEVICES)
+        return false;
+    return (noMesh[deviceId / 8] & (1 << (deviceId % 8))) != 0;
+}
+
+void clearDeviceActive(uint8_t deviceId)
+{
+    if (deviceId <= MAX_DEVICES)
+    {
+        noMesh[deviceId / 8] &= ~(1 << (deviceId % 8));
+    }
+}
+
+bool isValidMessage(const char *msg, uint8_t len)
+{
+    return (len >= 4) && (msg[1] == '{') && (msg[len - 1] == '}');
+}
+
 class LoraRF
 {
 private:
@@ -30,86 +66,79 @@ private:
     RH_RF95<decltype(RFSerial)> rf95;
     uint8_t terminalId = 1;
     bool _promiscuos = false;
-    uint8_t _hto = 0xFF;
-    uint8_t _hfrom = 0xFF;
     const uint8_t STX = '{';
     const uint8_t ETX = '}';
     uint8_t sender = 0xFF;
     uint8_t nHeaderId = 0;
-    // const char *terminalName = Config::TERMINAL_NAME;
 
 public:
     bool connected = false;
+    bool sendPong = false;
+    uint8_t sendPongFrom = 0;
+
     LoraRF() : rf95(RFSerial) {}
+
     bool begin(uint8_t terminal_Id, long band, bool promisc = true)
     {
-
         terminalId = Config::TERMINAL_ID;
         RFSerial.begin(Config::LORA_SPEED);
         connected = rf95.init();
         _promiscuos = promisc;
-        rf95.setPromiscuous(true); // ajusta situaçoes que não reconhece
+        rf95.setPromiscuous(true);
         rf95.setFrequency(band);
         rf95.setHeaderFlags(0, RH_FLAGS_NONE);
         rf95.setTxPower(14, false);
         return connected;
     }
+
     bool loop()
     {
-        if (mesh.active)
+        if (mesh.active && (millis() - mesh.lastSentTime > MESH_TIMEOUT_MS))
         {
-            delay(100);
+            mesh.lastSentTime = millis();
             mesh.active = false;
-            Serial.print("MESH ");
+            Logger::log(LogLevel::INFO, "Retransmitindo MESH [%d->%d]: %s",
+                        mesh.from, mesh.to, mesh.msg);
             send(mesh.to, mesh.msg, mesh.from, mesh.live, mesh.id);
+        }
+        else if (sendPong)
+        {
+            sendPong = false;
+            send(sendPongFrom, "pong|0", terminalId);
         }
         return true;
     }
+
     bool receive(char *buffer, uint8_t *len)
     {
         return receiveMessage(buffer, len);
     }
 
-    void printRow(const char *msg)
-    {
-#ifdef DEBUG_ON
-        Serial.println();
-        Serial.print(msg);
-        Serial.println("------------------------------------------------");
-#endif
-    }
-
     void ackIf(bool ack = false)
     {
         if (rf95.headerTo() == terminalId)
-            send(rf95.headerFrom(), (ack) ? "ack" : "nak");
+        {
+            send(rf95.headerFrom(), (ack) ? "ack" : "nak", rf95.headerTo());
+        }
     }
-    bool noMesh[255];
+
     bool receiveMessage(char *buffer, uint8_t *len)
     {
         if (!rf95.waitAvailableTimeout(10))
+        {
             return false;
+        }
 
-#ifdef DEBUG_ON
-        Serial.print("RX ");
-#endif
         uint8_t recvLen = Config::MESSAGE_MAX_LEN + 3;
         char localBuffer[recvLen] = {0};
+
         if (rf95.recv((uint8_t *)localBuffer, &recvLen))
         {
             localBuffer[recvLen] = '\0';
-            String sResult = String(localBuffer).substring(2, recvLen - 1);
-            // posicao 0 é o sender, retirar ele da mensagem
-            if (recvLen < 3)
+
+            if (!isValidMessage(localBuffer, recvLen))
             {
-                Logger::error((char *)"Mensagem muito curta");
-                ackIf(false);
-                return false;
-            }
-            if (localBuffer[1] != STX || localBuffer[recvLen - 1] != ETX)
-            {
-                Logger::error("Mensagem inválida ");
-                // Logger::error(localBuffer);
+                Logger::error("Mensagem inválida. STX/ETX ausentes ou tamanho insuficiente");
                 ackIf(false);
                 return false;
             }
@@ -118,11 +147,12 @@ public:
             uint8_t mfrom = rf95.headerFrom();
             sender = (uint8_t)localBuffer[0];
 
-            if (sender == terminalId)
+            if (sender == terminalId || mfrom == terminalId)
+            {
                 return false;
+            }
 
-            // copiar para message o byte 2 em diante e largar o ETX
-            recvLen -= 3; // -2 para STX e ETX
+            recvLen -= 3; // Remove STX, ETX e ID
             if (recvLen > Config::MESSAGE_MAX_LEN)
             {
                 Logger::error("Mensagem muito longa");
@@ -130,111 +160,79 @@ public:
                 return false;
             }
 
-            // Filtro de destino
-            if (mfrom == terminalId)
-                return false;
+            strncpy(buffer, localBuffer + 2, recvLen);
+            buffer[recvLen] = '\0';
+            *len = recvLen;
 
-            Serial.println(sResult);
-            if (sResult.indexOf("ping") >= 0)
+            // Tratamento de ping/pong
+            if (strstr(buffer, "ping") != NULL)
             {
-                // se nao for meu não deve responder
                 if (mto != terminalId)
                     return false;
-                // String sCmd = "pong|0" + (String)terminalName;
-                send(0, (char *)"pong|0");
+                sendPong = true;
+                sendPongFrom = mfrom;
                 return true;
             }
-            if (sResult.indexOf("pong") >= 0)
+
+            if (strstr(buffer, "pong") != NULL)
             {
-                // nao prescisa enviar mesh
-                noMesh[mfrom] = true;
+                if (!isDeviceActive(mfrom))
+                {
+                    Logger::log(LogLevel::INFO, "Recebido pong de: %d", mfrom);
+                    setDeviceActive(mfrom);
+                }
                 return false;
             }
 
-            *len = sResult.length();
-            strncpy(buffer, sResult.c_str(), *len);
-            buffer[*len] = '\0'; // Garantir que a string esteja terminada
-
-            if ((mto == terminalId) || (mto = 0xFF))
+            if ((mto == terminalId) || (mto == 0xFF))
             {
-#ifdef DEBUG_ON
-                // printHex(localBuffer, strlen(localBuffer));
-                /* char fullLogMsg[128] = {0};
-                 snprintf(fullLogMsg, sizeof(fullLogMsg),
-                          "(%d)[%d→%d] L:%d",
-                          sender,
-                          rf95.headerFrom(),
-                          rf95.headerTo(),
-                          recvLen);
-                 Logger::log(LogLevel::RECEIVE, fullLogMsg);
-                 */
-                Serial.print("\033[32m");
-
-                Serial.print("[SEND]-[");
-                Serial.print(mfrom);
-                Serial.print("-");
-                Serial.print(mto);
-                Serial.print("] ");
-                Serial.print(recvLen);
-                Serial.print("\033[0m"); // Reset color if used
-                Serial.println();
-
-                // Serial.println(buffer);
-#endif
+                Logger::log(LogLevel::DEBUG, "Mensagem direta [%d->%d]: %s", mfrom, mto, buffer);
                 if (mto == terminalId)
                     return true;
             }
-            //   printRow("Saindo RX");
+
 #ifdef MESH
             uint8_t salto = rf95.headerFlags();
             if (salto > 1 && salto <= ALIVE_PACKET)
             {
-                if (mto != terminalId && !noMesh[mesh.from])
+                if (mto != terminalId && !isDeviceActive(mfrom))
                 {
                     salto--;
-                    // Logger::info(String("MESH to: " + String(rf95.headerTo()) + " live: " + String(salto)).c_str());
-                    mesh.to = rf95.headerTo();
-                    mesh.from = rf95.headerFrom();
-                    mesh.id = rf95.headerFlags();
+                    mesh.to = mto;
+                    mesh.from = mfrom;
+                    mesh.id = rf95.headerId();
                     memset(mesh.msg, 0, sizeof(mesh.msg));
-                    strncpy(mesh.msg, sResult.c_str(), *len);
+                    strncpy(mesh.msg, buffer, *len);
                     mesh.live = salto;
                     mesh.active = strlen(mesh.msg) > 2;
+                    mesh.lastSentTime = 0;
                 }
             }
 #endif
             return _promiscuos || (mto == 0xFF);
         }
-        return true;
+        return false;
     }
 
-    uint8_t headerTo()
+    bool send(uint8_t terminalTo, const String &buffer, uint8_t terminalFrom)
     {
-        return rf95.headerTo();
+        return send(terminalTo, buffer.c_str(), terminalFrom);
     }
-    uint8_t headerFrom()
-    {
-        return rf95.headerFrom();
-    }
-    bool send(uint8_t terminalTo, String buffer)
-    {
-        return send(terminalTo, (char *)buffer.c_str(), buffer.length());
-    }
-    bool send(uint8_t terminalTo, char *message, uint8_t terminalFrom = Config::TERMINAL_ID, uint8_t salto = ALIVE_PACKET, uint8_t seq = 0)
-    {
 
-#ifdef DEBUG_ON
-        Serial.print("TX ");
-#endif
-        bool result = false;
+    bool send(uint8_t terminalTo, const char *message, uint8_t terminalFrom,
+              uint8_t salto = ALIVE_PACKET, uint8_t seq = 0)
+    {
         uint8_t len = strlen(message);
+        if (len == 0 || len > Config::MESSAGE_MAX_LEN)
+        {
+            Logger::error("Tamanho de mensagem inválido para envio");
+            return false;
+        }
 
         rf95.setModeTx();
         rf95.setHeaderFrom(terminalFrom);
         rf95.setHeaderTo(terminalTo);
-        if (seq == 0)
-            seq = ++nHeaderId;
-        rf95.setHeaderId(seq);
+        rf95.setHeaderId(seq ? seq : ++nHeaderId);
         rf95.setHeaderFlags(salto, 0xFF);
 
         char fullMessage[Config::MESSAGE_MAX_LEN + 3];
@@ -244,60 +242,30 @@ public:
         fullMessage[len + 2] = ETX;
         fullMessage[len + 3] = '\0';
 
-        if (rf95.send((uint8_t *)fullMessage, strlen(fullMessage)))
+        bool result = false;
+        if (rf95.send((uint8_t *)fullMessage, len + 3))
         {
-            if (rf95.waitPacketSent(2000))
+            if (rf95.waitPacketSent(MESSAGE_TIMEOUT_MS))
             {
-                Serial.print("[");
-                Serial.print(terminalFrom);
-                Serial.print("-");
-                Serial.print(terminalTo);
-                Serial.print("] ");
-                Logger::log(LogLevel::SEND, message);
-#ifdef DEBUG_ON
-                // printHex(fullMessage, len + 2);
-                // Serial.print(fullMessage);
-                char fullLogMsg[64];
-                snprintf(fullLogMsg, sizeof(fullLogMsg),
-                         "(%d)[%d-%d] L:%d",
-                         terminalId,
-                         terminalFrom,
-                         terminalTo,
-                         len);
-                Logger::log(LogLevel::SEND, fullLogMsg);
-#endif
+                Logger::log(LogLevel::INFO, "Enviado [%d->%d]: %s", terminalFrom, terminalTo, message);
+                result = true;
             }
-        };
-        rf95.setModeRx();
+        }
 
-        // printRow("Saindo TX");
+        rf95.setModeRx();
         return result;
     }
 
-    void printHex(char *fullMessage, uint8_t len)
-    {
-#ifdef xDEBUG_ON
-        // Serial.println(fullMessage);
-        Serial.print("HEX: ");
-        Serial.print(len);
-        Serial.print(" bytes: ");
-
-        for (size_t i = 0; i < strlen(fullMessage); i++)
-        {
-            if (fullMessage[i] < 0x10)
-                Serial.print('0'); // zero padding para valores < 0x10
-            Serial.print(fullMessage[i], HEX);
-            Serial.print(' ');
-        }
-        Serial.println("");
-
-#endif
-    }
     bool available()
     {
         return rf95.waitAvailableTimeout(10);
     }
+    uint8_t headerFrom()
+    {
+        return rf95.headerFrom();
+    }
 };
+
 static LoraRF lora;
 
 #endif

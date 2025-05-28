@@ -74,7 +74,7 @@ public:
     {
         char msg[Config::MESSAGE_MAX_LEN] = {0};
         sprintf(msg, String(event + "|" + value).c_str());
-        lora.send(tid, msg);
+        lora.send(tid, msg, terminalId);
     }
     void sendStatus(uint8_t tid, String caller = "")
     {
@@ -131,16 +131,6 @@ public:
         const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
         const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
 
-#ifdef DEBUG_ON
-        Logger::info(String("Proc Event: " + (String)event + " Value: " + (String)value).c_str());
-        /*Serial.println("Evn");
-        Serial.print("Evento: ");
-        Serial.print(event);
-        Serial.print(" Valor: ");
-        Serial.println(value);
-        */
-#endif
-
         if ((event == NULL) || (value == NULL))
             return false;
 
@@ -182,7 +172,7 @@ public:
         }
         else if (strcmp(event, "ping") == 0)
         {
-            lora.send(tfrom, (char *)"pong");
+            lora.send(tfrom, (char *)"pong", 0);
             // nao responde com ack nem nak
             return true;
         }
@@ -208,7 +198,7 @@ public:
     }
     void ack(uint8_t tid, bool handled)
     {
-        lora.send(tid, (char *)"ack");
+        lora.send(tid, (char *)"ack", terminalId);
     }
 };
 

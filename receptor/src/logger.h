@@ -1,8 +1,9 @@
-
 #ifndef LOGGER_H
 #define LOGGER_H
 
 #include "Arduino.h"
+#include <stdarg.h>
+
 //--------------------------------------------------LOG
 enum class LogLevel
 {
@@ -14,22 +15,61 @@ enum class LogLevel
     DEBUG,
     VERBOSE
 };
+
 class Logger
 {
+private:
+    static const size_t MAX_LOG_LENGTH = 128; // Maximum length of log message
+
 public:
-    static void info(const char *msg)
+    static void info(const char *msg, ...)
     {
-        log(LogLevel::INFO, msg);
+        va_list args;
+        va_start(args, msg);
+        log(LogLevel::INFO, msg, args);
+        va_end(args);
     }
-    static void error(const char *msg)
+
+    static void error(const char *msg, ...)
     {
-        log(LogLevel::ERROR, msg);
+        va_list args;
+        va_start(args, msg);
+        log(LogLevel::ERROR, msg, args);
+        va_end(args);
     }
-    static bool log(const LogLevel level, const char *msg)
+
+    static void debug(const char *msg, ...)
     {
+        va_list args;
+        va_start(args, msg);
+        log(LogLevel::DEBUG, msg, args);
+        va_end(args);
+    }
+
+    static void warning(const char *msg, ...)
+    {
+        va_list args;
+        va_start(args, msg);
+        log(LogLevel::WARNING, msg, args);
+        va_end(args);
+    }
+
+    static bool log(const LogLevel level, const char *msg, ...)
+    {
+        va_list args;
+        va_start(args, msg);
+        bool result = vlog(level, msg, args);
+        va_end(args);
+        return result;
+    }
+
+    static bool vlog(const LogLevel level, const char *msg, va_list args)
+    {
+        char formattedMsg[MAX_LOG_LENGTH];
+        vsnprintf(formattedMsg, MAX_LOG_LENGTH, msg, args);
 
 #ifndef DEBUG_ON
-        Serial.println(msg);
+        Serial.println(formattedMsg);
         return true;
 #else
         static const char levelStrings[][7] PROGMEM = {
@@ -60,8 +100,7 @@ public:
 //        Serial.print(getISOHour());
 #endif
         Serial.print(F("-"));
-
-        Serial.println(msg);
+        Serial.println(formattedMsg);
         Serial.print(F("\033[0m")); // Reset color if used
         return true;
 #endif
