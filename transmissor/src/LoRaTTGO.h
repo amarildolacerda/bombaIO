@@ -42,10 +42,6 @@ public:
     bool sendMessage(uint8_t tidTo, const char *message) override
     {
 
-#ifdef DEBUG_ON
-        Serial.print("entrou LoRa.sendmessage()");
-        Serial.print(message);
-#endif
         uint8_t len = strlen(message);
 
         LoRa.idle();
@@ -73,9 +69,6 @@ public:
 
         delay(50);
         LoRa.receive();
-#ifdef DEBUG_ON
-        Serial.println("saindo LoRa.sendmessage()");
-#endif
         return rt;
     }
 
@@ -84,9 +77,6 @@ public:
 
         if (!buffer)
             return false;
-#ifdef DEBUG_ON
-        Serial.print("entrou receiveMessage");
-#endif
         len = 0;
         if (!LoRa.available())
             return false;
@@ -141,9 +131,6 @@ public:
 
         if ((hFrom == terminalId || sender == terminalId))
         {
-#ifdef DEBUG_ON
-            Serial.println("saindo false receivemessage");
-#endif
             return false;
         }
 
@@ -156,15 +143,8 @@ public:
         if (!inPromiscuous)
         {
 
-#ifdef DEBUG_ON
-            Serial.println("saiu receivemessage");
-#endif
-
             return (hTo == 0xFF || hTo == terminalId);
         }
-#ifdef DEBUG_ON
-        Serial.println("saindo  true receivemessage");
-#endif
         return true;
     }
 

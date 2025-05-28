@@ -57,6 +57,7 @@ bool LoRaCom::initialize()
 long lastSendTime = 25000;
 long lastReceive = 0;
 long lastPing = 20000;
+uint8_t idPing = 0;
 void LoRaCom::handle()
 {
     if (loraInstance->available())
@@ -94,13 +95,16 @@ void LoRaCom::handle()
     {
         ESP.restart();
     }
-    if (millis() - lastPing > 30000)
+    if (millis() - lastPing > 30000 + idPing * 200)
     {
-        lastPing = millis();
-        for (const auto dev : DeviceInfo::deviceRegList)
+        if (idPing >= DeviceInfo::deviceRegList.size())
         {
-            yield();
-            delay(50);
+            idPing = 0;
+            lastPing = millis();
+            return;
+        }
+        DeviceRegData dev = DeviceInfo::deviceRegList[idPing++];
+        {
             sendCommand("ping", "gw", dev.tid);
         }
     }
