@@ -68,7 +68,7 @@ public:
         char formattedMsg[MAX_LOG_LENGTH];
         vsnprintf(formattedMsg, MAX_LOG_LENGTH, msg, args);
 
-#ifndef DEBUG_ON
+#ifndef xDEBUG_ON
         Serial.println(formattedMsg);
         return true;
 #else

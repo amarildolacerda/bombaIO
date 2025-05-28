@@ -13,6 +13,11 @@
 #define IDENTIFICATION_POWER_WINDOW_MS 60000UL // 1 minuto para 3 boots
 
 //-------------------------------------------------Setup
+typedef void (*CallbackFunction)(); // Define a assinatura do callback
+CallbackFunction callback;
+
+void initCallback(); // Variável para armazenar o callback
+
 class App
 {
 private:
@@ -20,6 +25,8 @@ private:
     bool loraConnected = false;
     const String terminalName = Config::TERMINAL_NAME;
     const uint8_t terminalId = Config::TERMINAL_ID;
+    bool statusChanged = false;
+    bool presentationChanged = false;
 
 public:
     void initLora()
@@ -48,7 +55,8 @@ public:
         if (lora.available())
         {
             ultimoReceived = millis();
-            char buf[Config::MESSAGE_MAX_LEN] = {0};
+            char buf[Config::MESSAGE_MAX_LEN];
+            memset(buf, 0, sizeof(buf));
             uint8_t len = sizeof(buf);
             if (lora.receive(buf, &len))
             {
@@ -59,7 +67,7 @@ public:
         {
             if (lora.connected)
             {
-                if (millis() - statusUpdater > Config::STATUS_INTERVAL)
+                if (statusChanged || millis() - statusUpdater > Config::STATUS_INTERVAL)
                 {
                     sendStatus(0, "loop.status");
                 }
@@ -67,6 +75,11 @@ public:
             if (millis() - ultimoReceived > 60000)
             {
                 initLora();
+            }
+            if (presentationChanged)
+            {
+                sendEvent(0, "presentation", terminalName);
+                presentationChanged = false;
             }
         }
     }
@@ -87,6 +100,7 @@ public:
 #endif
         sendEvent(tid, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off");
         statusUpdater = millis();
+        statusChanged = false;
     }
     // void (*resetFunc)(void) = 0;
 
@@ -112,6 +126,7 @@ public:
         bool savedState = readPinState();
         digitalWrite(Config::RELAY_PIN, savedState ? HIGH : LOW);
         Logger::info(String(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF").c_str());
+        initCallback();
     }
 
     bool handleMessage(char *message)
@@ -136,13 +151,14 @@ public:
 
         if (strcmp(event, "status") == 0)
         {
-            sendStatus(0, "get.status");
+            // sendStatus(0, "get.status");
+            statusChanged = true;
             return true;
         }
         else if (strcmp(event, "presentation") == 0)
         {
 
-            sendEvent(0, "presentation", terminalName);
+            presentationChanged = true;
             return true;
         }
         else if (strcmp(event, "reset") == 0)
@@ -200,8 +216,23 @@ public:
     {
         lora.send(tid, (char *)"ack", terminalId);
     }
+    void setStatusChanged(bool b)
+    {
+        statusChanged = b;
+    }
 };
 
 App app;
+
+void triggerCallback()
+{
+    app.setStatusChanged(true);
+}
+
+void initCallback()
+{
+    detachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN));
+    attachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN), triggerCallback, CHANGE);
+}
 
 //------------------------------------------------------app

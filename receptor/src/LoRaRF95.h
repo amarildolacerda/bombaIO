@@ -139,6 +139,7 @@ public:
             if (!isValidMessage(localBuffer, recvLen))
             {
                 Logger::error("Mensagem inválida. STX/ETX ausentes ou tamanho insuficiente");
+                Serial.println(localBuffer);
                 ackIf(false);
                 return false;
             }
@@ -173,8 +174,9 @@ public:
                 sendPongFrom = mfrom;
                 return true;
             }
+            else
 
-            if (strstr(buffer, "pong") != NULL)
+                if (strstr(buffer, "pong") != NULL)
             {
                 if (!isDeviceActive(mfrom))
                 {
@@ -182,6 +184,11 @@ public:
                     setDeviceActive(mfrom);
                 }
                 return false;
+            }
+            else
+            {
+                if (strstr(buffer, "time") != NULL)
+                    return false; // estava reiniciando
             }
 
             if ((mto == terminalId) || (mto == 0xFF))
