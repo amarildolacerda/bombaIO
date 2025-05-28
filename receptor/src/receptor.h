@@ -22,13 +22,18 @@ private:
     const uint8_t terminalId = Config::TERMINAL_ID;
 
 public:
+    void initLora()
+    {
+        loraConnected = lora.begin(terminalId, Config::BAND, Config::PROMISCUOS);
+    }
     void setup()
     {
         Serial.begin(Config::SERIAL_SPEED);
         while (!Serial)
             ;
-        loraConnected = lora.begin(terminalId, Config::BAND, Config::PROMISCUOS);
-        if (!loraConnected)
+        lora.begin(terminalId, Config::BAND, Config::PROMISCUOS);
+
+        if (!lora.connected)
         {
             Serial.print(F("LoRa nao iniciou"));
         };
@@ -36,11 +41,13 @@ public:
         pinMode(Config::RELAY_PIN, OUTPUT);
         initPinRelay();
     }
+    long ultimoReceived = 0;
     void loop()
     {
         lora.loop();
         if (lora.available())
         {
+            ultimoReceived = millis();
             char buf[Config::MESSAGE_MAX_LEN] = {0};
             uint8_t len = sizeof(buf);
             if (lora.receive(buf, &len))
@@ -50,9 +57,16 @@ public:
         }
         else
         {
-            if (millis() - statusUpdater > Config::STATUS_INTERVAL)
+            if (lora.connected)
             {
-                sendStatus(0, "loop.status");
+                if (millis() - statusUpdater > Config::STATUS_INTERVAL)
+                {
+                    sendStatus(0, "loop.status");
+                }
+            }
+            if (millis() - ultimoReceived > 60000)
+            {
+                initLora();
             }
         }
     }
@@ -67,17 +81,7 @@ public:
 #ifdef DEBUG_ON
         if (caller.length() > 0)
         {
-            Serial.print(F("Enviando status para "));
-            Serial.print("[");
-            Serial.print(terminalId);
-            Serial.print("-");
-            Serial.print(tid);
-            Serial.print("]");
-            if (!loraConnected)
-            {
-                Logger::error(String("LoRa nao conectado").c_str());
-                return;
-            }
+
             Serial.println(caller);
         }
 #endif

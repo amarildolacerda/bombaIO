@@ -14,9 +14,19 @@
 //--------------------------------------------------RF
 SoftwareSerial RFSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
 
+struct meshrec
+{
+    bool active = false;
+    uint8_t to;
+    uint8_t from;
+    char msg[128];
+    uint8_t live;
+    uint8_t id;
+};
 class LoraRF
 {
 private:
+    meshrec mesh;
     RH_RF95<decltype(RFSerial)> rf95;
     uint8_t terminalId = 1;
     bool _promiscuos = false;
@@ -32,6 +42,7 @@ public:
     LoraRF() : rf95(RFSerial) {}
     bool begin(uint8_t terminal_Id, long band, bool promisc = true)
     {
+
         terminalId = Config::TERMINAL_ID;
         RFSerial.begin(Config::LORA_SPEED);
         connected = rf95.init();
@@ -44,6 +55,12 @@ public:
     }
     bool loop()
     {
+        if (mesh.active)
+        {
+            mesh.active = false;
+            Serial.print("MESH ");
+            send(mesh.to, mesh.msg, mesh.from, mesh.live, mesh.id);
+        }
         return true;
     }
     bool receive(char *buffer, uint8_t *len)
@@ -88,7 +105,7 @@ public:
             if (localBuffer[1] != STX || localBuffer[recvLen - 1] != ETX)
             {
                 Logger::error("Mensagem inválida ");
-                Logger::error(localBuffer);
+                // Logger::error(localBuffer);
                 ackIf(false);
                 return false;
             }
@@ -119,15 +136,28 @@ public:
             if ((mto == terminalId) || (mto = 0xFF))
             {
 #ifdef DEBUG_ON
-                printHex(localBuffer, strlen(localBuffer));
-                char fullLogMsg[64];
-                snprintf(fullLogMsg, sizeof(fullLogMsg),
-                         "(%d)[%d→%d] L:%d",
-                         sender,
-                         rf95.headerFrom(),
-                         rf95.headerTo(),
-                         recvLen);
-                Logger::log(LogLevel::RECEIVE, fullLogMsg);
+                // printHex(localBuffer, strlen(localBuffer));
+                /* char fullLogMsg[128] = {0};
+                 snprintf(fullLogMsg, sizeof(fullLogMsg),
+                          "(%d)[%d→%d] L:%d",
+                          sender,
+                          rf95.headerFrom(),
+                          rf95.headerTo(),
+                          recvLen);
+                 Logger::log(LogLevel::RECEIVE, fullLogMsg);
+                 */
+                Serial.print("\033[32m");
+
+                Serial.print("[SEND]-[");
+                Serial.print(mfrom);
+                Serial.print("-");
+                Serial.print(mto);
+                Serial.print("] ");
+                Serial.print(recvLen);
+                Serial.print("\033[0m"); // Reset color if used
+                Serial.println();
+
+                // Serial.println(buffer);
 #endif
                 if (mto == terminalId)
                     return true;
@@ -140,8 +170,14 @@ public:
                 if (mto != terminalId)
                 {
                     salto--;
-                    Logger::info(String("MESH to: " + String(rf95.headerTo()) + " live: " + String(salto)).c_str());
-                    send(rf95.headerTo(), buffer, rf95.headerFrom(), salto, rf95.headerId());
+                    // Logger::info(String("MESH to: " + String(rf95.headerTo()) + " live: " + String(salto)).c_str());
+                    mesh.to = rf95.headerTo();
+                    mesh.from = rf95.headerFrom();
+                    mesh.id = rf95.headerFlags();
+                    memset(mesh.msg, 0, sizeof(mesh.msg));
+                    strncpy(mesh.msg, buffer, strlen(buffer));
+                    mesh.live = salto;
+                    mesh.active = true;
                 }
             }
 #endif
@@ -190,8 +226,15 @@ public:
         {
             if (rf95.waitPacketSent(2000))
             {
+                Serial.print("[");
+                Serial.print(terminalFrom);
+                Serial.print("-");
+                Serial.print(terminalTo);
+                Serial.print("] ");
+                Logger::log(LogLevel::SEND, message);
 #ifdef DEBUG_ON
-                printHex(fullMessage, len + 2);
+                // printHex(fullMessage, len + 2);
+                // Serial.print(fullMessage);
                 char fullLogMsg[64];
                 snprintf(fullLogMsg, sizeof(fullLogMsg),
                          "(%d)[%d-%d] L:%d",
@@ -211,12 +254,12 @@ public:
 
     void printHex(char *fullMessage, uint8_t len)
     {
-#ifdef DEBUG_ON
-
+#ifdef xDEBUG_ON
         // Serial.println(fullMessage);
         Serial.print("HEX: ");
         Serial.print(len);
         Serial.print(" bytes: ");
+
         for (size_t i = 0; i < strlen(fullMessage); i++)
         {
             if (fullMessage[i] < 0x10)
@@ -225,6 +268,7 @@ public:
             Serial.print(' ');
         }
         Serial.println("");
+
 #endif
     }
     bool available()
