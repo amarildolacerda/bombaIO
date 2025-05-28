@@ -71,7 +71,7 @@ private:
         {
             if (strcmp(dev.uniqueName().c_str(), device_name) == 0)
             {
-                LoRaCom::sendCommand("status", "get", dev.tid);
+                // LoRaCom::sendCommand("status", "get", dev.tid);
             }
         }
     }

@@ -55,8 +55,8 @@ bool LoRaCom::initialize()
 }
 
 long lastSendTime = 25000;
-long lastPing = 51111;
 long lastReceive = 0;
+long lastPing = 20000;
 void LoRaCom::handle()
 {
     if (loraInstance->available())
@@ -89,19 +89,20 @@ void LoRaCom::handle()
         lastSendTime = millis();
         LoRaCom::sendTime();
     }
-    if (millis() - lastPing > 60000)
+
+    if (millis() - lastReceive > 60000)
+    {
+        ESP.restart();
+    }
+    if (millis() - lastPing > 30000)
     {
         lastPing = millis();
         for (const auto dev : DeviceInfo::deviceRegList)
         {
             yield();
             delay(50);
-            sendCommand("alive", "gw", dev.tid);
+            sendCommand("ping", "gw", dev.tid);
         }
-    }
-    if (millis() - lastReceive > 60000)
-    {
-        ESP.restart();
     }
 }
 
@@ -222,25 +223,12 @@ bool LoRaCom::waitAck()
 
 bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
 {
-#ifdef DEBUG_ON
-    Serial.print("entrou sendCommand");
-#endif
     char output[Config::MESSAGE_LEN];
     memset(output, 0, sizeof(output));
     formatMessage(output, tid, event.c_str(), value.c_str());
-    // Garante null-terminator
-    // output[Config::MESSAGE_LEN - 1] = '\0';
     size_t msgLen = strlen(output);
-    // if (msgLen == 0 || output[msgLen - 1] != '\0')
-    // {
-    //     output[msgLen] = '\0';
-    // }
-    // loraInstance->setHeaderTo(tid);
     bool rt = loraInstance->sendMessage(tid, output);
 
-#ifdef DEBUG_ON
-    Serial.print("saindo sendMessage");
-#endif
     if (!rt)
     {
         Logger::log(LogLevel::ERROR, F("Falha ao enviar comando LoRa"));

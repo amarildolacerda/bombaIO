@@ -36,6 +36,7 @@ private:
     const uint8_t ETX = '}';
     uint8_t sender = 0xFF;
     uint8_t nHeaderId = 0;
+    // const char *terminalName = Config::TERMINAL_NAME;
 
 public:
     bool connected = false;
@@ -83,6 +84,7 @@ public:
         if (rf95.headerTo() == terminalId)
             send(rf95.headerFrom(), (ack) ? "ack" : "nak");
     }
+    bool noMesh[255];
     bool receiveMessage(char *buffer, uint8_t *len)
     {
         if (!rf95.waitAvailableTimeout(10))
@@ -96,6 +98,7 @@ public:
         if (rf95.recv((uint8_t *)localBuffer, &recvLen))
         {
             localBuffer[recvLen] = '\0';
+            String sResult = String(localBuffer).substring(2, recvLen - 1);
             // posicao 0 é o sender, retirar ele da mensagem
             if (recvLen < 3)
             {
@@ -126,13 +129,31 @@ public:
                 ackIf(false);
                 return false;
             }
-            strncpy(buffer, localBuffer + 2, recvLen);
-            buffer[recvLen] = '\0'; // Garantir que a string esteja terminada
-            *len = recvLen;
 
             // Filtro de destino
             if (mfrom == terminalId)
                 return false;
+
+            Serial.println(sResult);
+            if (sResult.indexOf("ping") >= 0)
+            {
+                // se nao for meu não deve responder
+                if (mto != terminalId)
+                    return false;
+                // String sCmd = "pong|0" + (String)terminalName;
+                send(0, (char *)"pong|0");
+                return true;
+            }
+            if (sResult.indexOf("pong") >= 0)
+            {
+                // nao prescisa enviar mesh
+                noMesh[mfrom] = true;
+                return false;
+            }
+
+            *len = sResult.length();
+            strncpy(buffer, sResult.c_str(), *len);
+            buffer[*len] = '\0'; // Garantir que a string esteja terminada
 
             if ((mto == terminalId) || (mto = 0xFF))
             {
@@ -168,7 +189,7 @@ public:
             uint8_t salto = rf95.headerFlags();
             if (salto > 1 && salto <= ALIVE_PACKET)
             {
-                if (mto != terminalId)
+                if (mto != terminalId && !noMesh[mesh.from])
                 {
                     salto--;
                     // Logger::info(String("MESH to: " + String(rf95.headerTo()) + " live: " + String(salto)).c_str());
@@ -176,9 +197,9 @@ public:
                     mesh.from = rf95.headerFrom();
                     mesh.id = rf95.headerFlags();
                     memset(mesh.msg, 0, sizeof(mesh.msg));
-                    strncpy(mesh.msg, buffer, strlen(buffer));
+                    strncpy(mesh.msg, sResult.c_str(), *len);
                     mesh.live = salto;
-                    mesh.active = true;
+                    mesh.active = strlen(mesh.msg) > 2;
                 }
             }
 #endif
