@@ -25,14 +25,14 @@ private:
     bool loraConnected = false;
     const String terminalName = Config::TERMINAL_NAME;
     const uint8_t terminalId = Config::TERMINAL_ID;
-    bool statusChanged = false;
-    bool presentationChanged = false;
 
 public:
     void initLora()
     {
         loraConnected = lora.begin(terminalId, Config::BAND, Config::PROMISCUOS);
     }
+
+    long sendUpdated = 0;
     void setup()
     {
         Serial.begin(Config::SERIAL_SPEED);
@@ -63,46 +63,42 @@ public:
                 handleMessage(buf);
             }
         }
-        else
+        else if (millis() - sendUpdated > 100)
         {
+            sendUpdated = millis();
             if (lora.connected)
             {
-                if (statusChanged || millis() - statusUpdater > Config::STATUS_INTERVAL)
+                if (millis() - statusUpdater > Config::STATUS_INTERVAL)
                 {
-                    sendStatus(0, "loop.status");
+                    setStatusChanged(true);
+                    statusUpdater = millis();
                 }
             }
             if (millis() - ultimoReceived > 60000)
             {
                 initLora();
             }
-            if (presentationChanged)
+            MessageRec rec;
+            if (systemState.messages.pop(rec))
             {
-                sendEvent(0, "presentation", terminalName);
-                presentationChanged = false;
+                sendEvent(rec.to, rec.event, rec.value);
             }
         }
     }
     void sendEvent(uint8_t tid, String event, String value)
     {
-        char msg[Config::MESSAGE_MAX_LEN] = {0};
-        sprintf(msg, String(event + "|" + value).c_str());
+        if (event.indexOf("ack") >= 0 || event.indexOf("nak") >= 0)
+        {
+            lora.send(tid, event.c_str(), terminalId);
+
+            return;
+        }
+
+        char msg[Config::MESSAGE_MAX_LEN];
+        memset(msg, 0, sizeof(msg));
+        snprintf(msg, sizeof(msg), "%s|%s", event.c_str(), value.c_str());
         lora.send(tid, msg, terminalId);
     }
-    void sendStatus(uint8_t tid, String caller = "")
-    {
-#ifdef DEBUG_ON
-        if (caller.length() > 0)
-        {
-
-            Serial.println(caller);
-        }
-#endif
-        sendEvent(tid, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off");
-        statusUpdater = millis();
-        statusChanged = false;
-    }
-    // void (*resetFunc)(void) = 0;
 
     void savePinState(bool state)
     {
@@ -152,13 +148,13 @@ public:
         if (strcmp(event, "status") == 0)
         {
             // sendStatus(0, "get.status");
-            statusChanged = true;
+            setStatusChanged(true);
             return true;
         }
         else if (strcmp(event, "presentation") == 0)
         {
 
-            presentationChanged = true;
+            systemState.messages.push(0, "presentation", terminalName);
             return true;
         }
         else if (strcmp(event, "reset") == 0)
@@ -171,42 +167,15 @@ public:
             if (strcmp(value, "on") == 0 || strcmp(value, "off") == 0)
             {
                 digitalWrite(Config::RELAY_PIN, (strcmp(value, "on") == 0) ? HIGH : LOW);
-
-                sendStatus(0, "gpio.set");
-                savePinState(strcmp(value, "on") == 0);
                 handled = true;
             }
             else if (strcmp(value, "toggle") == 0)
             {
                 int currentState = digitalRead(Config::RELAY_PIN);
                 digitalWrite(Config::RELAY_PIN, !currentState);
-                systemState.pinStateChanged = true;
-                sendStatus(0, "gpio.toggle");
-                savePinState(!currentState);
                 handled = true;
             }
-        }
-        else if (strcmp(event, "ping") == 0)
-        {
-            lora.send(tfrom, (char *)"pong", 0);
-            // nao responde com ack nem nak
-            return true;
-        }
-        else if (strcmp(event, "time") == 0)
-        {
-            handled = true;
-#ifdef TIMESTAMP
-
-            // if (timestamp.isValidTimeFormat(value))
-            // {
-            //     timestamp.setCurrentTime(value);
-            //     handled = true;
-            // }
-            // else
-            // {
-            //     Serial.println(F("Erro: Timestamp formato de tempo inválido"));
-            // }
-#endif
+            setStatusChanged(true);
         }
 
         ack(tfrom, handled);
@@ -214,11 +183,11 @@ public:
     }
     void ack(uint8_t tid, bool handled)
     {
-        lora.send(tid, (char *)"ack", terminalId);
+        systemState.messages.push(tid, handled ? "ack" : "nak", "");
     }
     void setStatusChanged(bool b)
     {
-        statusChanged = b;
+        systemState.messages.push(0, "status", b ? "on" : "off");
     }
 };
 
@@ -226,7 +195,9 @@ App app;
 
 void triggerCallback()
 {
+    app.savePinState(digitalRead(Config::RELAY_PIN));
     app.setStatusChanged(true);
+    systemState.pinStateChanged = true;
 }
 
 void initCallback()

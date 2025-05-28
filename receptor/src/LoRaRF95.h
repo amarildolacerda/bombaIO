@@ -73,8 +73,6 @@ private:
 
 public:
     bool connected = false;
-    bool sendPong = false;
-    uint8_t sendPongFrom = 0;
 
     LoraRF() : rf95(RFSerial) {}
 
@@ -101,11 +99,7 @@ public:
                         mesh.from, mesh.to, mesh.msg);
             send(mesh.to, mesh.msg, mesh.from, mesh.live, mesh.id);
         }
-        else if (sendPong)
-        {
-            sendPong = false;
-            send(sendPongFrom, "pong|0", terminalId);
-        }
+
         return true;
     }
 
@@ -118,7 +112,8 @@ public:
     {
         if (rf95.headerTo() == terminalId)
         {
-            send(rf95.headerFrom(), (ack) ? "ack" : "nak", rf95.headerTo());
+            systemState.messages.push(rf95.headerFrom(),
+                                      (ack) ? "ack" : "nak", "");
         }
     }
 
@@ -170,8 +165,7 @@ public:
             {
                 if (mto != terminalId)
                     return false;
-                sendPong = true;
-                sendPongFrom = mfrom;
+                systemState.messages.push(mfrom, "pong", "0");
                 return true;
             }
             else
