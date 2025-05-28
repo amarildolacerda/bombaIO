@@ -17,18 +17,18 @@ enum class LogLevel
 class Logger
 {
 public:
-    static void info(String msg)
+    static void info(const char *msg)
     {
         log(LogLevel::INFO, msg);
     }
-    static void error(String msg)
+    static void error(const char *msg)
     {
         log(LogLevel::ERROR, msg);
     }
-    static bool log(const LogLevel level, const String msg)
+    static bool log(const LogLevel level, const char *msg)
     {
 
-#ifndef DEBOG_ON
+#ifndef DEBUG_ON
         Serial.println(msg);
         return true;
 #else

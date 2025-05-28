@@ -45,11 +45,6 @@ public:
             uint8_t len = sizeof(buf);
             if (lora.receive(buf, &len))
             {
-#ifdef DEBUG_ON
-                Serial.print(F(" Recebido de "));
-                Serial.println(lora.headerFrom());
-                Serial.println(buf);
-#endif
                 handleMessage(buf);
             }
         }
@@ -80,7 +75,7 @@ public:
             Serial.print("]");
             if (!loraConnected)
             {
-                Logger::error("LoRa nao conectado");
+                Logger::error(String("LoRa nao conectado").c_str());
                 return;
             }
             Serial.println(caller);
@@ -112,17 +107,13 @@ public:
         pinMode(Config::RELAY_PIN, OUTPUT);
         bool savedState = readPinState();
         digitalWrite(Config::RELAY_PIN, savedState ? HIGH : LOW);
-        Logger::info(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF");
+        Logger::info(String(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF").c_str());
     }
 
     bool handleMessage(char *message)
     {
         uint8_t tfrom = lora.headerFrom();
         bool handled = false;
-#ifdef DEBUG_ON
-        Serial.print("Recebido: ");
-        Serial.println(message);
-#endif
         if (strcmp(message, "ack") == 0)
             return true;
         if (strcmp(message, "nak") == 0)
@@ -137,11 +128,13 @@ public:
         const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
 
 #ifdef DEBUG_ON
-        Serial.println("Tratando os dados");
+        Logger::info(String("Proc Event: " + (String)event + " Value: " + (String)value).c_str());
+        /*Serial.println("Evn");
         Serial.print("Evento: ");
         Serial.print(event);
         Serial.print(" Valor: ");
         Serial.println(value);
+        */
 #endif
 
         if ((event == NULL) || (value == NULL))

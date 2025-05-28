@@ -153,7 +153,7 @@ public:
     void setup()
     {
         // Configurar watchdog
-        esp_task_wdt_init(30, true);
+        esp_task_wdt_init(60, true);
 
         // Inicialização segura da Serial
         Serial.begin(Config::SERIAL_BAUD);

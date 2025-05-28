@@ -70,18 +70,18 @@ public:
         if (!rf95.waitAvailableTimeout(10))
             return false;
 
+#ifdef DEBUG_ON
+        Serial.print("RX ");
+#endif
         uint8_t recvLen = Config::MESSAGE_MAX_LEN + 3;
         char localBuffer[recvLen] = {0};
-#ifdef DEBUG_ON
-        printRow("Entra RX");
-#endif
         if (rf95.recv((uint8_t *)localBuffer, &recvLen))
         {
             localBuffer[recvLen] = '\0';
             // posicao 0 é o sender, retirar ele da mensagem
             if (recvLen < 3)
             {
-                Logger::error("Mensagem muito curta");
+                Logger::error((char *)"Mensagem muito curta");
                 ackIf(false);
                 return false;
             }
@@ -93,10 +93,7 @@ public:
                 return false;
             }
 
-#ifdef DEBUG_ON
-            printHex(localBuffer, strlen(localBuffer));
-#endif
-            sender = localBuffer[0];
+            sender = (uint8_t)localBuffer[0];
 
             if (sender == terminalId)
                 return false;
@@ -111,10 +108,6 @@ public:
             }
             strncpy(buffer, localBuffer + 2, recvLen);
             buffer[recvLen] = '\0'; // Garantir que a string esteja terminada
-#ifdef DEBUG_ON
-            printHex(buffer, recvLen);
-#endif
-
             *len = recvLen;
 
             // Filtro de destino
@@ -126,16 +119,15 @@ public:
             if ((mto == terminalId) || (mto = 0xFF))
             {
 #ifdef DEBUG_ON
+                printHex(localBuffer, strlen(localBuffer));
                 char fullLogMsg[64];
-
                 snprintf(fullLogMsg, sizeof(fullLogMsg),
-                         "[%d→%d] L:%d",
+                         "(%d)[%d→%d] L:%d",
+                         sender,
                          rf95.headerFrom(),
                          rf95.headerTo(),
                          recvLen);
-
                 Logger::log(LogLevel::RECEIVE, fullLogMsg);
-                Logger::log(LogLevel::RECEIVE, buffer);
 #endif
                 if (mto == terminalId)
                     return true;
@@ -148,7 +140,7 @@ public:
                 if (mto != terminalId)
                 {
                     salto--;
-                    Logger::info("MESH-> live: " + String(salto));
+                    Logger::info(String("MESH to: " + String(rf95.headerTo()) + " live: " + String(salto)).c_str());
                     send(rf95.headerTo(), buffer, rf95.headerFrom(), salto, rf95.headerId());
                 }
             }
@@ -166,33 +158,22 @@ public:
     {
         return rf95.headerFrom();
     }
-    bool send(uint8_t tid, String buffer)
+    bool send(uint8_t terminalTo, String buffer)
     {
-        return send(tid, (char *)buffer.c_str(), buffer.length());
+        return send(terminalTo, (char *)buffer.c_str(), buffer.length());
     }
-    bool send(uint8_t tid, char *message, uint8_t from = 0xFF, uint8_t salto = ALIVE_PACKET, uint8_t seq = 0)
+    bool send(uint8_t terminalTo, char *message, uint8_t terminalFrom = Config::TERMINAL_ID, uint8_t salto = ALIVE_PACKET, uint8_t seq = 0)
     {
 
 #ifdef DEBUG_ON
-        if (salto == ALIVE_PACKET)
-        { // quando é MESH nao mostra
-            printRow("Entra TX");
-        }
+        Serial.print("TX ");
 #endif
         bool result = false;
         uint8_t len = strlen(message);
-        uint8_t fromAjustado = terminalId;
-        if (from != 0xFF)
-        {
-            fromAjustado = from;
-        }
-#ifdef DEBUG_ON
-        Serial.print(F("Enviando mensagem de "));
-        Serial.println(fromAjustado);
-#endif
+
         rf95.setModeTx();
-        rf95.setHeaderFrom(fromAjustado);
-        rf95.setHeaderTo(tid);
+        rf95.setHeaderFrom(terminalFrom);
+        rf95.setHeaderTo(terminalTo);
         if (seq == 0)
             seq = ++nHeaderId;
         rf95.setHeaderId(seq);
@@ -210,19 +191,15 @@ public:
             if (rf95.waitPacketSent(2000))
             {
 #ifdef DEBUG_ON
+                printHex(fullMessage, len + 2);
                 char fullLogMsg[64];
-
                 snprintf(fullLogMsg, sizeof(fullLogMsg),
-                         "[%d-%d] L:%d",
-                         fromAjustado,
-                         tid,
+                         "(%d)[%d-%d] L:%d",
+                         terminalId,
+                         terminalFrom,
+                         terminalTo,
                          len);
                 Logger::log(LogLevel::SEND, fullLogMsg);
-#endif
-#ifdef DEBUG_ON
-                printHex(fullMessage, len + 2);
-#else
-                Logger::log(LogLevel::SEND, fullMessage);
 #endif
             }
         };
@@ -236,7 +213,7 @@ public:
     {
 #ifdef DEBUG_ON
 
-        Serial.println(fullMessage);
+        // Serial.println(fullMessage);
         Serial.print("HEX: ");
         Serial.print(len);
         Serial.print(" bytes: ");

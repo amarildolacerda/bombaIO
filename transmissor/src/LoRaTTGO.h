@@ -68,7 +68,7 @@ public:
         bool rt = LoRa.endPacket() > 0;
 
         char msg[Config::MESSAGE_LEN + 64];
-        snprintf(msg, sizeof(msg), "[%d→%d] L: %d B: %s", terminalId, tidTo, strlen(buffer), buffer);
+        snprintf(msg, sizeof(msg), "(%d)[%d→%d] L: %d B: %s", terminalId, terminalId, tidTo, strlen(buffer), buffer);
         Logger::log(LogLevel::SEND, msg);
 
         delay(50);
@@ -148,8 +148,8 @@ public:
         }
 
         char msg[Config::MESSAGE_LEN + 64];
-        snprintf(msg, sizeof(msg), "[%d→%d] L: %d Live: %d B: %s",
-                 headerFrom(), headerTo(), hLive,
+        snprintf(msg, sizeof(msg), "(%d)[%d→%d] L: %d Live: %d B: %s",
+                 sender, headerFrom(), headerTo(), hLive,
                  strlen((char *)buffer), buffer);
         Logger::log(LogLevel::RECEIVE, msg);
 
