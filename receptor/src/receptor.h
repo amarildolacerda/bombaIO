@@ -142,13 +142,13 @@ public:
 
         if (strcmp(event, "status") == 0)
         {
-            sendStatus(tfrom, "get.status");
+            sendStatus(0, "get.status");
             return true;
         }
         else if (strcmp(event, "presentation") == 0)
         {
 
-            sendEvent(tfrom, "presentation", terminalName);
+            sendEvent(0, "presentation", terminalName);
             return true;
         }
         else if (strcmp(event, "reset") == 0)
@@ -162,7 +162,7 @@ public:
             {
                 digitalWrite(Config::RELAY_PIN, (strcmp(value, "on") == 0) ? HIGH : LOW);
 
-                sendStatus(tfrom, "gpio.set");
+                sendStatus(0, "gpio.set");
                 savePinState(strcmp(value, "on") == 0);
                 handled = true;
             }
@@ -171,7 +171,7 @@ public:
                 int currentState = digitalRead(Config::RELAY_PIN);
                 digitalWrite(Config::RELAY_PIN, !currentState);
                 systemState.pinStateChanged = true;
-                sendStatus(tfrom, "gpio.toggle");
+                sendStatus(0, "gpio.toggle");
                 savePinState(!currentState);
                 handled = true;
             }

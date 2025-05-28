@@ -93,6 +93,8 @@ public:
                 return false;
             }
 
+            uint8_t mto = rf95.headerTo();
+            uint8_t mfrom = rf95.headerFrom();
             sender = (uint8_t)localBuffer[0];
 
             if (sender == terminalId)
@@ -111,8 +113,6 @@ public:
             *len = recvLen;
 
             // Filtro de destino
-            uint8_t mto = rf95.headerTo();
-            uint8_t mfrom = rf95.headerFrom();
             if (mfrom == terminalId)
                 return false;
 
