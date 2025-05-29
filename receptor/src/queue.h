@@ -8,6 +8,8 @@ struct MessageRec
     uint8_t from;
     String event;
     String value;
+    uint8_t hope;
+    uint8_t id;
 };
 // Defina o tamanho máximo da lista
 #define MAX_ITEMS 5
@@ -56,7 +58,7 @@ public:
      * @param event Nome do evento
      * @param value Valor do evento
      */
-    void push(const uint8_t to, const String &event, const String &value, const uint8_t from)
+    void push(const uint8_t to, const String &event, const String &value, const uint8_t from, const uint8_t hope = 3, const uint8_t id = 0)
     {
         MessageRec msg;
         msg.to = to;

@@ -11,30 +11,18 @@
 #endif
 
 #define ALIVE_PACKET 3
-#define MESH_TIMEOUT_MS 1000
-#define MAX_DEVICES 255
+#define MAX_MESH_DEVICES 255
 #define MESSAGE_TIMEOUT_MS 2000
 
 //--------------------------------------------------RF
 SoftwareSerial RFSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
 
-struct meshrec
-{
-    bool active = false;
-    uint8_t to;
-    uint8_t from;
-    char msg[128];
-    uint8_t live;
-    uint8_t id;
-    uint32_t lastSentTime = 0;
-};
-
-uint8_t noMesh[(MAX_DEVICES + 7) / 8] = {0}; // 32 bytes (256 bits)
+uint8_t noMesh[(MAX_MESH_DEVICES + 7) / 8] = {0}; // 32 bytes (256 bits)
 
 // Funções de manipulação do bitmask
 void setDeviceActive(uint8_t deviceId)
 {
-    if (deviceId <= MAX_DEVICES)
+    if (deviceId <= MAX_MESH_DEVICES)
     {
         noMesh[deviceId / 8] |= (1 << (deviceId % 8));
     }
@@ -42,14 +30,14 @@ void setDeviceActive(uint8_t deviceId)
 
 bool isDeviceActive(uint8_t deviceId)
 {
-    if (deviceId > MAX_DEVICES)
+    if (deviceId > MAX_MESH_DEVICES)
         return false;
     return (noMesh[deviceId / 8] & (1 << (deviceId % 8))) != 0;
 }
 
 void clearDeviceActive(uint8_t deviceId)
 {
-    if (deviceId <= MAX_DEVICES)
+    if (deviceId <= MAX_MESH_DEVICES)
     {
         noMesh[deviceId / 8] &= ~(1 << (deviceId % 8));
     }
@@ -63,7 +51,6 @@ bool isValidMessage(const char *msg, uint8_t len)
 class LoraRF
 {
 private:
-    meshrec mesh;
     RH_RF95<decltype(RFSerial)> rf95;
     uint8_t terminalId = 1;
     bool _promiscuos = false;
@@ -92,16 +79,18 @@ public:
         return connected;
     }
 
+    bool processIncoming(MessageRec &rec)
+    {
+        return txQueue.pop(rec);
+    }
+
+    void send(uint8_t tid, String event, String value)
+    {
+        txQueue.push(tid, event, value, terminalId, ALIVE_PACKET, 0);
+    }
+
     bool loop()
     {
-        if (mesh.active && (millis() - mesh.lastSentTime > MESH_TIMEOUT_MS))
-        {
-            mesh.lastSentTime = millis();
-            mesh.active = false;
-            Logger::log(LogLevel::INFO, "Retransmitindo MESH [%d->%d]: %s",
-                        mesh.from, mesh.to, mesh.msg);
-            sendMessage(mesh.to, mesh.msg, mesh.from, mesh.live, mesh.id);
-        }
         MessageRec rec;
         if (txQueue.pop(rec))
         {
@@ -113,7 +102,7 @@ public:
             char msg[Config::MESSAGE_MAX_LEN];
             memset(msg, 0, sizeof(msg));
             snprintf(msg, sizeof(msg), "%s|%s", rec.event.c_str(), rec.value.c_str());
-            sendMessage(rec.to, msg, rec.from);
+            sendMessage(rec.to, msg, rec.from, rec.hope, rec.id);
         }
         // receber para por na fila de entrada.
         if (rf95.available())
@@ -123,30 +112,36 @@ public:
             uint8_t len = sizeof(buf);
             if (receiveMessage(buf, &len))
             {
-                // handleMessage(buf);
-                char buffer[len + 1];
-                strcpy(buffer, buf);
-                // Divide a string usando '|' como delimitador
-                const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
-                const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
-                if (value == NULL)
-                    value = "";
-                if (event != NULL)
+                char *event; // Pega a primeira parte ("status")
+                char *value; // Pega a segunda parte ("value")
+                if (parseMessage(buf, len, event, value))
                     rxQueue.push(rf95.headerTo(), event, value, rf95.headerFrom());
             }
         }
 
         return true;
     }
-
-    bool processIncoming(MessageRec &rec)
+    bool available()
     {
-        return txQueue.pop(rec);
+        return !rxQueue.isEmpty();
     }
 
-    void send(uint8_t tid, String event, String value)
+    uint8_t headerFrom()
     {
-        txQueue.push(tid, event, value, terminalId);
+        return rf95.headerFrom();
+    }
+
+private:
+    bool parseMessage(char *buf, const uint8_t len, char *event, char *value)
+    {
+        char buffer[len + 1];
+        strcpy(buffer, buf);
+        // Divide a string usando '|' como delimitador
+        event = strtok(buffer, "|"); // Pega a primeira parte ("status")
+        value = strtok(NULL, "|");   // Pega a segunda parte ("value")
+        if (value == NULL)
+            sprintf(value, "ops");
+        return event != NULL;
     }
 
     void ackIf(bool ack = false)
@@ -239,14 +234,11 @@ public:
                 if (mto != terminalId && !isDeviceActive(mfrom))
                 {
                     salto--;
-                    mesh.to = mto;
-                    mesh.from = mfrom;
-                    mesh.id = rf95.headerId();
-                    memset(mesh.msg, 0, sizeof(mesh.msg));
-                    strncpy(mesh.msg, buffer, *len);
-                    mesh.live = salto;
-                    mesh.active = strlen(mesh.msg) > 2;
-                    mesh.lastSentTime = 0;
+
+                    char *event; // Pega a primeira parte ("status")
+                    char *value; // Pega a segunda parte ("value")
+                    if (parseMessage(buffer, *len, event, value))
+                        txQueue.push(rf95.headerTo(), event, value, rf95.headerFrom(), salto, rf95.headerId());
                 }
             }
 #endif
@@ -283,22 +275,13 @@ public:
         {
             if (rf95.waitPacketSent(MESSAGE_TIMEOUT_MS))
             {
-                Logger::log(LogLevel::INFO, "Enviado (%d)[%d->%d](%d): %s", terminalId, terminalFrom, terminalTo, salto, message);
+                Logger::log(LogLevel::INFO, "Enviado %s (%d)[%d->%d](%d): %s", (terminalFrom != terminalId) ? "MESH" : "", terminalId, terminalFrom, terminalTo, salto, message);
                 result = true;
             }
         }
 
         rf95.setModeRx();
         return result;
-    }
-
-    bool available()
-    {
-        return rf95.waitAvailableTimeout(10);
-    }
-    uint8_t headerFrom()
-    {
-        return rf95.headerFrom();
     }
 };
 
