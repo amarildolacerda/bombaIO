@@ -52,25 +52,15 @@ public:
     void loop()
     {
         lora.loop();
-        if (lora.available())
-        {
-            ultimoReceived = millis();
-            char buf[Config::MESSAGE_MAX_LEN];
-            memset(buf, 0, sizeof(buf));
-            uint8_t len = sizeof(buf);
-            if (lora.receiveMessage(buf, &len))
-            {
-                handleMessage(buf);
-            }
-        }
-        else if (millis() - sendUpdated > 100)
+        handleMessage();
+        if (millis() - sendUpdated > 100)
         {
             sendUpdated = millis();
             if (lora.connected)
             {
                 if (millis() - statusUpdater > Config::STATUS_INTERVAL)
                 {
-                    setStatusChanged(true);
+                    setStatusChanged();
                     statusUpdater = millis();
                 }
             }
@@ -110,69 +100,64 @@ public:
         initCallback();
     }
 
-    bool handleMessage(char *message)
+    bool handleMessage()
     {
-        uint8_t tfrom = lora.headerFrom();
+        MessageRec rec;
+        if (!lora.processIncoming(rec))
+            return false;
+
         bool handled = false;
-        if (strcmp(message, "ack") == 0)
+        if (rec.event.indexOf("ack") == 0)
             return true;
-        if (strcmp(message, "nak") == 0)
-            return false;
-        if (strstr(message, "|") == NULL)
+        else if (rec.event.indexOf("nak") == 0)
             return false;
 
-        char buffer[sizeof(message)];
-        strcpy(buffer, message);
-        // Divide a string usando '|' como delimitador
-        const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
-        const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
-
-        if ((event == NULL) || (value == NULL))
+        if ((rec.event == NULL) || (rec.value == NULL))
             return false;
 
-        if (strcmp(event, "status") == 0)
+        if (rec.event.indexOf("status") == 0)
         {
             // sendStatus(0, "get.status");
-            setStatusChanged(true);
+            setStatusChanged();
             return true;
         }
-        else if (strcmp(event, "presentation") == 0)
+        else if (rec.event.indexOf("presentation") == 0)
         {
 
             lora.send(0, "presentation", terminalName);
             return true;
         }
-        else if (strcmp(event, "reset") == 0)
+        else if (rec.event.indexOf("reset") == 0)
         {
             // resetFunc();
             return true;
         }
-        else if (strcmp(event, "gpio") == 0)
+        else if (rec.event.indexOf("gpio") == 0)
         {
-            if (strcmp(value, "on") == 0 || strcmp(value, "off") == 0)
+            if (rec.event.indexOf("on") == 0 || rec.event.indexOf("off") == 0)
             {
-                digitalWrite(Config::RELAY_PIN, (strcmp(value, "on") == 0) ? HIGH : LOW);
+                digitalWrite(Config::RELAY_PIN, (rec.event.indexOf("on") == 0) ? HIGH : LOW);
                 handled = true;
             }
-            else if (strcmp(value, "toggle") == 0)
+            else if (rec.event.indexOf("toggle") == 0)
             {
                 int currentState = digitalRead(Config::RELAY_PIN);
                 digitalWrite(Config::RELAY_PIN, !currentState);
                 handled = true;
             }
-            setStatusChanged(true);
+            setStatusChanged();
         }
 
-        ack(tfrom, handled);
+        ack(rec.from, handled);
         return handled;
     }
     void ack(uint8_t tid, bool handled)
     {
         lora.send(tid, handled ? "ack" : "nak", "");
     }
-    void setStatusChanged(bool b)
+    void setStatusChanged()
     {
-        lora.send(0, "status", b ? "on" : "off");
+        lora.send(0, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off");
     }
 };
 
@@ -181,7 +166,7 @@ App app;
 void triggerCallback()
 {
     app.savePinState(digitalRead(Config::RELAY_PIN));
-    app.setStatusChanged(true);
+    app.setStatusChanged();
     systemState.pinStateChanged = true;
 }
 

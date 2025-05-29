@@ -115,8 +115,33 @@ public:
             snprintf(msg, sizeof(msg), "%s|%s", rec.event.c_str(), rec.value.c_str());
             sendMessage(rec.to, msg, rec.from);
         }
+        // receber para por na fila de entrada.
+        if (rf95.available())
+        {
+            char buf[Config::MESSAGE_MAX_LEN];
+            memset(buf, 0, sizeof(buf));
+            uint8_t len = sizeof(buf);
+            if (receiveMessage(buf, &len))
+            {
+                // handleMessage(buf);
+                char buffer[len + 1];
+                strcpy(buffer, buf);
+                // Divide a string usando '|' como delimitador
+                const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
+                const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
+                if (value == NULL)
+                    value = "";
+                if (event != NULL)
+                    rxQueue.push(rf95.headerTo(), event, value, rf95.headerFrom());
+            }
+        }
 
         return true;
+    }
+
+    bool processIncoming(MessageRec &rec)
+    {
+        return txQueue.pop(rec);
     }
 
     void send(uint8_t tid, String event, String value)
@@ -258,7 +283,7 @@ public:
         {
             if (rf95.waitPacketSent(MESSAGE_TIMEOUT_MS))
             {
-                Logger::log(LogLevel::INFO, "Enviado [%d->%d]: %s", terminalFrom, terminalTo, message);
+                Logger::log(LogLevel::INFO, "Enviado (%d)[%d->%d](%d): %s", terminalId, terminalFrom, terminalTo, salto, message);
                 result = true;
             }
         }

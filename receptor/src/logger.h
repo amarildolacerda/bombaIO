@@ -54,19 +54,20 @@ public:
         va_end(args);
     }
 
-    static bool log(const LogLevel level, const char *msg, ...)
+    static bool log(const LogLevel level, const char *format, ...)
     {
         va_list args;
-        va_start(args, msg);
-        bool result = vlog(level, msg, args);
+        va_start(args, format);
+        bool result = vlog(level, format, args);
         va_end(args);
         return result;
     }
 
-    static bool vlog(const LogLevel level, const char *msg, va_list args)
+private:
+    static bool vlog(const LogLevel level, const char *format, va_list args)
     {
         char formattedMsg[MAX_LOG_LENGTH];
-        vsnprintf(formattedMsg, MAX_LOG_LENGTH, msg, args);
+        vsnprintf(formattedMsg, MAX_LOG_LENGTH, format, args);
 
 #ifndef xDEBUG_ON
         Serial.println(formattedMsg);
