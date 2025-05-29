@@ -58,7 +58,7 @@ public:
             char buf[Config::MESSAGE_MAX_LEN];
             memset(buf, 0, sizeof(buf));
             uint8_t len = sizeof(buf);
-            if (lora.receive(buf, &len))
+            if (lora.receiveMessage(buf, &len))
             {
                 handleMessage(buf);
             }
@@ -78,26 +78,11 @@ public:
             {
                 initLora();
             }
-            MessageRec rec;
-            if (systemState.messages.pop(rec))
-            {
-                sendEvent(rec.to, rec.event, rec.value);
-            }
         }
     }
     void sendEvent(uint8_t tid, String event, String value)
     {
-        if (event.indexOf("ack") >= 0 || event.indexOf("nak") >= 0)
-        {
-            lora.send(tid, event.c_str(), terminalId);
-
-            return;
-        }
-
-        char msg[Config::MESSAGE_MAX_LEN];
-        memset(msg, 0, sizeof(msg));
-        snprintf(msg, sizeof(msg), "%s|%s", event.c_str(), value.c_str());
-        lora.send(tid, msg, terminalId);
+        lora.send(tid, event, value);
     }
 
     void savePinState(bool state)
@@ -154,7 +139,7 @@ public:
         else if (strcmp(event, "presentation") == 0)
         {
 
-            systemState.messages.push(0, "presentation", terminalName);
+            lora.send(0, "presentation", terminalName);
             return true;
         }
         else if (strcmp(event, "reset") == 0)
@@ -183,11 +168,11 @@ public:
     }
     void ack(uint8_t tid, bool handled)
     {
-        systemState.messages.push(tid, handled ? "ack" : "nak", "");
+        lora.send(tid, handled ? "ack" : "nak", "");
     }
     void setStatusChanged(bool b)
     {
-        systemState.messages.push(0, "status", b ? "on" : "off");
+        lora.send(0, "status", b ? "on" : "off");
     }
 };
 

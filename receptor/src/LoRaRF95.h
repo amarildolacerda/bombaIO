@@ -4,6 +4,7 @@
 #include "RH_RF95.h"
 #include "config.h"
 #include "logger.h"
+#include "queue.h"
 
 #ifdef __AVR__
 #include <SoftwareSerial.h>
@@ -70,6 +71,8 @@ private:
     const uint8_t ETX = '}';
     uint8_t sender = 0xFF;
     uint8_t nHeaderId = 0;
+    FifoList txQueue;
+    FifoList rxQueue;
 
 public:
     bool connected = false;
@@ -97,23 +100,35 @@ public:
             mesh.active = false;
             Logger::log(LogLevel::INFO, "Retransmitindo MESH [%d->%d]: %s",
                         mesh.from, mesh.to, mesh.msg);
-            send(mesh.to, mesh.msg, mesh.from, mesh.live, mesh.id);
+            sendMessage(mesh.to, mesh.msg, mesh.from, mesh.live, mesh.id);
+        }
+        MessageRec rec;
+        if (txQueue.pop(rec))
+        {
+            if (rec.event.indexOf("ack") >= 0 || rec.event.indexOf("nak") >= 0)
+            {
+                sendMessage(rec.to, rec.event.c_str(), rec.from);
+                return true;
+            }
+            char msg[Config::MESSAGE_MAX_LEN];
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "%s|%s", rec.event.c_str(), rec.value.c_str());
+            sendMessage(rec.to, msg, rec.from);
         }
 
         return true;
     }
 
-    bool receive(char *buffer, uint8_t *len)
+    void send(uint8_t tid, String event, String value)
     {
-        return receiveMessage(buffer, len);
+        txQueue.push(tid, event, value, terminalId);
     }
 
     void ackIf(bool ack = false)
     {
         if (rf95.headerTo() == terminalId)
         {
-            systemState.messages.push(rf95.headerFrom(),
-                                      (ack) ? "ack" : "nak", "");
+            txQueue.push(rf95.headerFrom(), (ack) ? "ack" : "nak", "", terminalId);
         }
     }
 
@@ -165,7 +180,7 @@ public:
             {
                 if (mto != terminalId)
                     return false;
-                systemState.messages.push(mfrom, "pong", "0");
+                txQueue.push(mfrom, "pong", "0", terminalId);
                 return true;
             }
             else
@@ -215,13 +230,8 @@ public:
         return false;
     }
 
-    bool send(uint8_t terminalTo, const String &buffer, uint8_t terminalFrom)
-    {
-        return send(terminalTo, buffer.c_str(), terminalFrom);
-    }
-
-    bool send(uint8_t terminalTo, const char *message, uint8_t terminalFrom,
-              uint8_t salto = ALIVE_PACKET, uint8_t seq = 0)
+    bool sendMessage(uint8_t terminalTo, const char *message, uint8_t terminalFrom,
+                     uint8_t salto = ALIVE_PACKET, uint8_t seq = 0)
     {
         uint8_t len = strlen(message);
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
