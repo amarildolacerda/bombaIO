@@ -72,7 +72,7 @@ public:
     }
     void sendEvent(uint8_t tid, String event, String value)
     {
-        lora.send(tid, event, value);
+        lora.send(tid, event, value, terminalId);
     }
 
     void savePinState(bool state)
@@ -124,7 +124,7 @@ public:
         else if (rec.event.indexOf("presentation") == 0)
         {
 
-            lora.send(0, "presentation", terminalName);
+            lora.send(0, "presentation", (String)terminalName, terminalId);
             return true;
         }
         else if (rec.event.indexOf("reset") == 0)
@@ -153,11 +153,11 @@ public:
     }
     void ack(uint8_t tid, bool handled)
     {
-        lora.send(tid, handled ? "ack" : "nak", "");
+        lora.send(tid, handled ? "ack" : "nak", "", terminalId);
     }
     void setStatusChanged()
     {
-        lora.send(0, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off");
+        lora.send(0, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off", terminalId);
     }
 };
 

@@ -52,7 +52,7 @@ class LoraRF
 {
 private:
     RH_RF95<decltype(RFSerial)> rf95;
-    uint8_t terminalId;
+    uint8_t terminalId = Config::TERMINAL_ID;
     bool _promiscuos = false;
     const uint8_t STX = '{';
     const uint8_t ETX = '}';
@@ -68,7 +68,7 @@ public:
 
     LoraRF() : rf95(RFSerial) {}
 
-    bool begin(uint8_t terminal_Id, long band, bool promisc = true)
+    bool begin(const uint8_t terminal_Id, long band, bool promisc = true)
     {
         terminalId = terminal_Id;
         RFSerial.begin(Config::LORA_SPEED);
@@ -86,7 +86,7 @@ public:
         return txQueue.pop(rec);
     }
 
-    void send(uint8_t tid, String event, String value)
+    void send(uint8_t tid, String event, String value, const uint8_t terminalId)
     {
         txQueue.push(tid, event, value, terminalId, ALIVE_PACKET, ++nHeaderId);
     }
@@ -145,8 +145,8 @@ public:
 private:
     bool parseMessage(char *buf, const uint8_t len, MessageRec &rec)
     {
-        char buffer[len + 1];
-        strcpy(buffer, buf);
+        char buffer[Config::MESSAGE_MAX_LEN];
+        strncpy(buffer, buf, sizeof(buffer));
         // Divide a string usando '|' como delimitador
         rec.to = rf95.headerTo();
         rec.from = rf95.headerFrom();
@@ -295,7 +295,7 @@ private:
         {
             if (rf95.waitPacketSent(MESSAGE_TIMEOUT_MS))
             {
-                Logger::log(LogLevel::INFO, "Enviado %s (%d)[%d->%d](%d): %s", (terminalFrom != terminalId) ? "MESH" : "", terminalId, terminalFrom, terminalTo, hope, message);
+                Logger::log(LogLevel::INFO, "Enviado [%d->%d]: %s", terminalFrom, terminalTo, message);
                 result = true;
             }
         }
