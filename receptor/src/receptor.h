@@ -9,21 +9,20 @@
 #define EEPROM_ADDR_BOOT_COUNT 0
 #define EEPROM_ADDR_LAST_BOOT 4
 #define EEPROM_ADDR_PIN5_STATE 8
-#define IDENTIFICATION_TIMEOUT_MS 10000UL      // 10 segundos para zerar contagem
-#define IDENTIFICATION_POWER_WINDOW_MS 60000UL // 1 minuto para 3 boots
+#define IDENTIFICATION_TIMEOUT_MS 10000UL
+#define IDENTIFICATION_POWER_WINDOW_MS 60000UL
 
-//-------------------------------------------------Setup
-typedef void (*CallbackFunction)(); // Define a assinatura do callback
+typedef void (*CallbackFunction)();
 CallbackFunction callback;
 
-void initCallback(); // Variável para armazenar o callback
+void initCallback();
 
 class App
 {
 private:
     long statusUpdater = 0;
     bool loraConnected = false;
-    const String terminalName = Config::TERMINAL_NAME;
+    const char *terminalName = Config::TERMINAL_NAME;
     const uint8_t terminalId = Config::TERMINAL_ID;
 
 public:
@@ -33,29 +32,35 @@ public:
     }
 
     long sendUpdated = 0;
+
     void setup()
     {
         Serial.begin(Config::SERIAL_SPEED);
         while (!Serial)
             ;
-        lora.begin(terminalId, Config::BAND, Config::PROMISCUOS);
 
+        lora.begin(terminalId, Config::BAND, Config::PROMISCUOS);
         if (!lora.connected)
         {
-            Serial.print(F("LoRa nao iniciou"));
+            Serial.print(F("LoRa failed to start"));
         };
+
         pinMode(Config::LED_PIN, OUTPUT);
         pinMode(Config::RELAY_PIN, OUTPUT);
         initPinRelay();
     }
+
     long ultimoReceived = 0;
+
     void loop()
     {
         lora.loop();
         handleMessage();
+
         if (millis() - sendUpdated > 100)
         {
             sendUpdated = millis();
+
             if (lora.connected)
             {
                 if (millis() - statusUpdater > Config::STATUS_INTERVAL)
@@ -64,82 +69,102 @@ public:
                     statusUpdater = millis();
                 }
             }
+
             if (millis() - ultimoReceived > 60000)
             {
                 initLora();
             }
         }
     }
-    void sendEvent(uint8_t tid, String event, String value)
+
+    void sendEvent(uint8_t tid, const char *event, const char *value)
     {
+        noInterrupts();
         lora.send(tid, event, value, terminalId);
+        interrupts();
     }
 
     void savePinState(bool state)
     {
+        noInterrupts();
 #ifdef __AVR__
         EEPROM.update(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
 #else
         EEPROM.write(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
-        EEPROM.commit(); // No ESP8266/ESP32 você PRECISA chamar commit() para salvar
+        EEPROM.commit();
 #endif
+        interrupts();
     }
 
-    // Função para ler o estado do pino 5 da EEPROM
     bool readPinState()
     {
-        return EEPROM.read(EEPROM_ADDR_PIN5_STATE) == 1;
+        noInterrupts();
+        uint8_t val = EEPROM.read(EEPROM_ADDR_PIN5_STATE);
+        interrupts();
+        return val == 1;
     }
 
     void initPinRelay()
     {
+        noInterrupts();
         pinMode(Config::RELAY_PIN, OUTPUT);
         bool savedState = readPinState();
         digitalWrite(Config::RELAY_PIN, savedState ? HIGH : LOW);
-        Logger::info(String(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF").c_str());
+        interrupts();
+
+        Logger::info(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF");
         initCallback();
     }
 
     bool handleMessage()
     {
         MessageRec rec;
-        if (!lora.processIncoming(rec))
+        memset(&rec, 0, sizeof(MessageRec));
+
+        noInterrupts();
+        bool hasMessage = lora.processIncoming(rec);
+        interrupts();
+        if (!hasMessage)
+        {
             return false;
+        }
 
         bool handled = false;
-        if (rec.event.indexOf("ack") == 0)
+
+        if (strstr(rec.event, "ack") == rec.event)
             return true;
-        else if (rec.event.indexOf("nak") == 0)
+        if (strstr(rec.event, "nak") == rec.event)
+            return false;
+        if (strlen(rec.event) == 0 || strlen(rec.value) == 0)
             return false;
 
-        if ((rec.event == NULL) || (rec.value == NULL))
-            return false;
-
-        if (rec.event.indexOf("status") == 0)
+        if (strstr(rec.event, "status") == rec.event)
         {
-            // sendStatus(0, "get.status");
             setStatusChanged();
             return true;
         }
-        else if (rec.event.indexOf("presentation") == 0)
+        else if (strstr(rec.event, "presentation") == rec.event)
         {
-
-            lora.send(0, "presentation", (String)terminalName, terminalId);
+            lora.send(0, "presentation", terminalName, terminalId);
             return true;
         }
-        else if (rec.event.indexOf("reset") == 0)
+        else if (strstr(rec.event, "reset") == rec.event)
         {
-            // resetFunc();
             return true;
         }
-        else if (rec.event.indexOf("gpio") == 0)
+        else if (strstr(rec.event, "gpio") == rec.event)
         {
-            if (rec.event.indexOf("on") == 0 || rec.event.indexOf("off") == 0)
+            if (strstr(rec.event, "on") == rec.event + 4)
             {
-                digitalWrite(Config::RELAY_PIN, (rec.event.indexOf("on") == 0) ? HIGH : LOW);
+                digitalWrite(Config::RELAY_PIN, HIGH);
                 handled = true;
             }
-            else if (rec.event.indexOf("toggle") == 0)
+            else if (strstr(rec.event, "off") == rec.event + 4)
+            {
+                digitalWrite(Config::RELAY_PIN, LOW);
+                handled = true;
+            }
+            else if (strstr(rec.event, "toggle") == rec.event + 4)
             {
                 int currentState = digitalRead(Config::RELAY_PIN);
                 digitalWrite(Config::RELAY_PIN, !currentState);
@@ -151,10 +176,12 @@ public:
         ack(rec.from, handled);
         return handled;
     }
+
     void ack(uint8_t tid, bool handled)
     {
         lora.send(tid, handled ? "ack" : "nak", "", terminalId);
     }
+
     void setStatusChanged()
     {
         lora.send(0, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off", terminalId);
@@ -165,7 +192,9 @@ App app;
 
 void triggerCallback()
 {
+    noInterrupts();
     app.savePinState(digitalRead(Config::RELAY_PIN));
+    interrupts();
     app.setStatusChanged();
     systemState.pinStateChanged = true;
 }
@@ -175,5 +204,3 @@ void initCallback()
     detachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN));
     attachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN), triggerCallback, CHANGE);
 }
-
-//------------------------------------------------------app

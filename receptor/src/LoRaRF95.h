@@ -14,12 +14,10 @@
 #define MAX_MESH_DEVICES 255
 #define MESSAGE_TIMEOUT_MS 2000
 
-//--------------------------------------------------RF
-SoftwareSerial RFSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
+SoftwareSerial RFSerial(Config::RX_PIN, Config::TX_PIN);
 
-uint8_t noMesh[(MAX_MESH_DEVICES + 7) / 8] = {0}; // 32 bytes (256 bits)
+uint8_t noMesh[(MAX_MESH_DEVICES + 7) / 8] = {0};
 
-// Funções de manipulação do bitmask
 void setDeviceActive(uint8_t deviceId)
 {
     if (deviceId <= MAX_MESH_DEVICES)
@@ -83,40 +81,55 @@ public:
 
     bool processIncoming(MessageRec &rec)
     {
-        return txQueue.pop(rec);
+        bool result = false;
+        noInterrupts();
+        result = rxQueue.pop(rec);
+        interrupts();
+        return result;
     }
 
-    void send(uint8_t tid, String event, String value, const uint8_t terminalId)
+    void send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId)
     {
-        txQueue.push(tid, event, value, terminalId, ALIVE_PACKET, ++nHeaderId);
+        MessageRec msg;
+        memset(&msg, 0, sizeof(MessageRec));
+        msg.to = tid;
+        msg.from = terminalId;
+        msg.hope = ALIVE_PACKET;
+        msg.id = ++nHeaderId;
+        strncpy(msg.event, event, MAX_EVENT_LEN - 1);
+        strncpy(msg.value, value, MAX_VALUE_LEN - 1);
+
+        noInterrupts();
+        txQueue.pushItem(msg);
+        interrupts();
     }
 
     bool loop()
     {
+        bool processed = false;
+
+        // Processar envios
         if (millis() - txLoop > 5)
         {
             txLoop = millis();
             MessageRec rec;
-            if (txQueue.pop(rec))
+            noInterrupts();
+            bool hasItem = txQueue.pop(rec);
+            interrupts();
+
+            if (hasItem)
             {
-                /* if (rec.event.indexOf("ack") == 0 || rec.event.indexOf("nak") == 0)
-                 {
-                     char msg[Config::MESSAGE_MAX_LEN] = {0};
-                     snprintf(msg, sizeof(msg), rec.event.c_str());
-                     sendMessage(rec.to, msg, rec.from, rec.hope, rec.id);
-                     return true;
-                 }
-                     */
                 char msg[Config::MESSAGE_MAX_LEN];
                 memset(msg, 0, sizeof(msg));
-                snprintf(msg, sizeof(msg), "%s|%s", rec.event.c_str(), rec.value.c_str());
+                snprintf(msg, sizeof(msg), "%s|%s", rec.event, rec.value);
                 sendMessage(rec.to, msg, rec.from, rec.hope, rec.id);
             }
         }
+
+        // Processar recebimentos
         if (millis() - rxLoop > 5)
         {
             rxLoop = millis();
-            // receber para por na fila de entrada.
             if (rf95.available())
             {
                 char buf[Config::MESSAGE_MAX_LEN];
@@ -126,12 +139,19 @@ public:
                 {
                     MessageRec rec;
                     if (parseMessage(buf, len, rec))
-                        rxQueue.push(rec.to, rec.event, rec.value, rec.from, ALIVE_PACKET, 0);
+                    {
+                        noInterrupts();
+                        rxQueue.pushItem(rec);
+                        interrupts();
+                    }
                 }
+                processed = true;
             }
         }
-        return true;
+
+        return processed;
     }
+
     bool available()
     {
         return !rxQueue.isEmpty();
@@ -145,27 +165,26 @@ public:
 private:
     bool parseMessage(char *buf, const uint8_t len, MessageRec &rec)
     {
-        char buffer[Config::MESSAGE_MAX_LEN];
-        strncpy(buffer, buf, sizeof(buffer));
-        // Divide a string usando '|' como delimitador
+        memset(&rec, 0, sizeof(MessageRec));
+
         rec.to = rf95.headerTo();
         rec.from = rf95.headerFrom();
         rec.id = rf95.headerId();
         rec.hope = rf95.headerFlags();
-        rec.event = strtok(buffer, "|"); // Pega a primeira parte ("status")
-        rec.value = strtok(NULL, "|");   // Pega a segunda parte ("value")
-        if (rec.value == NULL)
-            rec.value = "";
-        // sprintf(rec.value, "ops");
-        return rec.event.length() != 0;
-    }
 
-    void ackIf(bool ack = false)
-    {
-        if (rf95.headerTo() == terminalId)
+        char *separator = strchr(buf, '|');
+        if (separator)
         {
-            txQueue.push(rf95.headerFrom(), (ack) ? "ack" : "nak", "", terminalId, ALIVE_PACKET);
+            *separator = '\0';
+            strncpy(rec.event, buf, MAX_EVENT_LEN - 1);
+            strncpy(rec.value, separator + 1, MAX_VALUE_LEN - 1);
         }
+        else
+        {
+            strncpy(rec.event, buf, MAX_EVENT_LEN - 1);
+        }
+
+        return strlen(rec.event) > 0;
     }
 
     bool receiveMessage(char *buffer, uint8_t *len)
@@ -176,7 +195,8 @@ private:
         }
 
         uint8_t recvLen = Config::MESSAGE_MAX_LEN + 3;
-        char localBuffer[recvLen] = {0};
+        char localBuffer[recvLen];
+        memset(localBuffer, 0, recvLen);
 
         if (rf95.recv((uint8_t *)localBuffer, &recvLen))
         {
@@ -184,8 +204,7 @@ private:
 
             if (!isValidMessage(localBuffer, recvLen))
             {
-                Logger::error("Mensagem inválida. STX/ETX ausentes ou tamanho insuficiente");
-                Serial.println(localBuffer);
+                Logger::error("Invalid message");
                 ackIf(false);
                 return false;
             }
@@ -199,10 +218,10 @@ private:
                 return false;
             }
 
-            recvLen -= 3; // Remove STX, ETX e ID
+            recvLen -= 3;
             if (recvLen > Config::MESSAGE_MAX_LEN)
             {
-                Logger::error("Mensagem muito longa");
+                Logger::error("Message too long");
                 ackIf(false);
                 return false;
             }
@@ -211,7 +230,6 @@ private:
             buffer[recvLen] = '\0';
             *len = recvLen;
 
-            // Tratamento de ping/pong
             if (strstr(buffer, "ping") != NULL)
             {
                 if (mto != terminalId)
@@ -219,26 +237,23 @@ private:
                 txQueue.push(mfrom, "pong", "0", terminalId, ALIVE_PACKET);
                 return true;
             }
-            else
-
-                if (strstr(buffer, "pong") != NULL)
+            else if (strstr(buffer, "pong") != NULL)
             {
                 if (!isDeviceActive(mfrom))
                 {
-                    Logger::log(LogLevel::INFO, "Recebido pong de: %d", mfrom);
+                    Logger::log(LogLevel::INFO, "Pong received from: %d", mfrom);
                     setDeviceActive(mfrom);
                 }
                 return false;
             }
-            else
+            else if (strstr(buffer, "time") != NULL)
             {
-                if (strstr(buffer, "time") != NULL)
-                    return false; // estava reiniciando
+                return false;
             }
 
             if ((mto == terminalId) || (mto == 0xFF))
             {
-                Logger::log(LogLevel::DEBUG, "Mensagem direta [%d->%d]: %s", mfrom, mto, buffer);
+                Logger::log(LogLevel::DEBUG, "Direct message [%d->%d]: %s", mfrom, mto, buffer);
                 if (mto == terminalId)
                     return true;
             }
@@ -257,7 +272,9 @@ private:
                     if (parseMessage(buffer, *len, rec))
                     {
                         rec.hope = salto;
+                        noInterrupts();
                         txQueue.pushItem(rec);
+                        interrupts();
                     }
                 }
             }
@@ -273,7 +290,7 @@ private:
         uint8_t len = strlen(message);
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
         {
-            Logger::error("Tamanho de mensagem inválido para envio");
+            Logger::error("Invalid message size");
             return false;
         }
 
@@ -284,24 +301,37 @@ private:
         rf95.setHeaderFlags(hope, 0xFF);
 
         char fullMessage[Config::MESSAGE_MAX_LEN + 3];
+        memset(fullMessage, 0, sizeof(fullMessage));
         fullMessage[0] = terminalId;
         fullMessage[1] = STX;
-        memcpy(fullMessage + 2, message, len);
+        strncpy(fullMessage + 2, message, len);
         fullMessage[len + 2] = ETX;
-        fullMessage[len + 3] = '\0';
 
         bool result = false;
-        if (rf95.send((uint8_t *)fullMessage, len + 3))
+        uint32_t start = millis();
+        while (!result && (millis() - start < MESSAGE_TIMEOUT_MS))
         {
-            if (rf95.waitPacketSent(MESSAGE_TIMEOUT_MS))
+            if (rf95.send((uint8_t *)fullMessage, len + 3))
             {
-                Logger::log(LogLevel::INFO, "Enviado [%d->%d]: %s", terminalFrom, terminalTo, message);
-                result = true;
+                if (rf95.waitPacketSent(MESSAGE_TIMEOUT_MS))
+                {
+                    Logger::log(LogLevel::INFO, "Sent [%d->%d]: %s", terminalFrom, terminalTo, message);
+                    result = true;
+                }
             }
+            delay(10);
         }
 
         rf95.setModeRx();
         return result;
+    }
+
+    void ackIf(bool ack = false)
+    {
+        if (rf95.headerTo() == terminalId)
+        {
+            txQueue.push(rf95.headerFrom(), ack ? "ack" : "nak", "", terminalId, ALIVE_PACKET);
+        }
     }
 };
 

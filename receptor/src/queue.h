@@ -2,91 +2,106 @@
 #define QUEUE_H
 
 #include "Arduino.h"
+
+#define MAX_EVENT_LEN 16
+#define MAX_VALUE_LEN 32
+#define MAX_ITEMS 5
+
 struct MessageRec
 {
     uint8_t id;
     uint8_t to;
     uint8_t from;
     uint8_t hope;
-    String event;
-    String value;
+    char event[MAX_EVENT_LEN];
+    char value[MAX_VALUE_LEN];
 };
-// Defina o tamanho máximo da lista
-#define MAX_ITEMS 5
 
-// Classe para gerenciar a lista FIFO de MessageRec
 class FifoList
 {
 private:
     MessageRec items[MAX_ITEMS];
-    int head = 0;
-    int tail = 0;
-    int count = 0;
+    volatile int head = 0;
+    volatile int tail = 0;
+    volatile int count = 0;
 
 public:
-    // Adiciona um item na lista
     bool pushItem(const MessageRec &item)
     {
-        if (count >= MAX_ITEMS)
+        noInterrupts();
+        bool result = false;
+
+        if (count < MAX_ITEMS)
         {
-            return false; // Lista cheia
+            items[tail] = item;
+            tail = (tail + 1) % MAX_ITEMS;
+            count++;
+            result = true;
         }
 
-        items[tail] = item; // Armazena a cópia da mensagem
-        tail = (tail + 1) % MAX_ITEMS;
-        count++;
-        return true;
+        interrupts();
+        return result;
     }
 
-    // Remove e retorna o item no início da lista
     bool popItem(MessageRec &item)
     {
-        if (count <= 0)
+        noInterrupts();
+        bool result = false;
+
+        if (count > 0)
         {
-            return false; // Lista vazia
+            item = items[head];
+            head = (head + 1) % MAX_ITEMS;
+            count--;
+            result = true;
         }
 
-        item = items[head]; // Copia a mensagem para o parâmetro de saída
-        head = (head + 1) % MAX_ITEMS;
-        count--;
-        return true;
+        interrupts();
+        return result;
     }
 
-public:
-    /**
-     * Adiciona uma mensagem na lista
-     * @param to Destinatário da mensagem
-     * @param event Nome do evento
-     * @param value Valor do evento
-     */
-    void push(const uint8_t to, const String &event, const String &value, const uint8_t from, const uint8_t hope, const uint8_t id = 0)
+    void push(const uint8_t to, const char *event, const char *value,
+              const uint8_t from, const uint8_t hope, const uint8_t id = 0)
     {
         MessageRec msg;
+        memset(&msg, 0, sizeof(MessageRec));
         msg.to = to;
-        msg.event = event;
-        msg.value = value;
+        msg.from = from;
         msg.hope = hope;
         msg.id = id;
+        strncpy(msg.event, event, MAX_EVENT_LEN - 1);
+        strncpy(msg.value, value, MAX_VALUE_LEN - 1);
         pushItem(msg);
     }
 
-    /**
-     * Remove e retorna uma mensagem da lista
-     * @param msg Estrutura de mensagem que será preenchida
-     * @return true se uma mensagem foi obtida, false se a lista estava vazia
-     */
     bool pop(MessageRec &msg)
     {
-        if (!popItem(msg))
-        {
-            return false;
-        }
-        return true;
+        return popItem(msg);
     }
 
-    bool isEmpty() const { return count == 0; }
-    bool isFull() const { return count == MAX_ITEMS; }
-    int size() const { return count; }
+    bool isEmpty()
+    {
+        noInterrupts();
+        bool result = (count == 0);
+        interrupts();
+        return result;
+    }
+
+    bool isFull()
+    {
+        noInterrupts();
+        bool result = (count == MAX_ITEMS);
+        interrupts();
+        return result;
+    }
+
+    int size()
+    {
+        noInterrupts();
+        int result = count;
+        interrupts();
+        return result;
+    }
 };
 
 #endif
