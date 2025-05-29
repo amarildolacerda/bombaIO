@@ -86,7 +86,7 @@ public:
 
     void send(uint8_t tid, String event, String value)
     {
-        txQueue.push(tid, event, value, terminalId, ALIVE_PACKET, 0);
+        txQueue.push(tid, event, value, terminalId, ALIVE_PACKET, ++nHeaderId);
     }
 
     bool loop()
@@ -96,7 +96,7 @@ public:
         {
             if (rec.event.indexOf("ack") >= 0 || rec.event.indexOf("nak") >= 0)
             {
-                sendMessage(rec.to, rec.event.c_str(), rec.from);
+                sendMessage(rec.to, rec.event.c_str(), rec.from, rec.hope, rec.id);
                 return true;
             }
             char msg[Config::MESSAGE_MAX_LEN];
@@ -248,7 +248,7 @@ private:
     }
 
     bool sendMessage(uint8_t terminalTo, const char *message, uint8_t terminalFrom,
-                     uint8_t salto = ALIVE_PACKET, uint8_t seq = 0)
+                     uint8_t salto, uint8_t seq)
     {
         uint8_t len = strlen(message);
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
@@ -260,7 +260,7 @@ private:
         rf95.setModeTx();
         rf95.setHeaderFrom(terminalFrom);
         rf95.setHeaderTo(terminalTo);
-        rf95.setHeaderId(seq ? seq : ++nHeaderId);
+        rf95.setHeaderId(seq);
         rf95.setHeaderFlags(salto, 0xFF);
 
         char fullMessage[Config::MESSAGE_MAX_LEN + 3];
