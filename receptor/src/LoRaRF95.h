@@ -102,6 +102,7 @@ public:
         noInterrupts();
         txQueue.pushItem(msg);
         interrupts();
+        return;
     }
 
     bool loop()

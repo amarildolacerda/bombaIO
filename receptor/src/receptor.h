@@ -148,7 +148,7 @@ public:
         }
         else if (strstr(rec.event, "presentation"))
         {
-            lora.send(0, "presentation", terminalName, terminalId);
+            lora.send(0, "presentation", (char *)terminalName, terminalId);
             return true;
         }
         else if (strstr(rec.event, "reset"))

@@ -37,6 +37,10 @@ public:
             tail = (tail + 1) % MAX_ITEMS;
             count++;
             result = true;
+#ifdef DEBUG_ON
+            Serial.print(" push: ");
+            Serial.println(size());
+#endif
         }
 
         interrupts();
