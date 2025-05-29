@@ -22,14 +22,13 @@ class App
 {
 private:
     long statusUpdater = 0;
-    bool loraConnected = false;
     const String terminalName = Config::TERMINAL_NAME;
     const uint8_t terminalId = Config::TERMINAL_ID;
 
 public:
     void initLora()
     {
-        loraConnected = lora.begin(terminalId, Config::BAND, Config::PROMISCUOS);
+        lora.begin(terminalId, Config::BAND, Config::PROMISCUOS);
     }
 
     long sendUpdated = 0;
@@ -51,26 +50,23 @@ public:
     long ultimoReceived = 0;
     void loop()
     {
-        lora.loop();
-        if (lora.available())
+        MessageRec rec;
+        if (lora.processIncoming(rec))
         {
+            /// processar as mensagens;
+            handleMessage(rec);
             ultimoReceived = millis();
-            char buf[Config::MESSAGE_MAX_LEN];
-            memset(buf, 0, sizeof(buf));
-            uint8_t len = sizeof(buf);
-            if (lora.receive(buf, &len))
-            {
-                handleMessage(buf);
-            }
         }
-        else if (millis() - sendUpdated > 100)
+        lora.loop();
+
+        if (millis() - sendUpdated > 100)
         {
             sendUpdated = millis();
             if (lora.connected)
             {
                 if (millis() - statusUpdater > Config::STATUS_INTERVAL)
                 {
-                    setStatusChanged(true);
+                    setStatusChanged();
                     statusUpdater = millis();
                 }
             }
@@ -78,26 +74,7 @@ public:
             {
                 initLora();
             }
-            MessageRec rec;
-            if (systemState.messages.pop(rec))
-            {
-                sendEvent(rec.to, rec.event, rec.value);
-            }
         }
-    }
-    void sendEvent(uint8_t tid, String event, String value)
-    {
-        if (event.indexOf("ack") >= 0 || event.indexOf("nak") >= 0)
-        {
-            lora.send(tid, event.c_str(), terminalId);
-
-            return;
-        }
-
-        char msg[Config::MESSAGE_MAX_LEN];
-        memset(msg, 0, sizeof(msg));
-        snprintf(msg, sizeof(msg), "%s|%s", event.c_str(), value.c_str());
-        lora.send(tid, msg, terminalId);
     }
 
     void savePinState(bool state)
@@ -125,57 +102,48 @@ public:
         initCallback();
     }
 
-    bool handleMessage(char *message)
+    bool handleMessage(MessageRec &message)
     {
         uint8_t tfrom = lora.headerFrom();
         bool handled = false;
-        if (strcmp(message, "ack") == 0)
+        if (strcmp(message.event, "ack") == 0)
             return true;
-        if (strcmp(message, "nak") == 0)
-            return false;
-        if (strstr(message, "|") == NULL)
+        if (strcmp(message.event, "nak") == 0)
             return false;
 
-        char buffer[sizeof(message)];
-        strcpy(buffer, message);
-        // Divide a string usando '|' como delimitador
-        const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
-        const char *value = strtok(NULL, "|");   // Pega a segunda parte ("value")
-
-        if ((event == NULL) || (value == NULL))
+        if ((message.event == NULL) || (message.value == NULL))
             return false;
 
-        if (strcmp(event, "status") == 0)
+        if (strcmp(message.event, "status") == 0)
         {
-            // sendStatus(0, "get.status");
-            setStatusChanged(true);
+            setStatusChanged();
             return true;
         }
-        else if (strcmp(event, "presentation") == 0)
+        else if (strcmp(message.event, "presentation") == 0)
         {
 
-            systemState.messages.push(0, "presentation", terminalName);
+            lora.send(0, "presentation", terminalName);
             return true;
         }
-        else if (strcmp(event, "reset") == 0)
+        else if (strcmp(message.event, "reset") == 0)
         {
             // resetFunc();
             return true;
         }
-        else if (strcmp(event, "gpio") == 0)
+        else if (strcmp(message.event, "gpio") == 0)
         {
-            if (strcmp(value, "on") == 0 || strcmp(value, "off") == 0)
+            if (strcmp(message.value, "on") == 0 || strcmp(message.value, "off") == 0)
             {
-                digitalWrite(Config::RELAY_PIN, (strcmp(value, "on") == 0) ? HIGH : LOW);
+                digitalWrite(Config::RELAY_PIN, (strcmp(message.value, "on") == 0) ? HIGH : LOW);
                 handled = true;
             }
-            else if (strcmp(value, "toggle") == 0)
+            else if (strcmp(message.value, "toggle") == 0)
             {
                 int currentState = digitalRead(Config::RELAY_PIN);
                 digitalWrite(Config::RELAY_PIN, !currentState);
                 handled = true;
             }
-            setStatusChanged(true);
+            setStatusChanged();
         }
 
         ack(tfrom, handled);
@@ -183,11 +151,11 @@ public:
     }
     void ack(uint8_t tid, bool handled)
     {
-        systemState.messages.push(tid, handled ? "ack" : "nak", "");
+        lora.send(tid, handled ? "ack" : "nak", "");
     }
-    void setStatusChanged(bool b)
+    void setStatusChanged()
     {
-        systemState.messages.push(0, "status", b ? "on" : "off");
+        lora.send(0, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off");
     }
 };
 
@@ -196,7 +164,7 @@ App app;
 void triggerCallback()
 {
     app.savePinState(digitalRead(Config::RELAY_PIN));
-    app.setStatusChanged(true);
+    app.setStatusChanged();
     systemState.pinStateChanged = true;
 }
 

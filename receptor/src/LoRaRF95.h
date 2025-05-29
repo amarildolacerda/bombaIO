@@ -4,6 +4,7 @@
 #include "RH_RF95.h"
 #include "config.h"
 #include "logger.h"
+#include "queue.h"
 
 #ifdef __AVR__
 #include <SoftwareSerial.h>
@@ -70,54 +71,19 @@ private:
     const uint8_t ETX = '}';
     uint8_t sender = 0xFF;
     uint8_t nHeaderId = 0;
-
-public:
-    bool connected = false;
-
-    LoraRF() : rf95(RFSerial) {}
-
-    bool begin(uint8_t terminal_Id, long band, bool promisc = true)
-    {
-        terminalId = Config::TERMINAL_ID;
-        RFSerial.begin(Config::LORA_SPEED);
-        connected = rf95.init();
-        _promiscuos = promisc;
-        rf95.setPromiscuous(true);
-        rf95.setFrequency(band);
-        rf95.setHeaderFlags(0, RH_FLAGS_NONE);
-        rf95.setTxPower(14, false);
-        return connected;
-    }
-
-    bool loop()
-    {
-        if (mesh.active && (millis() - mesh.lastSentTime > MESH_TIMEOUT_MS))
-        {
-            mesh.lastSentTime = millis();
-            mesh.active = false;
-            Logger::log(LogLevel::INFO, "Retransmitindo MESH [%d->%d]: %s",
-                        mesh.from, mesh.to, mesh.msg);
-            send(mesh.to, mesh.msg, mesh.from, mesh.live, mesh.id);
-        }
-
-        return true;
-    }
-
-    bool receive(char *buffer, uint8_t *len)
-    {
-        return receiveMessage(buffer, len);
-    }
+    FifoQueue txQueue;
+    FifoQueue rxQueue;
 
     void ackIf(bool ack = false)
     {
         if (rf95.headerTo() == terminalId)
         {
-            systemState.messages.push(rf95.headerFrom(),
-                                      (ack) ? "ack" : "nak", "");
+            txQueue.push(rf95.headerFrom(),
+                         (ack) ? "ack" : "nak", "", terminalId);
         }
     }
 
-    bool receiveMessage(char *buffer, uint8_t *len)
+    bool receiveInternal(char *buffer, uint8_t *len)
     {
         if (!rf95.waitAvailableTimeout(10))
         {
@@ -165,7 +131,7 @@ public:
             {
                 if (mto != terminalId)
                     return false;
-                systemState.messages.push(mfrom, "pong", "0");
+                txQueue.push(mfrom, "pong", "0", terminalId);
                 return true;
             }
             else
@@ -215,13 +181,8 @@ public:
         return false;
     }
 
-    bool send(uint8_t terminalTo, const String &buffer, uint8_t terminalFrom)
-    {
-        return send(terminalTo, buffer.c_str(), terminalFrom);
-    }
-
-    bool send(uint8_t terminalTo, const char *message, uint8_t terminalFrom,
-              uint8_t salto = ALIVE_PACKET, uint8_t seq = 0)
+    bool sendInternal(uint8_t terminalTo, const char *message, uint8_t terminalFrom,
+                      uint8_t salto = ALIVE_PACKET, uint8_t seq = 0)
     {
         uint8_t len = strlen(message);
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
@@ -257,13 +218,94 @@ public:
         return result;
     }
 
+public:
+    bool connected = false;
+
+    LoraRF() : rf95(RFSerial) {}
+
+    bool begin(uint8_t terminal_Id, long band, bool promisc = true)
+    {
+        terminalId = Config::TERMINAL_ID;
+        RFSerial.begin(Config::LORA_SPEED);
+        while (!RFSerial)
+            ;
+        connected = rf95.init();
+        _promiscuos = promisc;
+        rf95.setPromiscuous(true);
+        rf95.setFrequency(band);
+        rf95.setHeaderFlags(0, RH_FLAGS_NONE);
+        rf95.setTxPower(14, false);
+        return connected;
+    }
+
+    bool loop()
+    {
+        if (mesh.active && (millis() - mesh.lastSentTime > MESH_TIMEOUT_MS))
+        {
+            mesh.lastSentTime = millis();
+            mesh.active = false;
+            Logger::log(LogLevel::INFO, "Retransmitindo MESH [%d->%d]: %s",
+                        mesh.from, mesh.to, mesh.msg);
+            sendInternal(mesh.to, mesh.msg, mesh.from, mesh.live, mesh.id);
+        }
+        if (rf95.available())
+        {
+            char buffer[Config::MESSAGE_MAX_LEN] = {0};
+            uint8_t len = sizeof(buffer);
+            if (receiveInternal(buffer, &len))
+            {
+                const char *event = strtok(buffer, "|"); // Pega a primeira parte ("status")
+                const char *value = strtok(NULL, "|");
+                MessageRec rec;
+                strncpy(rec.event, event, sizeof(rec.event) - 1);
+                strncpy(rec.value, value, sizeof(rec.value) - 1);
+                rec.event[strlen(rec.event)] = '\0';
+                rec.value[strlen(rec.value)] = '\0';
+                rec.from = rf95.headerFrom();
+                rec.to = rf95.headerTo();
+                rec.print();
+                rxQueue.pushItem(rec);
+            };
+        }
+        if (!txQueue.isEmpty())
+        {
+            MessageRec rec;
+            if (txQueue.pop(rec))
+            {
+                char msg[Config::MESSAGE_MAX_LEN];
+                int i = snprintf(msg, sizeof(msg) - 1, "%s|%s", rec.event, rec.value);
+                msg[i] = '\0';
+                sendInternal(rec.to, msg, rec.from, 3);
+            }
+        }
+
+        return true;
+    }
     bool available()
     {
-        return rf95.waitAvailableTimeout(10);
+        return !rxQueue.isEmpty();
+        // return rf95.waitAvailableTimeout(10);
     }
     uint8_t headerFrom()
     {
         return rf95.headerFrom();
+    }
+    void receive(MessageRec &rec)
+    {
+        rxQueue.pushItem(rec);
+    }
+    void send(MessageRec &rec)
+    {
+        txQueue.pushItem(rec);
+    }
+    void send(uint8_t tid, String event, String value)
+    {
+        txQueue.push(tid, event, value, terminalId);
+    }
+
+    bool processIncoming(MessageRec &rec)
+    {
+        return rxQueue.pop(rec);
     }
 };
 
