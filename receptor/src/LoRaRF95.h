@@ -52,7 +52,7 @@ class LoraRF
 {
 private:
     RH_RF95<decltype(RFSerial)> rf95;
-    uint8_t terminalId = 1;
+    uint8_t terminalId;
     bool _promiscuos = false;
     const uint8_t STX = '{';
     const uint8_t ETX = '}';
@@ -60,6 +60,8 @@ private:
     uint8_t nHeaderId = 0;
     FifoList txQueue;
     FifoList rxQueue;
+    long txLoop = 0;
+    long rxLoop = 0;
 
 public:
     bool connected = false;
@@ -68,7 +70,7 @@ public:
 
     bool begin(uint8_t terminal_Id, long band, bool promisc = true)
     {
-        terminalId = Config::TERMINAL_ID;
+        terminalId = terminal_Id;
         RFSerial.begin(Config::LORA_SPEED);
         connected = rf95.init();
         _promiscuos = promisc;
@@ -91,34 +93,41 @@ public:
 
     bool loop()
     {
-        MessageRec rec;
-        if (txQueue.pop(rec))
+        if (millis() - txLoop > 50)
         {
-            if (rec.event.indexOf("ack") >= 0 || rec.event.indexOf("nak") >= 0)
+            txLoop = millis();
+            MessageRec rec;
+            if (txQueue.pop(rec))
             {
-                sendMessage(rec.to, rec.event.c_str(), rec.from, rec.hope, rec.id);
-                return true;
-            }
-            char msg[Config::MESSAGE_MAX_LEN];
-            memset(msg, 0, sizeof(msg));
-            snprintf(msg, sizeof(msg), "%s|%s", rec.event.c_str(), rec.value.c_str());
-            sendMessage(rec.to, msg, rec.from, rec.hope, rec.id);
-        }
-        // receber para por na fila de entrada.
-        if (rf95.available())
-        {
-            char buf[Config::MESSAGE_MAX_LEN];
-            memset(buf, 0, sizeof(buf));
-            uint8_t len = sizeof(buf);
-            if (receiveMessage(buf, &len))
-            {
-                char *event; // Pega a primeira parte ("status")
-                char *value; // Pega a segunda parte ("value")
-                if (parseMessage(buf, len, event, value))
-                    rxQueue.push(rf95.headerTo(), event, value, rf95.headerFrom());
+                if (strcmp(rec.event.c_str(), "ack") >= 0 || strcmp(rec.event.c_str(), "nak") >= 0)
+                {
+                    sendMessage(rec.to, rec.event.c_str(), rec.from, rec.hope, rec.id);
+                    return true;
+                }
+                char msg[Config::MESSAGE_MAX_LEN];
+                memset(msg, 0, sizeof(msg));
+                snprintf(msg, sizeof(msg), "%s|%s", rec.event.c_str(), rec.value.c_str());
+                sendMessage(rec.to, msg, rec.from, rec.hope, rec.id);
             }
         }
-
+        if (millis() - rxLoop > 5)
+        {
+            rxLoop = millis();
+            // receber para por na fila de entrada.
+            if (rf95.available())
+            {
+                char buf[Config::MESSAGE_MAX_LEN];
+                memset(buf, 0, sizeof(buf));
+                uint8_t len = sizeof(buf);
+                if (receiveMessage(buf, &len))
+                {
+                    char *event; // Pega a primeira parte ("status")
+                    char *value; // Pega a segunda parte ("value")
+                    if (parseMessage(buf, len, event, value))
+                        rxQueue.push(rf95.headerTo(), event, value, rf95.headerFrom());
+                }
+            }
+        }
         return true;
     }
     bool available()
@@ -229,6 +238,8 @@ private:
 
 #ifdef MESH
             uint8_t salto = rf95.headerFlags();
+            Serial.print("MESH From: ");
+            Serial.println(rf95.headerFrom());
             if (salto > 1 && salto <= ALIVE_PACKET)
             {
                 if (mto != terminalId && !isDeviceActive(mfrom))
@@ -248,7 +259,7 @@ private:
     }
 
     bool sendMessage(uint8_t terminalTo, const char *message, uint8_t terminalFrom,
-                     uint8_t salto, uint8_t seq)
+                     uint8_t hope, uint8_t seq)
     {
         uint8_t len = strlen(message);
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
@@ -261,7 +272,7 @@ private:
         rf95.setHeaderFrom(terminalFrom);
         rf95.setHeaderTo(terminalTo);
         rf95.setHeaderId(seq);
-        rf95.setHeaderFlags(salto, 0xFF);
+        rf95.setHeaderFlags(hope, 0xFF);
 
         char fullMessage[Config::MESSAGE_MAX_LEN + 3];
         fullMessage[0] = terminalId;
@@ -275,7 +286,7 @@ private:
         {
             if (rf95.waitPacketSent(MESSAGE_TIMEOUT_MS))
             {
-                Logger::log(LogLevel::INFO, "Enviado %s (%d)[%d->%d](%d): %s", (terminalFrom != terminalId) ? "MESH" : "", terminalId, terminalFrom, terminalTo, salto, message);
+                Logger::log(LogLevel::INFO, "Enviado %s (%d)[%d->%d](%d): %s", (terminalFrom != terminalId) ? "MESH" : "", terminalId, terminalFrom, terminalTo, hope, message);
                 result = true;
             }
         }

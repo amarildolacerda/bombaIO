@@ -19,7 +19,7 @@ enum class LogLevel
 class Logger
 {
 private:
-    static const size_t MAX_LOG_LENGTH = 128; // Maximum length of log message
+    static const size_t MAX_LOG_LENGTH = 255; // Maximum length of log message
 
 public:
     static void info(const char *msg, ...)

@@ -4,12 +4,12 @@
 #include "Arduino.h"
 struct MessageRec
 {
+    uint8_t id;
     uint8_t to;
     uint8_t from;
+    uint8_t hope;
     String event;
     String value;
-    uint8_t hope;
-    uint8_t id;
 };
 // Defina o tamanho máximo da lista
 #define MAX_ITEMS 5
@@ -64,6 +64,8 @@ public:
         msg.to = to;
         msg.event = event;
         msg.value = value;
+        msg.hope = hope;
+        msg.id = id;
         pushItem(msg);
     }
 
