@@ -128,43 +128,46 @@ public:
         {
             return false;
         }
+        Serial.print("handleMessage: {");
+        Serial.print(rec.event);
+        Serial.print("|");
+        Serial.print(rec.value);
+        Serial.println("}");
 
         bool handled = false;
 
-        if (strstr(rec.event, "ack") == rec.event)
+        if (strstr(rec.event, "ack"))
             return true;
-        if (strstr(rec.event, "nak") == rec.event)
-            return false;
-        if (strlen(rec.event) == 0 || strlen(rec.value) == 0)
+        else if (strstr(rec.event, "nak"))
             return false;
 
-        if (strstr(rec.event, "status") == rec.event)
+        else if (strstr(rec.event, "status"))
         {
             setStatusChanged();
             return true;
         }
-        else if (strstr(rec.event, "presentation") == rec.event)
+        else if (strstr(rec.event, "presentation"))
         {
             lora.send(0, "presentation", terminalName, terminalId);
             return true;
         }
-        else if (strstr(rec.event, "reset") == rec.event)
+        else if (strstr(rec.event, "reset"))
         {
             return true;
         }
-        else if (strstr(rec.event, "gpio") == rec.event)
+        else if (strstr(rec.event, "gpio"))
         {
-            if (strstr(rec.event, "on") == rec.event + 4)
+            if (strstr(rec.value, "on"))
             {
                 digitalWrite(Config::RELAY_PIN, HIGH);
                 handled = true;
             }
-            else if (strstr(rec.event, "off") == rec.event + 4)
+            else if (strstr(rec.value, "off"))
             {
                 digitalWrite(Config::RELAY_PIN, LOW);
                 handled = true;
             }
-            else if (strstr(rec.event, "toggle") == rec.event + 4)
+            else if (strstr(rec.value, "toggle"))
             {
                 int currentState = digitalRead(Config::RELAY_PIN);
                 digitalWrite(Config::RELAY_PIN, !currentState);

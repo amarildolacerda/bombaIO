@@ -258,10 +258,8 @@ private:
                     return true;
             }
 
-#ifdef MESH
+            // #ifdef MESH
             uint8_t salto = rf95.headerFlags();
-            Serial.print("MESH From: ");
-            Serial.println(rf95.headerFrom());
             if (salto > 1 && salto <= ALIVE_PACKET)
             {
                 if (mto != terminalId && !isDeviceActive(mfrom))
@@ -272,13 +270,14 @@ private:
                     if (parseMessage(buffer, *len, rec))
                     {
                         rec.hope = salto;
-                        noInterrupts();
                         txQueue.pushItem(rec);
-                        interrupts();
+                        Serial.print("MESH From: ");
+                        Serial.println(rf95.headerFrom());
                     }
                 }
+                return mto == 0xFF;
             }
-#endif
+            // #endif
             return _promiscuos || (mto == 0xFF);
         }
         return false;
