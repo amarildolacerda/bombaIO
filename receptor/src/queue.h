@@ -23,6 +23,7 @@ private:
     int tail = 0;
     int count = 0;
 
+public:
     // Adiciona um item na lista
     bool pushItem(const MessageRec &item)
     {
@@ -58,7 +59,7 @@ public:
      * @param event Nome do evento
      * @param value Valor do evento
      */
-    void push(const uint8_t to, const String &event, const String &value, const uint8_t from, const uint8_t hope = 3, const uint8_t id = 0)
+    void push(const uint8_t to, const String &event, const String &value, const uint8_t from, const uint8_t hope, const uint8_t id = 0)
     {
         MessageRec msg;
         msg.to = to;

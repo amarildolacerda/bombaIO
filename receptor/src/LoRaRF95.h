@@ -93,17 +93,20 @@ public:
 
     bool loop()
     {
-        if (millis() - txLoop > 50)
+        if (millis() - txLoop > 5)
         {
             txLoop = millis();
             MessageRec rec;
             if (txQueue.pop(rec))
             {
-                if (strcmp(rec.event.c_str(), "ack") >= 0 || strcmp(rec.event.c_str(), "nak") >= 0)
-                {
-                    sendMessage(rec.to, rec.event.c_str(), rec.from, rec.hope, rec.id);
-                    return true;
-                }
+                /* if (rec.event.indexOf("ack") == 0 || rec.event.indexOf("nak") == 0)
+                 {
+                     char msg[Config::MESSAGE_MAX_LEN] = {0};
+                     snprintf(msg, sizeof(msg), rec.event.c_str());
+                     sendMessage(rec.to, msg, rec.from, rec.hope, rec.id);
+                     return true;
+                 }
+                     */
                 char msg[Config::MESSAGE_MAX_LEN];
                 memset(msg, 0, sizeof(msg));
                 snprintf(msg, sizeof(msg), "%s|%s", rec.event.c_str(), rec.value.c_str());
@@ -121,10 +124,9 @@ public:
                 uint8_t len = sizeof(buf);
                 if (receiveMessage(buf, &len))
                 {
-                    char *event; // Pega a primeira parte ("status")
-                    char *value; // Pega a segunda parte ("value")
-                    if (parseMessage(buf, len, event, value))
-                        rxQueue.push(rf95.headerTo(), event, value, rf95.headerFrom());
+                    MessageRec rec;
+                    if (parseMessage(buf, len, rec))
+                        rxQueue.push(rec.to, rec.event, rec.value, rec.from, ALIVE_PACKET, 0);
                 }
             }
         }
@@ -141,23 +143,28 @@ public:
     }
 
 private:
-    bool parseMessage(char *buf, const uint8_t len, char *event, char *value)
+    bool parseMessage(char *buf, const uint8_t len, MessageRec &rec)
     {
         char buffer[len + 1];
         strcpy(buffer, buf);
         // Divide a string usando '|' como delimitador
-        event = strtok(buffer, "|"); // Pega a primeira parte ("status")
-        value = strtok(NULL, "|");   // Pega a segunda parte ("value")
-        if (value == NULL)
-            sprintf(value, "ops");
-        return event != NULL;
+        rec.to = rf95.headerTo();
+        rec.from = rf95.headerFrom();
+        rec.id = rf95.headerId();
+        rec.hope = rf95.headerFlags();
+        rec.event = strtok(buffer, "|"); // Pega a primeira parte ("status")
+        rec.value = strtok(NULL, "|");   // Pega a segunda parte ("value")
+        if (rec.value == NULL)
+            rec.value = "";
+        // sprintf(rec.value, "ops");
+        return rec.event.length() != 0;
     }
 
     void ackIf(bool ack = false)
     {
         if (rf95.headerTo() == terminalId)
         {
-            txQueue.push(rf95.headerFrom(), (ack) ? "ack" : "nak", "", terminalId);
+            txQueue.push(rf95.headerFrom(), (ack) ? "ack" : "nak", "", terminalId, ALIVE_PACKET);
         }
     }
 
@@ -209,7 +216,7 @@ private:
             {
                 if (mto != terminalId)
                     return false;
-                txQueue.push(mfrom, "pong", "0", terminalId);
+                txQueue.push(mfrom, "pong", "0", terminalId, ALIVE_PACKET);
                 return true;
             }
             else
@@ -246,10 +253,12 @@ private:
                 {
                     salto--;
 
-                    char *event; // Pega a primeira parte ("status")
-                    char *value; // Pega a segunda parte ("value")
-                    if (parseMessage(buffer, *len, event, value))
-                        txQueue.push(rf95.headerTo(), event, value, rf95.headerFrom(), salto, rf95.headerId());
+                    MessageRec rec;
+                    if (parseMessage(buffer, *len, rec))
+                    {
+                        rec.hope = salto;
+                        txQueue.pushItem(rec);
+                    }
                 }
             }
 #endif
