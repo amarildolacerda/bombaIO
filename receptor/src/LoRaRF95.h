@@ -193,7 +193,6 @@ private:
         uint8_t recvLen = Config::MESSAGE_MAX_LEN + 3;
         char localBuffer[recvLen];
         memset(localBuffer, 0, recvLen);
-        memset(buffer, 0, sizeof(buffer));
 
         if (rf95.recv((uint8_t *)localBuffer, &recvLen))
         {
