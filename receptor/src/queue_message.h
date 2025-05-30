@@ -1,11 +1,11 @@
-#ifndef QUEUE_H
-#define QUEUE_H
+#ifndef QUEUEMESSAGE_H
+#define QUEUEMESSAGE_H
 
 #include "Arduino.h"
 
-#define MAX_EVENT_LEN 16
-#define MAX_VALUE_LEN 32
-#define MAX_ITEMS 5
+#define MAX_EVENT_LEN 13
+#define MAX_VALUE_LEN 25
+#define MAX_ITEMS 3
 
 struct MessageRec
 {
@@ -28,39 +28,41 @@ private:
 public:
     bool pushItem(const MessageRec &item)
     {
-        noInterrupts();
         bool result = false;
 
-        if (count < MAX_ITEMS)
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
         {
-            items[tail] = item;
-            tail = (tail + 1) % MAX_ITEMS;
-            count++;
-            result = true;
-#ifdef DEBUG_ON
-            Serial.print(" push: ");
-            Serial.println(size());
-#endif
-        }
 
-        interrupts();
+            if (count < MAX_ITEMS)
+            {
+                items[tail] = item;
+                tail = (tail + 1) % MAX_ITEMS;
+                count++;
+                result = true;
+#ifdef DEBUG_ON
+                Serial.print(" push: ");
+                Serial.println(size());
+#endif
+            }
+        }
         return result;
     }
 
     bool popItem(MessageRec &item)
     {
-        noInterrupts();
+
         bool result = false;
-
-        if (count > 0)
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
         {
-            item = items[head];
-            head = (head + 1) % MAX_ITEMS;
-            count--;
-            result = true;
-        }
 
-        interrupts();
+            if (count > 0)
+            {
+                item = items[head];
+                head = (head + 1) % MAX_ITEMS;
+                count--;
+                result = true;
+            }
+        }
         return result;
     }
 
@@ -85,25 +87,31 @@ public:
 
     bool isEmpty()
     {
-        noInterrupts();
-        bool result = (count == 0);
-        interrupts();
+        bool result = false;
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+        {
+            result = (count == 0);
+        }
         return result;
     }
 
     bool isFull()
     {
-        noInterrupts();
-        bool result = (count == MAX_ITEMS);
-        interrupts();
+        bool result = false;
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+        {
+            result = (count == MAX_ITEMS);
+        }
         return result;
     }
 
     int size()
     {
-        noInterrupts();
-        int result = count;
-        interrupts();
+        int result = 0;
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+        {
+            result = count;
+        }
         return result;
     }
 };

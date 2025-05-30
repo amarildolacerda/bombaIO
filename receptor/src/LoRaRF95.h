@@ -4,7 +4,7 @@
 #include "RH_RF95.h"
 #include "config.h"
 #include "logger.h"
-#include "queue.h"
+#include "queue_message.h"
 
 #ifdef __AVR__
 #include <SoftwareSerial.h>
@@ -82,9 +82,8 @@ public:
     bool processIncoming(MessageRec &rec)
     {
         bool result = false;
-        noInterrupts();
+
         result = rxQueue.pop(rec);
-        interrupts();
         return result;
     }
 
@@ -99,9 +98,8 @@ public:
         strncpy(msg.event, event, MAX_EVENT_LEN - 1);
         strncpy(msg.value, value, MAX_VALUE_LEN - 1);
 
-        noInterrupts();
         txQueue.pushItem(msg);
-        interrupts();
+
         return;
     }
 
@@ -114,9 +112,8 @@ public:
         {
             txLoop = millis();
             MessageRec rec;
-            noInterrupts();
+
             bool hasItem = txQueue.pop(rec);
-            interrupts();
 
             if (hasItem)
             {
@@ -141,9 +138,7 @@ public:
                     MessageRec rec;
                     if (parseMessage(buf, len, rec))
                     {
-                        noInterrupts();
                         rxQueue.pushItem(rec);
-                        interrupts();
                     }
                 }
                 processed = true;
@@ -190,7 +185,7 @@ private:
 
     bool receiveMessage(char *buffer, uint8_t *len)
     {
-        if (!rf95.waitAvailableTimeout(10))
+        if (!rf95.available())
         {
             return false;
         }
@@ -198,6 +193,7 @@ private:
         uint8_t recvLen = Config::MESSAGE_MAX_LEN + 3;
         char localBuffer[recvLen];
         memset(localBuffer, 0, recvLen);
+        memset(buffer, 0, sizeof(buffer));
 
         if (rf95.recv((uint8_t *)localBuffer, &recvLen))
         {

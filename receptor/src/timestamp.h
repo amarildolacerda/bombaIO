@@ -1,6 +1,7 @@
 #ifndef TIMESTAMP_H
 #define TIMESTAMP_H
 
+#ifdef __AVR__
 #include "Arduino.h"
 #include "TimeLib.h"
 
@@ -178,5 +179,5 @@ public:
 };
 
 extern Timestamp timestamp;
-
+#endif
 #endif

@@ -106,6 +106,7 @@ private:
     {
         WiFi.mode(WIFI_STA);
         WiFiManager wifiManager;
+        // wifiManager.resetSettings();
         wifiManager.setConnectTimeout(Config::WIFI_TIMEOUT_S);
         wifiManager.setConfigPortalTimeout(Config::WIFI_TIMEOUT_S);
 
@@ -247,7 +248,7 @@ public:
 
         if ((presentationCount < 3) && (millis() - updatePressentation > 10000) && systemState.isDiscovering())
         {
-            LoRaCom::sendCommand("presentation", "get", 0xFF);
+            LoRaCom::sendCommand("pub", "", 0xFF);
             updatePressentation = millis();
             if (presentationCount++ > 2)
             {
@@ -365,7 +366,7 @@ protected:
 #endif
             handled = true;
         }
-        else if (strcmp(event, "presentation") == 0)
+        else if (strcmp(event, "pub") == 0)
         {
             char logMsg[128];
             snprintf(logMsg, sizeof(logMsg), "Se apresentando: %s", value);

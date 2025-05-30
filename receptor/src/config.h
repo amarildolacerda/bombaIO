@@ -14,7 +14,12 @@ namespace Config
     constexpr int TERMINAL_ID = LORA_TERMINAL_ID;
     constexpr int LED_PIN = LED_BUILTIN;
 
-    constexpr int BAND = 868.0; // Grove funciona melhor em 868
+#ifdef TTGO
+    constexpr uint32_t LORA_BAND = 868E6; // usado esp32 TTGO LoRa32 v1
+#elif RF95
+    constexpr uint32_t LORA_BAND = 868.0; // usado RF95
+#endif
+
 #ifndef VRELAY_PIN
     constexpr int RELAY_PIN = 4;
 #else
@@ -32,6 +37,8 @@ namespace Config
 #endif
     constexpr long LORA_SPEED = 9600;
     constexpr long SERIAL_SPEED = 115200;
+    constexpr uint16_t LORA_SYNC_WORD = 0x12;
+
     constexpr long STATUS_INTERVAL = 5000;
     constexpr int MESSAGE_MAX_LEN = 128;
 };

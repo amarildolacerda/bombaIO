@@ -1,9 +1,18 @@
 #include "Arduino.h"
 #include "config.h"
+
+#ifdef __AVR__
 #include "RH_RF95.h"
 #include <SoftwareSerial.h>
-#include "logger.h"
 #include "LoRaRF95.h"
+#endif
+
+#ifdef ESP32
+#include "LoRa32.h"
+#endif
+
+#include "logger.h"
+#include "queue_message.h"
 
 #include <EEPROM.h>
 #define EEPROM_ADDR_BOOT_COUNT 0
@@ -28,7 +37,7 @@ private:
 public:
     void initLora()
     {
-        loraConnected = lora.begin(terminalId, Config::BAND, Config::PROMISCUOS);
+        loraConnected = lora.begin(terminalId, Config::LORA_BAND, Config::PROMISCUOS);
     }
 
     long sendUpdated = 0;
@@ -39,7 +48,7 @@ public:
         while (!Serial)
             ;
 
-        lora.begin(terminalId, Config::BAND, Config::PROMISCUOS);
+        lora.begin(terminalId, Config::LORA_BAND, Config::PROMISCUOS);
         if (!lora.connected)
         {
             Serial.print(F("LoRa failed to start"));
@@ -55,24 +64,27 @@ public:
     void loop()
     {
         lora.loop();
-        handleMessage();
+        if (handleMessage())
+        {
+            ultimoReceived = millis();
+        }
 
         if (millis() - sendUpdated > 100)
         {
-            sendUpdated = millis();
+            // sendUpdated = millis();
 
-            if (lora.connected)
+            // if (lora.connected)
+            // {
+            if (millis() - statusUpdater > Config::STATUS_INTERVAL)
             {
-                if (millis() - statusUpdater > Config::STATUS_INTERVAL)
-                {
-                    setStatusChanged();
-                    statusUpdater = millis();
-                }
+                setStatusChanged();
+                statusUpdater = millis();
             }
+            //  }
 
             if (millis() - ultimoReceived > 60000)
             {
-                initLora();
+                // initLora();
             }
         }
     }
@@ -121,9 +133,8 @@ public:
         MessageRec rec;
         memset(&rec, 0, sizeof(MessageRec));
 
-        noInterrupts();
         bool hasMessage = lora.processIncoming(rec);
-        interrupts();
+
         if (!hasMessage)
         {
             return false;
@@ -138,24 +149,10 @@ public:
 
         if (strstr(rec.event, "ack"))
             return true;
-        else if (strstr(rec.event, "nak"))
+        if (strstr(rec.event, "nak"))
             return false;
 
-        else if (strstr(rec.event, "status"))
-        {
-            setStatusChanged();
-            return true;
-        }
-        else if (strstr(rec.event, "presentation"))
-        {
-            lora.send(0, "presentation", (char *)terminalName, terminalId);
-            return true;
-        }
-        else if (strstr(rec.event, "reset"))
-        {
-            return true;
-        }
-        else if (strstr(rec.event, "gpio"))
+        if (strstr(rec.event, "gpio"))
         {
             if (strstr(rec.value, "on"))
             {
@@ -174,6 +171,25 @@ public:
                 handled = true;
             }
             setStatusChanged();
+        }
+
+        return true;
+
+        if (strstr(rec.event, "pub"))
+        {
+
+            lora.send(0, "pub", (char *)terminalName, terminalId);
+            return true;
+        }
+
+        if (strstr(rec.event, "status"))
+        {
+            setStatusChanged();
+            return true;
+        }
+        else if (strstr(rec.event, "reset"))
+        {
+            return true;
         }
 
         ack(rec.from, handled);
@@ -195,11 +211,13 @@ App app;
 
 void triggerCallback()
 {
-    noInterrupts();
-    app.savePinState(digitalRead(Config::RELAY_PIN));
-    interrupts();
-    app.setStatusChanged();
-    systemState.pinStateChanged = true;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    {
+        app.savePinState(digitalRead(Config::RELAY_PIN));
+        interrupts();
+        app.setStatusChanged();
+        systemState.pinStateChanged = true;
+    }
 }
 
 void initCallback()
