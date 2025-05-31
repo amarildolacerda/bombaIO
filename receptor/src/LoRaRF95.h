@@ -5,6 +5,7 @@
 #include "config.h"
 #include "logger.h"
 #include "queue_message.h"
+#include "LoRaInterface.h"
 
 #ifdef __AVR__
 #include <SoftwareSerial.h>
@@ -46,7 +47,7 @@ bool isValidMessage(const char *msg, uint8_t len)
     return (len >= 4) && (msg[1] == '{') && (msg[len - 1] == '}');
 }
 
-class LoraRF
+class LoraRF : public LoRaInterface
 {
 private:
     RH_RF95<decltype(RFSerial)> rf95;
@@ -66,7 +67,7 @@ public:
 
     LoraRF() : rf95(RFSerial) {}
 
-    bool begin(const uint8_t terminal_Id, long band, bool promisc = true)
+    bool begin(const uint8_t terminal_Id, long band, bool promisc = true) override
     {
         terminalId = terminal_Id;
         RFSerial.begin(Config::LORA_SPEED);
@@ -79,7 +80,7 @@ public:
         return connected;
     }
 
-    bool processIncoming(MessageRec &rec)
+    bool processIncoming(MessageRec &rec) override
     {
         bool result = false;
 
@@ -87,7 +88,8 @@ public:
         return result;
     }
 
-    void send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId)
+    // void send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId) override
+    bool send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId) override
     {
         MessageRec msg;
         memset(&msg, 0, sizeof(MessageRec));
@@ -98,12 +100,10 @@ public:
         strncpy(msg.event, event, MAX_EVENT_LEN - 1);
         strncpy(msg.value, value, MAX_VALUE_LEN - 1);
 
-        txQueue.pushItem(msg);
-
-        return;
+        return txQueue.pushItem(msg);
     }
 
-    bool loop()
+    bool loop() override
     {
         bool processed = false;
 
@@ -136,9 +136,9 @@ public:
                 if (receiveMessage(buf, &len))
                 {
                     MessageRec rec;
-                    if (parseMessage(buf, len, rec))
+                    if (parseRecv(buf, len, rec))
                     {
-                        rxQueue.pushItem(rec);
+                        return rxQueue.pushItem(rec);
                     }
                 }
                 processed = true;
@@ -148,7 +148,7 @@ public:
         return processed;
     }
 
-    bool available()
+    bool available() override
     {
         return !rxQueue.isEmpty();
     }
@@ -157,30 +157,51 @@ public:
     {
         return rf95.headerFrom();
     }
+    void setHeaderFrom(uint8_t tid) override
+    {
+        terminalId = tid;
+    }
 
 private:
-    bool parseMessage(char *buf, const uint8_t len, MessageRec &rec)
+    bool parseRecv(char *buf, uint8_t len, MessageRec &rec)
     {
         memset(&rec, 0, sizeof(MessageRec));
-
         rec.to = rf95.headerTo();
         rec.from = rf95.headerFrom();
         rec.id = rf95.headerId();
         rec.hope = rf95.headerFlags();
 
-        char *separator = strchr(buf, '|');
-        if (separator)
+        if (buf == NULL || buf[0] != '{' || buf[len - 1] != '}')
         {
-            *separator = '\0';
-            strncpy(rec.event, buf, MAX_EVENT_LEN - 1);
-            strncpy(rec.value, separator + 1, MAX_VALUE_LEN - 1);
+            // Serial.println("Mensagem mal formatada");
+            // Serial.println(buf);
+            return false;
+        }
+
+        // Copia o conteúdo interno (sem as chaves)
+        char content[100];
+        strncpy(content, buf + 1, len - 2);
+        content[len - 2] = '\0';
+
+        // Separar event e value usando '|'
+        char *token = strtok(content, "|");
+        if (token != nullptr)
+        {
+            int xe = snprintf(rec.event, sizeof(rec.event), token);
+            rec.event[xe] = '\0'; // Adicionar o terminador nulo
+        }
+
+        token = strtok(nullptr, "|");
+        if (token != nullptr)
+        {
+            int xv = snprintf(rec.value, sizeof(rec.value), token);
+            rec.value[xv] = '\0'; // Adicionar o terminador nulo
         }
         else
         {
-            strncpy(rec.event, buf, MAX_EVENT_LEN - 1);
+            sprintf(rec.value, '\0');
         }
-
-        return strlen(rec.event) > 0;
+        return true;
     }
 
     bool receiveMessage(char *buffer, uint8_t *len)
@@ -230,7 +251,7 @@ private:
             {
                 if (mto != terminalId)
                     return false;
-                txQueue.push(mfrom, "pong", "0", terminalId, ALIVE_PACKET);
+                txQueue.push(mfrom, "pong", "0", terminalId, ALIVE_PACKET, nHeaderId++);
                 return true;
             }
             else if (strstr(buffer, "pong") != NULL)
@@ -249,7 +270,8 @@ private:
 
             if ((mto == terminalId) || (mto == 0xFF))
             {
-                Logger::log(LogLevel::DEBUG, "Direct message [%d->%d]: %s", mfrom, mto, buffer);
+                //                Logger::log(LogLevel::DEBUG, "Direct message [%d->%d]: %s", mfrom, mto, buffer);
+                Logger::log(LogLevel::RECEIVE, "(%d)[%d->%d:%d](%d) %s", terminalId, mfrom, mto, rf95.headerId(), rf95.headerFlags(), buffer);
                 if (mto == terminalId)
                     return true;
             }
@@ -263,7 +285,7 @@ private:
                     salto--;
 
                     MessageRec rec;
-                    if (parseMessage(buffer, *len, rec))
+                    if (parseRecv(buffer, *len, rec))
                     {
                         rec.hope = salto;
                         txQueue.pushItem(rec);
@@ -310,7 +332,7 @@ private:
             {
                 if (rf95.waitPacketSent(MESSAGE_TIMEOUT_MS))
                 {
-                    Logger::log(LogLevel::INFO, "Sent [%d->%d]: %s", terminalFrom, terminalTo, message);
+                    Logger::log(LogLevel::SEND, "(%d)[%d->%d:%d](%d) %s", terminalId, terminalFrom, terminalTo, seq, hope, message);
                     result = true;
                 }
             }

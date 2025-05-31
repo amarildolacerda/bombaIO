@@ -9,7 +9,7 @@ class LoRaInterface
 {
 public:
     virtual bool begin(const uint8_t terminal_Id, long band, bool promisc = true) = 0;
-    virtual void setPins(const uint8_t cs, const uint8_t reset, const uint8_t irq) = 0;
+    virtual void setPins(const uint8_t cs, const uint8_t reset, const uint8_t irq) {};
     virtual void setHeaderFrom(const uint8_t tid) = 0;
     virtual void endSetup()
     {
