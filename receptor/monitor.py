@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import asyncio
 import websockets
-from datetime import datetime
+from datetime import datetime, timedelta
 import argparse
 from colorama import init, Fore, Style
+from collections import defaultdict
 
 init(autoreset=True)  # Configura colorama para auto-reset
 
@@ -23,6 +24,10 @@ class DynamicColorMonitor:
     def __init__(self, ip, port=80):
         self.uri = f"ws://{ip}:{port}/ws"
         self.running = True
+        self.message_stats = defaultdict(int)
+        self.total_messages = 0
+        self.last_stats_time = datetime.now()
+        self.stats_interval = timedelta(seconds=60)
 
     def _get_color(self, message):
         """Determina a cor baseada nos primeiros caracteres"""
@@ -37,6 +42,45 @@ class DynamicColorMonitor:
         time = datetime.now().strftime('%H:%M:%S')
         color = self._get_color(message)
         print(f"{Fore.LIGHTBLACK_EX}{time}{Style.RESET_ALL} {color}{message}")
+
+        # Atualiza estatísticas
+        self._update_stats(message)
+
+    def _update_stats(self, message):
+        """Atualiza as estatísticas de mensagens"""
+        now = datetime.now()
+        prefix = message[:6]
+        
+        # Contagem por tipo de mensagem
+        for key in self.COLOR_MAP:
+            if key in prefix:
+                self.message_stats[key] += 1
+                break
+        else:
+            self.message_stats['[OTHER]'] += 1
+        
+        self.total_messages += 1
+        
+        # Verifica se é hora de mostrar estatísticas
+        if now - self.last_stats_time >= self.stats_interval:
+            self._show_stats()
+            self.last_stats_time = now
+
+    def _show_stats(self):
+        """Exibe as estatísticas coletadas"""
+        stats_time = datetime.now().strftime('%H:%M:%S')
+        print(f"\n{Fore.YELLOW}=== Estatísticas ({stats_time}) ===")
+        print(f"{Fore.CYAN}Total de mensagens: {self.total_messages}")
+        
+        for msg_type, count in sorted(self.message_stats.items()):
+            color = self.COLOR_MAP.get(msg_type, Fore.WHITE)
+            print(f"{color}{msg_type}: {count} mensagens")
+        
+        print(f"{Fore.YELLOW}=============================\n{Style.RESET_ALL}")
+        
+        # Reseta contadores para o próximo intervalo
+        self.message_stats.clear()
+        self.total_messages = 0
 
     async def run(self):
         """Conexão WebSocket principal"""

@@ -195,6 +195,10 @@ public:
 
     void setup()
     {
+#ifdef HELTEC
+        pinMode(Vext, OUTPUT);
+        digitalWrite(Vext, LOW); // Ativar alimentação do LoRa
+#endif
         Serial.begin(Config::SERIAL_SPEED);
         while (!Serial)
             ;
