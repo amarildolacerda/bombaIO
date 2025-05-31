@@ -384,8 +384,8 @@ public:
         }
 
         Logger::log(handled ? LogLevel::RECEIVE : LogLevel::WARNING,
-                    "(%d)[%X→%X:%X] L: %d Live: %d %s",
-                    _headerSender, _headerFrom, _headerTo, _headerId, len, _headerHope, buffer);
+                    "(%d)[%X→%X:%X](%d) L: %d  %s",
+                    _headerSender, _headerFrom, _headerTo, _headerId, _headerHope, len, buffer);
         return handled;
     }
 
