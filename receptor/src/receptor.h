@@ -8,7 +8,11 @@
 #endif
 
 #ifdef ESP32
-#include "LoRa32.h"
+#ifdef HELTEC
+#include <heltec.h>
+#include <display_manager.h>
+#endif
+#include <LoRa32.h>
 #endif
 
 #include "logger.h"
@@ -34,6 +38,14 @@ private:
     const char *terminalName = Config::TERMINAL_NAME;
     const uint8_t terminalId = Config::TERMINAL_ID;
 
+    void initHardware()
+    {
+#ifdef HELTEC
+        Heltec.begin(false, true, false, false, Config::LORA_BAND);
+        // displayManager.init();
+#endif
+    }
+
 public:
     void initLora()
     {
@@ -48,21 +60,28 @@ public:
         while (!Serial)
             ;
 
-        lora.begin(terminalId, Config::LORA_BAND, Config::PROMISCUOS);
-        if (!lora.connected)
+        initHardware();
+
+        initCallback(); // antes de inciar os pacotes.
+
+        initLora();
+        if (!loraConnected)
         {
-            Serial.print(F("LoRa failed to start"));
+            Serial.println("LoRa failed to start");
         };
 
         pinMode(Config::LED_PIN, OUTPUT);
-        pinMode(Config::RELAY_PIN, OUTPUT);
+        pinMode(Config::RELAY_PIN, PULLDOWN);
         initPinRelay();
+        Serial.println("Pronto");
     }
 
     long ultimoReceived = 0;
 
     void loop()
     {
+        if (!loraConnected)
+            return;
         lora.loop();
         if (handleMessage())
         {
@@ -125,7 +144,6 @@ public:
         interrupts();
 
         Logger::info(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF");
-        initCallback();
     }
 
     bool handleMessage()
@@ -211,7 +229,7 @@ App app;
 
 void triggerCallback()
 {
-    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    CRITICAL_SECTION
     {
         app.savePinState(digitalRead(Config::RELAY_PIN));
         interrupts();
@@ -220,8 +238,13 @@ void triggerCallback()
     }
 }
 
+static bool callbackInstaled = false;
 void initCallback()
 {
-    detachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN));
+    if (callbackInstaled)
+    {
+        callbackInstaled = true;
+        detachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN));
+    }
     attachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN), triggerCallback, CHANGE);
 }

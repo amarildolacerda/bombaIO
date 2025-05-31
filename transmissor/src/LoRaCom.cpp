@@ -2,7 +2,8 @@
 #include "logger.h"
 
 #ifdef TTGO
-#include "LoRaTTGO.h"
+// #include "LoRaTTGO.h"
+#include "LoRa32.h"
 
 #elif RF95
 #include <LoRaRF95.h>
@@ -19,13 +20,13 @@
 LoRaInterface *LoRaCom::loraInstance = nullptr;
 
 // Define the static receiveCallback pointer
-void (*LoRaCom::onReceiveCallback)(LoRaInterface *) = nullptr;
+void (*LoRaCom::onReceiveCallback)(MessageRec *) = nullptr;
 
 // ========== LoRaCom Implementations ==========
 bool LoRaCom::initialize()
 {
 #ifdef TTGO
-    setInstance(new LoRaTTGO());
+    setInstance(new LoRa32());
 #elif RF95
     setInstance(new LoRaRF95());
 #endif
@@ -33,16 +34,16 @@ bool LoRaCom::initialize()
 #ifdef TTGO
     loraInstance->setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
 #endif
-    bool rt = loraInstance->beginSetup(Config::LORA_BAND,
+    bool rt = loraInstance->begin(0, Config::LORA_BAND,
 #ifdef TTGO
-                                       false
+                                  false
 #else
-                                       true
+                                  true
 #endif
     );
     if (!rt)
     {
-        Logger::log(LogLevel::ERROR, F("Falha ao iniciar LoRa"));
+        Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");
         return false;
     }
     loraInstance->setHeaderFrom(Config::TERMINAL_ID);
@@ -58,32 +59,26 @@ long lastSendTime = 25000;
 long lastReceive = 0;
 long lastPing = 20000;
 uint8_t idPing = 0;
+
 void LoRaCom::handle()
 {
-    if (loraInstance->available())
+    loraInstance->loop();
+    MessageRec rec;
+    if (loraInstance->processIncoming(rec))
     {
         lastReceive = millis();
-        if (onReceiveCallback)
-        {
-            onReceiveCallback(loraInstance);
-        }
-        else
-        {
-            Logger::log(LogLevel::ERROR, F("Não definiu callback para receber os dados"));
-        }
+        onReceiveCallback(&rec);
     }
-    else
-    {
+
 #ifdef TTGO
-        static uint32_t ultimoRssi = 0;
-        if (millis() - ultimoRssi > 1000)
-        {
-            displayManager.rssi = loraInstance->packetRssi();
-            displayManager.snr = loraInstance->packetSnr();
-            ultimoRssi = millis();
-        }
-#endif
+    static uint32_t ultimoRssi = 0;
+    if (millis() - ultimoRssi > 1000)
+    {
+        displayManager.rssi = loraInstance->packetRssi();
+        displayManager.snr = loraInstance->packetSnr();
+        ultimoRssi = millis();
     }
+#endif
 
     if (millis() - lastSendTime > 30000)
     {
@@ -91,7 +86,7 @@ void LoRaCom::handle()
         LoRaCom::sendTime();
     }
 
-    if (millis() - lastReceive > 60000)
+    if (millis() - lastReceive > 60000 * 5)
     {
         ESP.restart();
     }
@@ -120,14 +115,8 @@ void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const
 
 void LoRaCom::ack(bool ak, uint8_t tid)
 {
-    loraInstance->setHeaderTo(tid);
-    bool rt = loraInstance->print((ak) ? "ack" : "nak");
+    loraInstance->send(tid, (char *)(ak) ? "ack" : "nak", "", 0);
     displayManager.message((String)tid + "->" + (ak) ? "ack" : "nak");
-}
-
-void LoRaCom::sendHeaderTo(uint8_t tid)
-{
-    loraInstance->setHeaderTo(tid);
 }
 
 int LoRaCom::packetRssi()
@@ -144,115 +133,22 @@ void LoRaCom::sendTime()
 
 void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
 {
-#ifdef DEBUG_ON
-    Serial.print("enter presentation");
-#endif
-    char message[Config::MESSAGE_LEN];
-    char nStr[8];
-    bool ackReceived = false;
-    for (int attempt = 0; attempt < n && !ackReceived; ++attempt)
-    {
-
-        // snprintf(nStr, sizeof(nStr), "%u", attempt + 1);
-        formatMessage(message, tid, "presentation", "ttgo");
-        displayManager.message(message);
-        loraInstance->setHeaderTo(tid);
-        bool rt = loraInstance->print(message);
-        if (rt)
-        { // não pega ack se for broadcast por timeout  n == 1
-            Logger::log(LogLevel::ERROR, F("Falha ao enviar apresentação LoRa"));
-            return;
-        }
-
-        Logger::info("Presentation");
-        Logger::log(LogLevel::DEBUG, String((String)message + " (tentativa " + String(attempt + 1) + ")").c_str());
-    }
-#ifdef DEBUG_ON
-    Serial.print("saiu prensentation");
-#endif
+    loraInstance->send(tid, "pub", "ttgo", 0);
 }
 
 bool LoRaCom::waitAck()
 {
-#ifdef DEBUG_ON
-    Serial.print("entrou waitAck()");
-#endif
-    // Wait for acknowledgment
-    unsigned long start = millis();
-    unsigned long lastCheck = millis();
-    while (millis() - start < Config::ACK_TIMEOUT_MS)
-    {
-        if (millis() - lastCheck >= 100)
-        {
-            lastCheck = millis();
-            // Verifica se há pacote disponível
-        }
-        digitalWrite(LED_BUILTIN, HIGH); // Indicate waiting for ACK
-                                         // delay(100);
-
-        uint8_t tid = 0xFF;
-        char payload[Config::MESSAGE_LEN];
-        uint16_t index = 0;
-        int n = 0;
-        while (loraInstance->available() && index < sizeof(payload) - 1)
-        {
-            uint8_t byte = loraInstance->read();
-            n++;
-            if ((n == 1) || !(byte >= 32 && byte <= 126))
-                tid = byte;
-            if (n < 5)
-                continue;
-            payload[index] = static_cast<char>(byte);
-            index++;
-            loraInstance->setHeaderTo(tid);
-            if (static_cast<char>(byte) == '}')
-                break;
-        }
-        payload[index] = '\0'; // Garante terminação
-
-        systemState.loraRcv(payload);
-
-        Logger::log(LogLevel::INFO, payload);
-#ifdef DEBUG_ON
-        Serial.print("saiu waitAck()");
-#endif
-        return true;
-    }
-
-    digitalWrite(LED_BUILTIN, LOW); // Turn off LED
-
-    // ack(false);
-    return false;
+    return true;
 }
 
 bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
 {
-    char output[Config::MESSAGE_LEN];
-    memset(output, 0, sizeof(output));
-    formatMessage(output, tid, event.c_str(), value.c_str());
-    size_t msgLen = strlen(output);
-    bool rt = loraInstance->sendMessage(tid, output);
-
-    if (!rt)
-    {
-        Logger::log(LogLevel::ERROR, F("Falha ao enviar comando LoRa"));
-        return false;
-    }
+    loraInstance->send(tid, event.c_str(), value.c_str(), 0);
     displayManager.message((String)(tid) + "->" + event + ": " + value);
     return true;
 }
 
-void LoRaCom::sleep(unsigned int duration)
-{
-    unsigned long start = millis();
-    while (millis() - start < duration)
-    {
-        yield(); // Permite que outras tarefas sejam executadas
-        delay(10);
-    }
-}
-
-void LoRaCom::setReceiveCallback(void (*callback)(LoRaInterface *))
+void LoRaCom::setReceiveCallback(void (*callback)(MessageRec *))
 {
     onReceiveCallback = callback;
 }

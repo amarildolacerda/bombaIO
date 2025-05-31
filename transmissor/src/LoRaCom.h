@@ -3,6 +3,7 @@
 
 // #include <Arduino.h>
 #include "LoRaInterface.h"
+#include "queue_message.h"
 
 class LoRaCom
 {
@@ -11,10 +12,10 @@ private:
     uint8_t nHeaderId = 0;
 
 protected:
-    static void (*onReceiveCallback)(LoRaInterface *);
+    static void (*onReceiveCallback)(MessageRec *);
 
 public:
-    static void setReceiveCallback(void (*callback)(LoRaInterface *));
+    static void setReceiveCallback(void (*callback)(MessageRec *));
     //{
     //    onReceiveCallback = callback;
     // }

@@ -23,7 +23,7 @@ private:
     const uint8_t ETX = '}';
 
 public:
-    bool beginSetup(float frequency, bool promiscuous = true) override
+    bool begin(float frequency, bool promiscuous = true) override
     {
         LoRa.begin(frequency);
         LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)

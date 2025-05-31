@@ -37,6 +37,7 @@
 #endif
 
 #include "LoRaInterface.h"
+#include "queue_message.h"
 
 #ifdef SINRIC
 #include "SinricCom.h"
@@ -46,9 +47,6 @@
 #include <ESPAsyncWebServer.h>
 AsyncWebServer server(Config::WEBSERVER_PORT);
 #endif
-
-// Buffer estático para mensagens
-static char staticMsgBuffer[Config::MESSAGE_LEN + 1];
 
 class App
 {
@@ -165,7 +163,6 @@ public:
         Serial.println("\n\nStarting with debug...");
         // Enable detailed crash reports
         esp_log_level_set("*", ESP_LOG_VERBOSE);
-        Logger::setLogLevel(LogLevel::VERBOSE);
 #endif
         Serial.println(F("Iniciando sistema..."));
 
@@ -229,7 +226,7 @@ public:
         }
         catch (const std::exception &e)
         {
-            Logger::log(LogLevel::CRITICAL, e.what());
+            Logger::log(LogLevel::WARNING, e.what());
             safeRestart();
         }
     }
@@ -286,106 +283,54 @@ public:
     }
 
 protected:
-    static void processIncoming(LoRaInterface *loraInstance)
+    static void processIncoming(MessageRec *rec)
     {
-        if (!loraInstance)
+        if (!rec->event)
             return;
 
-        uint8_t buf[Config::MESSAGE_LEN + 1];
-        memset(buf, 0, sizeof(buf)); // Clear buffer first
-        uint8_t len = Config::MESSAGE_LEN;
-
-        if (!loraInstance->receiveMessage(buf, len))
-        {
-            Logger::log(LogLevel::INFO, F("Não pegou ou descartou"));
-            return;
-        }
-
-        uint8_t tid = loraInstance->headerFrom();
-        if ((tid == 0) || (tid == 0xFF) || (loraInstance->headerTo() == 0xFF))
+        uint8_t tid = rec->from;
+        if ((tid == 0) || (tid == 0xFF) || (rec->to == 0xFF))
         {
             return; // Descarta pacotes próprios ou inválidos
         }
 
-        // Sanitiza o buffer
-        for (uint8_t i = 0; i < len && i < Config::MESSAGE_LEN; i++)
+        if (strstr(rec->event, "ack") != NULL || strstr(rec->event, "nak") != NULL)
         {
-            if (buf[i] < 32 || buf[i] > 126)
-            {
-                buf[i] = ' ';
-            }
-        }
-        buf[len] = '\0'; // Garante terminação nula
-
-        // Usa buffer estático para evitar alocação na pilha
-        strncpy(staticMsgBuffer, (char *)buf, Config::MESSAGE_LEN);
-        staticMsgBuffer[Config::MESSAGE_LEN] = '\0';
-
-        if (strstr(staticMsgBuffer, "ack") != NULL || strstr(staticMsgBuffer, "nak") != NULL)
-        {
-            char logMsg[64];
-            snprintf(logMsg, sizeof(logMsg), "Detectado %s", staticMsgBuffer);
-            Logger::info(logMsg);
+            Logger::info(rec->event);
             return;
         }
-
-        char *separator = strchr(staticMsgBuffer, '|');
-        if (!separator)
-        {
-            LoRaCom::ack(false, tid);
-            Logger::log(LogLevel::ERROR, F("Pacote inválido (sem separador '|')"));
-            return;
-        }
-
-        *separator = '\0'; // Separa evento e valor
-        const char *event = staticMsgBuffer;
-        const char *value = separator + 1;
 
         bool handled = false;
         DeviceInfoData data;
         data.tid = tid;
-        data.rssi = loraInstance->packetRssi();
 
-        if (strstr(event, "status") != NULL)
+        if (strstr(rec->event, "status") != NULL)
         {
-            char logMsg[128];
-            snprintf(logMsg, sizeof(logMsg), "Status detectado: %s", value);
-            Logger::info(logMsg);
-
-            data.event = event;
-            data.value = value;
-            // data.name = DeviceInfo::findName(tid);
+            data.event = rec->event;
+            data.value = rec->value;
             data.lastSeenISOTime = DeviceInfo::getISOTime();
             DeviceInfo::updateDeviceList(data.tid, data);
 
-            systemState.updateState(value);
+            systemState.updateState(rec->value);
 
 #ifdef ALEXA
             alexaCom.aliveOffLineAlexa();
-            alexaCom.updateStateAlexa(DeviceInfo::findName(tid), value);
+            alexaCom.updateStateAlexa(DeviceInfo::findName(tid), rec->value);
 #endif
             handled = true;
         }
-        else if (strcmp(event, "pub") == 0)
+        else if (strcmp(rec->event, "pub") == 0)
         {
-            char logMsg[128];
-            snprintf(logMsg, sizeof(logMsg), "Se apresentando: %s", value);
-            Logger::info(logMsg);
-
             if (systemState.isDiscovering())
             {
                 DeviceRegData reg;
                 reg.tid = tid;
-                reg.name = value;
+                reg.name = rec->value;
                 DeviceInfo::updateRegList(tid, reg);
                 Prefers::saveRegs();
 
-                char displayMsg[64];
-                snprintf(displayMsg, sizeof(displayMsg), "Encontrei '%s'", reg.name.c_str());
-                displayManager.info(displayMsg);
-
 #ifdef ALEXA
-                alexaCom.addDevice(tid, value);
+                alexaCom.addDevice(tid, rec->value);
 #endif
                 handled = true;
             }
@@ -397,7 +342,7 @@ protected:
 
         if (handled)
         {
-            displayManager.setEvent(tid, event, value);
+            displayManager.setEvent(tid, rec->event, rec->value);
         }
         LoRaCom::ack(handled, tid);
     }

@@ -2,6 +2,25 @@
 #define CONFIG_H
 #include "Arduino.h"
 
+#if defined(__AVR__)
+#include <util/atomic.h>
+#define CRITICAL_SECTION ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+#elif defined(ESP32)
+#define LoRaWAN_DEBUG_LEVEL 1 // Ou outro valor entre 0-4
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+#define CRITICAL_SECTION ;
+
+// Versão 1: Usando portENTER_CRITICAL (recomendada para ESP32)
+// #define CRITICAL_SECTION                                            \
+//    for (portMUX_TYPE __tempMutex__ = portMUX_INITIALIZER_UNLOCKED; \
+//         (portENTER_CRITICAL(&__tempMutex__), true);                \
+//         portEXIT_CRITICAL(&__tempMutex__))
+
+#else
+#error "Plataforma não suportada"
+#endif
 namespace Config
 {
 #ifdef __AVR__
@@ -14,7 +33,7 @@ namespace Config
     constexpr int TERMINAL_ID = LORA_TERMINAL_ID;
     constexpr int LED_PIN = LED_BUILTIN;
 
-#ifdef TTGO
+#if defined(TTGO) || defined(HELTEC)
     constexpr uint32_t LORA_BAND = 868E6; // usado esp32 TTGO LoRa32 v1
 #elif RF95
     constexpr uint32_t LORA_BAND = 868.0; // usado RF95

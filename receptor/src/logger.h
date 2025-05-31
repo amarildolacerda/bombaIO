@@ -63,13 +63,24 @@ public:
         return result;
     }
 
+    static bool log(LogLevel level, const __FlashStringHelper *message)
+    {
+        if (message == nullptr)
+            return 0;
+
+        char eventBuffer[32];
+        strncpy_P(eventBuffer, reinterpret_cast<const char *>(message), sizeof(eventBuffer));
+
+        return Logger::log(level, eventBuffer);
+    }
+
 private:
     static bool vlog(const LogLevel level, const char *format, va_list args)
     {
         char formattedMsg[MAX_LOG_LENGTH];
         vsnprintf(formattedMsg, MAX_LOG_LENGTH, format, args);
 
-#ifndef xDEBUG_ON
+#ifndef DEBUG_ON
         Serial.println(formattedMsg);
         return true;
 #else

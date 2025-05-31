@@ -1,11 +1,12 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <Arduino.h>
+#include "Arduino.h"
+#include <stdarg.h>
 
+//--------------------------------------------------LOG
 enum class LogLevel
 {
-    CRITICAL,
     ERROR,
     WARNING,
     RECEIVE,
@@ -17,39 +18,105 @@ enum class LogLevel
 
 class Logger
 {
+private:
+    static const size_t MAX_LOG_LENGTH = 255; // Maximum length of log message
+
 public:
-    static void setLogLevel(LogLevel level);
-    static void error(const char *message)
+    static void info(const char *msg, ...)
     {
-        log(LogLevel::ERROR, message);
-    }
-    static void error(String message)
-    {
-        log(LogLevel::ERROR, message.c_str());
-    }
-    static void info(const char *message)
-    {
-        log(LogLevel::INFO, message);
-    }
-    static void info(String message)
-    {
-        log(LogLevel::INFO, message.c_str());
-    }
-    static void warn(const char *message)
-    {
-        log(LogLevel::WARNING, message);
-    }
-    static void debug(const char *message)
-    {
-        log(LogLevel::DEBUG, message);
+        va_list args;
+        va_start(args, msg);
+        log(LogLevel::INFO, msg, args);
+        va_end(args);
     }
 
-    static bool log(LogLevel level, const char *message);
-    static bool log(LogLevel level, const __FlashStringHelper *message);
-    bool log(LogLevel level, String message);
+    static void error(const char *msg, ...)
+    {
+        va_list args;
+        va_start(args, msg);
+        log(LogLevel::ERROR, msg, args);
+        va_end(args);
+    }
+
+    static void debug(const char *msg, ...)
+    {
+        va_list args;
+        va_start(args, msg);
+        log(LogLevel::DEBUG, msg, args);
+        va_end(args);
+    }
+
+    static void warning(const char *msg, ...)
+    {
+        va_list args;
+        va_start(args, msg);
+        log(LogLevel::WARNING, msg, args);
+        va_end(args);
+    }
+
+    static bool log(const LogLevel level, const char *format, ...)
+    {
+        va_list args;
+        va_start(args, format);
+        bool result = vlog(level, format, args);
+        va_end(args);
+        return result;
+    }
+
+    static bool log(LogLevel level, const __FlashStringHelper *message)
+    {
+        if (message == nullptr)
+            return 0;
+
+        char eventBuffer[32];
+        strncpy_P(eventBuffer, reinterpret_cast<const char *>(message), sizeof(eventBuffer));
+
+        return Logger::log(level, eventBuffer);
+    }
 
 private:
-    static LogLevel currentLogLevel;
+    static bool vlog(const LogLevel level, const char *format, va_list args)
+    {
+        char formattedMsg[MAX_LOG_LENGTH];
+        vsnprintf(formattedMsg, MAX_LOG_LENGTH, format, args);
+
+#ifndef DEBUG_ON
+        Serial.println(formattedMsg);
+        return true;
+#else
+        static const char levelStrings[][7] PROGMEM = {
+            "[ERRO]", "[WARN]", "[RECV]", "[SEND]", "[INFO]",
+            "[DBUG]",
+            "[VERB]"};
+
+        static const char colorCodes[][8] PROGMEM = {
+            "\033[31m", // ERRO - Red
+            "\033[34m", // WARN - Blue
+            "\033[35m", // RECEIVE - Magenta
+            "\033[36m", // SEND - Cyan
+            "\033[32m", // INFO - Green
+            "\033[33m", // DBUG - Yellow
+            "\033[37m"  // VERB - White
+        };
+
+        int idx = static_cast<int>(level);
+        char levelBuffer[7];
+        char colorBuffer[8];
+        strcpy_P(levelBuffer, levelStrings[idx]);
+        strcpy_P(colorBuffer, colorCodes[idx]);
+
+        Serial.print(colorBuffer);
+        Serial.print(levelBuffer);
+#ifdef TIMESTAMP
+//        Serial.print(F(" "));
+//        Serial.print(getISOHour());
+#endif
+        Serial.print(F("-"));
+        Serial.println(formattedMsg);
+        Serial.print(F("\033[0m")); // Reset color if used
+        return true;
+#endif
+    }
 };
 
-#endif // LOGGER_H
+#endif
