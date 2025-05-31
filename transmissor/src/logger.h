@@ -15,12 +15,19 @@ enum class LogLevel
     VERBOSE
 };
 
+using LogCallback = std::function<void(const String &)>;
+static LogCallback logCallback; // Callback para roteamento
+
 class Logger
 {
 private:
     static const size_t MAX_LOG_LENGTH = 255;
 
 public:
+    static void setLogCallback(LogCallback callback)
+    {
+        logCallback = callback;
+    }
     static void info(const char *msg, ...)
     {
         va_list args;
@@ -114,6 +121,15 @@ private:
         // Versão simples (quando DEBUG_ON não está definido)
         Serial.println(formattedMsg);
 #endif
+
+        if (logCallback)
+        {
+            String msg = levelBuffer;
+            msg += " ";
+            msg += formattedMsg;
+            logCallback(msg);
+        }
+
         return true;
     }
 };
