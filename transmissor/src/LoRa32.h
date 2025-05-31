@@ -5,6 +5,9 @@
 #include "queue_message.h"
 #include "config.h"
 
+#include "logger.h"
+#include "LoRaInterface.h"
+
 #ifdef ESP32
 #if defined(HELTEC)
 //-----------------------------------------------
@@ -240,7 +243,7 @@ public:
 
         // bool rt = LoRa.endPacket() > 0;
 
-        Logger::log(LogLevel::SEND, "(%d)[%d→%d:%d](%d) L: %d B: %s", terminalId, tidFrom, tidTo, sq, hope, snd, buffer);
+        Logger::log(LogLevel::SEND, "(%d)[%X→%X:%X](%d) L: %d B: %s", terminalId, tidFrom, tidTo, sq, hope, snd, buffer);
 
         setState(LoRaWAITING);
         return snd > 0;
@@ -254,7 +257,6 @@ public:
             return false;
 
         uint8_t packetSize = LoRa.parsePacket();
-        Logger::log(LogLevel::RECEIVE, "Recebendo: %d bytes", packetSize);
         if (packetSize < 5)
         {
             return false;
@@ -283,6 +285,7 @@ public:
 
         if (len == 0 || _headerFrom == terminalId || _headerSender == terminalId)
             return false;
+        Logger::log(LogLevel::RECEIVE, "Recebendo: %d bytes", packetSize);
 
         MessageRec rec;
         if (!parseRecv(buffer, len, rec))
@@ -300,17 +303,17 @@ public:
             {
                 return false;
             }
-            lastRcvMesssage = rec.dv(); // elimina repetidos.
-            if (rxQueue.pushItem(rec))
-            {
-                Logger::log(LogLevel::RECEIVE, "(%d)[%d→%d:%d] L: %d Live: %d %s", _headerSender, _headerFrom, _headerTo, _headerId, len, _headerHope, buffer);
-                // Serial.print(rxQueue.size());
-                // Serial.print(" ");
-                // Serial.println(buffer);
-            }
             else
-                return false;
+            {
+                lastRcvMesssage = rec.dv(); // elimina repetidos.
+                if (!rxQueue.pushItem(rec))
+                {
+
+                    handled = false;
+                }
+            }
         }
+        Logger::log(handled ? LogLevel::RECEIVE : LogLevel::WARNING, "(%d)[%X→%X:%X] L: %d Live: %d %s", _headerSender, _headerFrom, _headerTo, _headerId, len, _headerHope, buffer);
         return handled;
     }
     bool parseRecv(char *buf, uint8_t len, MessageRec &rec)

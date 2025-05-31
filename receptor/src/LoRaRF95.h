@@ -271,7 +271,7 @@ private:
             if ((mto == terminalId) || (mto == 0xFF))
             {
                 //                Logger::log(LogLevel::DEBUG, "Direct message [%d->%d]: %s", mfrom, mto, buffer);
-                Logger::log(LogLevel::RECEIVE, "(%d)[%d->%d:%d](%d) %s", terminalId, mfrom, mto, rf95.headerId(), rf95.headerFlags(), buffer);
+                Logger::log(LogLevel::RECEIVE, "(%d)[%X->%X:%X](%d) %s", terminalId, mfrom, mto, rf95.headerId(), rf95.headerFlags(), buffer);
                 if (mto == terminalId)
                     return true;
             }
@@ -332,7 +332,7 @@ private:
             {
                 if (rf95.waitPacketSent(MESSAGE_TIMEOUT_MS))
                 {
-                    Logger::log(LogLevel::SEND, "(%d)[%d->%d:%d](%d) %s", terminalId, terminalFrom, terminalTo, seq, hope, message);
+                    Logger::log(LogLevel::SEND, "(%d)[%X->%X:%X](%d) %s", terminalId, terminalFrom, terminalTo, seq, hope, message);
                     result = true;
                 }
             }
