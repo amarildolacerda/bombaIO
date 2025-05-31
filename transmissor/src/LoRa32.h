@@ -313,7 +313,7 @@ public:
                 }
             }
         }
-        Logger::log(handled ? LogLevel::RECEIVE : LogLevel::WARNING, "(%d)[%X→%X:%X] L: %d Live: %d %s", _headerSender, _headerFrom, _headerTo, _headerId, len, _headerHope, buffer);
+        Logger::log(handled ? LogLevel::RECEIVE : LogLevel::WARNING, "(%d)[%X→%X:%X] L: %d Hope: %d %s", _headerSender, _headerFrom, _headerTo, _headerId, len, _headerHope, buffer);
         return handled;
     }
     bool parseRecv(char *buf, uint8_t len, MessageRec &rec)

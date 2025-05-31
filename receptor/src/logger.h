@@ -3,6 +3,7 @@
 
 #include "Arduino.h"
 #include <stdarg.h>
+#include <functional>
 
 enum class LogLevel
 {
@@ -15,123 +16,25 @@ enum class LogLevel
     VERBOSE
 };
 
-using LogCallback = std::function<void(const String &)>;
-static LogCallback logCallback; // Callback para roteamento
-
 class Logger
 {
 private:
     static const size_t MAX_LOG_LENGTH = 255;
+    static std::function<void(const String &)> logCallback; // Apenas declaração
 
 public:
-    static void setLogCallback(LogCallback callback)
-    {
-        logCallback = callback;
-    }
-    static void info(const char *msg, ...)
-    {
-        va_list args;
-        va_start(args, msg);
-        vlog(LogLevel::INFO, msg, args); // Chamando vlog diretamente
-        va_end(args);
-    }
+    static void setLogCallback(std::function<void(const String &)> callback);
 
-    static void error(const char *msg, ...)
-    {
-        va_list args;
-        va_start(args, msg);
-        vlog(LogLevel::ERROR, msg, args);
-        va_end(args);
-    }
+    static void info(const char *msg, ...);
+    static void error(const char *msg, ...);
+    static void debug(const char *msg, ...);
+    static void warning(const char *msg, ...);
 
-    static void debug(const char *msg, ...)
-    {
-        va_list args;
-        va_start(args, msg);
-        vlog(LogLevel::DEBUG, msg, args);
-        va_end(args);
-    }
-
-    static void warning(const char *msg, ...)
-    {
-        va_list args;
-        va_start(args, msg);
-        vlog(LogLevel::WARNING, msg, args);
-        va_end(args);
-    }
-
-    static bool log(const LogLevel level, const char *format, ...)
-    {
-        va_list args;
-        va_start(args, format);
-        bool result = vlog(level, format, args);
-        va_end(args);
-        return result;
-    }
-
-    static bool log(LogLevel level, const __FlashStringHelper *message)
-    {
-        if (message == nullptr)
-            return false;
-
-        char eventBuffer[32];
-        strncpy_P(eventBuffer, reinterpret_cast<const char *>(message), sizeof(eventBuffer));
-        return Logger::log(level, eventBuffer);
-    }
+    static bool log(LogLevel level, const char *format, ...);
+    static bool log(LogLevel level, const __FlashStringHelper *message);
 
 private:
-    static bool vlog(const LogLevel level, const char *format, va_list args)
-    {
-        char formattedMsg[MAX_LOG_LENGTH];
-        vsnprintf(formattedMsg, MAX_LOG_LENGTH, format, args);
-
-#ifdef DEBUG_ON
-        // Versão detalhada com cores (quando DEBUG_ON está definido)
-        static const char levelStrings[][7] PROGMEM = {
-            "[ERRO]", "[WARN]", "[RECV]", "[SEND]", "[INFO]",
-            "[DBUG]",
-            "[VERB]"};
-
-        static const char colorCodes[][8] PROGMEM = {
-            "\033[31m", // ERRO - Red
-            "\033[34m", // WARN - Blue
-            "\033[35m", // RECEIVE - Magenta
-            "\033[36m", // SEND - Cyan
-            "\033[32m", // INFO - Green
-            "\033[33m", // DBUG - Yellow
-            "\033[37m"  // VERB - White
-        };
-
-        int idx = static_cast<int>(level);
-        char levelBuffer[7];
-        char colorBuffer[8];
-        strcpy_P(levelBuffer, levelStrings[idx]);
-        strcpy_P(colorBuffer, colorCodes[idx]);
-
-        Serial.print(colorBuffer);
-        Serial.print(levelBuffer);
-#ifdef TIMESTAMP
-        Serial.print(F(" "));
-        Serial.print(getISOHour());
-#endif
-        Serial.print(F(" "));
-        Serial.println(formattedMsg);
-        Serial.print(F("\033[0m"));
-#else
-        // Versão simples (quando DEBUG_ON não está definido)
-        Serial.println(formattedMsg);
-#endif
-
-        if (logCallback)
-        {
-            String msg = levelBuffer;
-            msg += " ";
-            msg += formattedMsg;
-            logCallback(msg);
-        }
-
-        return true;
-    }
+    static bool vlog(const LogLevel level, const char *format, va_list args);
 };
 
 #endif
