@@ -4,7 +4,6 @@
 #include "Arduino.h"
 #include <stdarg.h>
 
-//--------------------------------------------------LOG
 enum class LogLevel
 {
     ERROR,
@@ -19,14 +18,14 @@ enum class LogLevel
 class Logger
 {
 private:
-    static const size_t MAX_LOG_LENGTH = 255; // Maximum length of log message
+    static const size_t MAX_LOG_LENGTH = 255;
 
 public:
     static void info(const char *msg, ...)
     {
         va_list args;
         va_start(args, msg);
-        log(LogLevel::INFO, msg, args);
+        vlog(LogLevel::INFO, msg, args); // Chamando vlog diretamente
         va_end(args);
     }
 
@@ -34,7 +33,7 @@ public:
     {
         va_list args;
         va_start(args, msg);
-        log(LogLevel::ERROR, msg, args);
+        vlog(LogLevel::ERROR, msg, args);
         va_end(args);
     }
 
@@ -42,7 +41,7 @@ public:
     {
         va_list args;
         va_start(args, msg);
-        log(LogLevel::DEBUG, msg, args);
+        vlog(LogLevel::DEBUG, msg, args);
         va_end(args);
     }
 
@@ -50,7 +49,7 @@ public:
     {
         va_list args;
         va_start(args, msg);
-        log(LogLevel::WARNING, msg, args);
+        vlog(LogLevel::WARNING, msg, args);
         va_end(args);
     }
 
@@ -66,11 +65,10 @@ public:
     static bool log(LogLevel level, const __FlashStringHelper *message)
     {
         if (message == nullptr)
-            return 0;
+            return false;
 
         char eventBuffer[32];
         strncpy_P(eventBuffer, reinterpret_cast<const char *>(message), sizeof(eventBuffer));
-
         return Logger::log(level, eventBuffer);
     }
 
@@ -80,10 +78,8 @@ private:
         char formattedMsg[MAX_LOG_LENGTH];
         vsnprintf(formattedMsg, MAX_LOG_LENGTH, format, args);
 
-#ifndef DEBUG_ON
-        Serial.println(formattedMsg);
-        return true;
-#else
+#ifdef DEBUG_ON
+        // Versão detalhada com cores (quando DEBUG_ON está definido)
         static const char levelStrings[][7] PROGMEM = {
             "[ERRO]", "[WARN]", "[RECV]", "[SEND]", "[INFO]",
             "[DBUG]",
@@ -108,14 +104,17 @@ private:
         Serial.print(colorBuffer);
         Serial.print(levelBuffer);
 #ifdef TIMESTAMP
-//        Serial.print(F(" "));
-//        Serial.print(getISOHour());
+        Serial.print(F(" "));
+        Serial.print(getISOHour());
 #endif
-        Serial.print(F("-"));
+        Serial.print(F(" "));
         Serial.println(formattedMsg);
-        Serial.print(F("\033[0m")); // Reset color if used
-        return true;
+        Serial.print(F("\033[0m"));
+#else
+        // Versão simples (quando DEBUG_ON não está definido)
+        Serial.println(formattedMsg);
 #endif
+        return true;
     }
 };
 

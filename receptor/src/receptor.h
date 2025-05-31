@@ -71,7 +71,7 @@ public:
         };
 
         pinMode(Config::LED_PIN, OUTPUT);
-        pinMode(Config::RELAY_PIN, PULLDOWN);
+        pinMode(Config::RELAY_PIN, OUTPUT);
         initPinRelay();
         Serial.println("Pronto");
     }

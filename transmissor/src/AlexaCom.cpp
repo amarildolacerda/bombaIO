@@ -119,6 +119,7 @@ void AlexaCom::updateStateAlexa(String uniqueName, String value)
     if (&alexa)
     {
         alexa.setState(idx, value == "on", value == "on");
+        Logger::info("Send to Alexa %d %s", idx, value);
     }
 }
 

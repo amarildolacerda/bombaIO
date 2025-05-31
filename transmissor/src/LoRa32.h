@@ -223,10 +223,10 @@ public:
 
         LoRa.idle();
         LoRa.beginPacket();
-
+        uint8_t sq = seq++;
         LoRa.write(tidTo);
         LoRa.write(tidFrom);
-        LoRa.write(seq++);
+        LoRa.write(sq);
         LoRa.write(3); // salto no mesh
         LoRa.write(terminalId);
 
@@ -238,12 +238,12 @@ public:
 
         int snd = LoRa.print(buffer);
 
-        bool rt = LoRa.endPacket() > 0;
+        // bool rt = LoRa.endPacket() > 0;
 
-        Logger::log(LogLevel::SEND, "(%d)[%d→%d] L: %d B: %s", terminalId, tidFrom, tidTo, hope, buffer);
+        Logger::log(LogLevel::SEND, "(%d)[%d→%d:%d](%d) L: %d B: %s", terminalId, tidFrom, tidTo, sq, hope, snd, buffer);
 
-        setState(LoRaRX);
-        return rt;
+        setState(LoRaWAITING);
+        return snd > 0;
     }
 
     long lastRcvMesssage;
