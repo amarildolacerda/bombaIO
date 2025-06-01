@@ -338,15 +338,13 @@ public:
             buffer[len++] = (char)r;
             waitingRcv = millis();
 
-            if (r == '|')
-                passouPipe = true;
-            if (passouPipe && r == '}')
-                break;
-
-            delay(5);
+            /* if (r == '|')
+                 passouPipe = true;
+             if (passouPipe && r == '}')
+                 break;
+  */
+            //         delay(5);
         }
-        while (LoRa.available())
-            ; // limpa sujeira.
 
         buffer[len] = '\0';
         if (len == 0 || _headerFrom == terminalId || _headerSender == terminalId)
