@@ -304,8 +304,16 @@ public:
         }
     }
 
+    bool receiveLogger(const bool result, LogLevel level, const char *buffer) const
+    {
+        Logger::log(level,
+                    "(%d)[%X→%X:%X](%d) L: %d  %s",
+                    _headerSender, _headerFrom, _headerTo, _headerId, _headerHope, strlen(buffer), buffer);
+        return result;
+    }
     bool receiveMessage()
     {
+
         if (!LoRa.available())
             return false;
 
@@ -347,14 +355,13 @@ public:
         }
 
         buffer[len] = '\0';
+
+        receiveLogger(false, LogLevel::VERBOSE, buffer);
+
         if (len == 0 || _headerFrom == terminalId || _headerSender == terminalId)
             return false;
 
         setState(LoRaIDLE);
-
-        Logger::log(LogLevel::VERBOSE,
-                    "(%d)[%X→%X:%X](%d) L: %d  %s",
-                    _headerSender, _headerFrom, _headerTo, _headerId, _headerHope, len, buffer);
 
         // Tratamento de mensagens de controle (ping/pong)
         if (strstr(buffer, "ping") != NULL)
