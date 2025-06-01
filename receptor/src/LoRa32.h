@@ -294,7 +294,7 @@ public:
         uint8_t packetSize = LoRa.parsePacket();
         if (packetSize < 5)
             return false;
-
+        delay(5);
         char buffer[Config::MESSAGE_MAX_LEN];
         uint8_t len = 0;
 
@@ -315,6 +315,7 @@ public:
                 passouPipe = true;
             if (passouPipe && r == '}')
                 break;
+            delay(5);
         }
         buffer[len] = '\0';
 
@@ -343,13 +344,9 @@ public:
         if (!parseRecv(buffer, len, rec))
             return false;
 
-        bool handled = true;
-        if (!inPromiscuous)
-        {
-            handled = (_headerTo == 0xFF || _headerTo == terminalId);
-        }
+        bool handled = (_headerTo == 0xFF || _headerTo == terminalId);
 
-        if (handled)
+        if (_headerTo == 0xFF || _headerTo != terminalId)
         {
             if (rec.dv() == lastRcvMesssage)
             {
@@ -373,16 +370,15 @@ public:
                         txQueue.pushItem(rec);
                         Logger::log(LogLevel::INFO, "MESH From: %d", _headerFrom);
                     }
-                    return _headerTo == 0xFF;
-                }
-
-                if (!rxQueue.pushItem(rec))
-                {
-                    handled = false;
                 }
             }
         }
 
+        if (handled)
+            if (!rxQueue.pushItem(rec))
+            {
+                handled = false;
+            }
         Logger::log(handled ? LogLevel::RECEIVE : LogLevel::WARNING,
                     "(%d)[%X→%X:%X](%d) L: %d  %s",
                     _headerSender, _headerFrom, _headerTo, _headerId, _headerHope, len, buffer);
