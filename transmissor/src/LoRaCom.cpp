@@ -2,8 +2,8 @@
 #include "logger.h"
 
 #ifdef ESP32
-// #include "LoRaTTGO.h"
-#include "LoRa32.h"
+#include "LoRaTTGO.h"
+// #include "LoRa32.h"
 
 #elif RF95
 #include <LoRaRF95.h>
@@ -25,7 +25,8 @@ void (*LoRaCom::onReceiveCallback)(MessageRec *) = nullptr;
 bool LoRaCom::initialize()
 {
 #ifdef TTGO
-    setInstance(new LoRa32());
+    // setInstance(new LoRa32());
+    setInstance(new LoRaTTGO());
 #elif RF95
     setInstance(new LoRaRF95());
 #endif

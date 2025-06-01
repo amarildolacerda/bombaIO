@@ -275,6 +275,8 @@ protected:
         if (!rec->event)
             return;
 
+        Logger::info("Handled from: %d, %s|%s", rec->from, rec->event, rec->value);
+
         uint8_t tid = rec->from;
         if ((tid == 0) || (tid == 0xFF) || (rec->to == 0xFF))
         {
