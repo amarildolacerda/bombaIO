@@ -321,7 +321,7 @@ public:
         if (!lora.processIncoming(rec))
             return false;
 
-        Logger::info("Handled: %d: %s|%s", rec.from, rec.event, rec.value);
+        Logger::info("Handled from: %d: %s|%s", rec.from, rec.event, rec.value);
 
         bool handled = false;
 

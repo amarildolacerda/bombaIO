@@ -23,15 +23,12 @@
 #endif
 namespace Config
 {
-#ifdef __AVR__
-    constexpr char TERMINAL_NAME[] = RELAY_LORA_NAME;
-#else
-    constexpr char TERMINAL_NAME[] = "D1";
-#endif
 
-    constexpr bool PROMISCUOS = LORA_PROMISCUOS;
-    constexpr int TERMINAL_ID = LORA_TERMINAL_ID;
-    constexpr int LED_PIN = LED_BUILTIN;
+    constexpr const char TERMINAL_NAME[] = VTERMINAL_NAME;
+
+    constexpr const bool PROMISCUOS = LORA_PROMISCUOS;
+    constexpr const int TERMINAL_ID = VTERMINAL_ID;
+    constexpr const int LED_PIN = LED_BUILTIN;
 
 #if defined(TTGO) || defined(HELTEC)
     constexpr uint32_t LORA_BAND = 868E6; // usado esp32 TTGO LoRa32 v1
