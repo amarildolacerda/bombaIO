@@ -1,7 +1,9 @@
 #ifndef TTGO_DISPLAY_H
 #define TTGO_DISPLAY_H
 
-#ifdef __AVR__
+#include "DisplayInterface.h"
+
+#ifdef DISPLAYNONE
 
 class NoneDisplay : public DisplayInterface
 {
@@ -47,7 +49,7 @@ public:
     {
     }
 
-    void setLoraMessage(uint8_t id, const String &event, const String &value) override
+    void showEvent(uint8_t id, const String &event, const String &value) override
     {
     }
 
@@ -60,7 +62,5 @@ public:
     }
 };
 
-extern TNoneDisplay displayManager;
-
-#endif // TTGO
+#endif
 #endif // TTGO_DISPLAY_H

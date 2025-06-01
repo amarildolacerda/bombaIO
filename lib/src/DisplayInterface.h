@@ -22,7 +22,7 @@ public:
     // Métodos de mensagens
     virtual void showMessage(const String &message) = 0;
     virtual void showInfo(const String &info) = 0;
-    virtual void setLoraMessage(uint8_t id, const String &event, const String &value) = 0;
+    virtual void showEvent(uint8_t id, const String &event, const String &value) = 0;
 
     // Configurações
     virtual void setVersion(const String &version) = 0;

@@ -1,13 +1,15 @@
 #ifndef HELTEC_DISPLAY_H
 #define HELTEC_DISPLAY_H
 
-#ifdef HELTEC
+#ifdef DISPLAYHELTEC
 #include "DisplayInterface.h"
 #include "config.h"
 #include "logger.h"
 #include <Wire.h>
 #include "heltec.h"
 #define htdisplay Heltec.display
+
+#include "DisplayInterface.h"
 // #include "HT_SSD1306Wire.h"
 
 // #include "OLEDDisplay->h"
@@ -174,7 +176,7 @@ public:
         delay(1000);
     }
 
-    void setLoraMessage(uint8_t id, const String &event, const String &value) override
+    void showEvent(uint8_t id, const String &event, const String &value) override
     {
         terminalId = id;
         loraRcvEvent = event;
@@ -192,8 +194,6 @@ public:
         displayCount = count;
     }
 };
-
-extern HeltecDisplay displayManager;
 
 #endif // HELTEC
 #endif // HELTEC_DISPLAY_H

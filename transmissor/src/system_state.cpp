@@ -2,7 +2,6 @@
 #include "logger.h"
 #include <time.h>
 #include "config.h"
-#include "display_manager.h"
 #include "device_info.h"
 
 SystemState systemState; // Define the global systemState object
@@ -53,11 +52,11 @@ void SystemState::resetStateValid()
 
 void SystemState::handle()
 {
-#ifdef TTGO
-    displayManager.wifiStatus(wifiConnected);
-    displayManager.loraStatus(loraInitialized);
-    displayManager.relayStatus(relayState);
-#endif
+
+    // displayManager. show wifiStatus(wifiConnected);
+    // displayManager.loraStatus(loraInitialized);
+    // displayManager.relayStatus(relayState);
+
     if (discoveryMode && millis() > discoveryEndTime)
     {
         discoveryMode = false;

@@ -1,7 +1,7 @@
 #ifndef TTGO_DISPLAY_H
 #define TTGO_DISPLAY_H
 
-#ifdef TTGO
+#ifdef DISPLAYTTGO
 #include "DisplayInterface.h"
 #include <Adafruit_SSD1306.h>
 #include <Wire.h>
@@ -140,7 +140,7 @@ public:
         delay(1000);
     }
 
-    void setLoraMessage(uint8_t id, const String &event, const String &value) override
+    void showEvent(uint8_t id, const String &event, const String &value) override
     {
         terminalId = id;
         loraRcvEvent = event;
@@ -158,8 +158,6 @@ public:
         displayCount = count;
     }
 };
-
-extern TtgoDisplay displayManager;
 
 #endif // TTGO
 #endif // TTGO_DISPLAY_H

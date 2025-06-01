@@ -7,7 +7,6 @@
 #include "device_info.h"
 #include "LoRaCom.h"
 #include "prefers.h"
-#include "display_manager.h"
 #ifndef __AVR__
 
 #ifdef ESP32
@@ -373,7 +372,7 @@ namespace HtmlServer
             DeviceInfo::deviceRegList.clear(); 
             DeviceInfo::deviceList.clear();
             Prefers::saveRegs();
-            displayManager.message("Reset no dispositivos");
+            displayManager.showMessage("Reset no dispositivos");
 //            request->send(200, "text/plain", "OK"); 
             request->redirect("/");
             delay(100);

@@ -356,6 +356,10 @@ public:
 
         buffer[len] = '\0';
 
+        MessageRec rec;
+        if (!parseRecv(buffer, len, rec))
+            return false;
+
         receiveLogger(false, LogLevel::VERBOSE, buffer);
 
         if (len == 0 || _headerFrom == terminalId || _headerSender == terminalId)
@@ -380,10 +384,6 @@ public:
             }
             return false;
         }
-
-        MessageRec rec;
-        if (!parseRecv(buffer, len, rec))
-            return false;
 
         bool handled = (_headerTo == 0xFF || _headerTo == terminalId);
 

@@ -1,19 +1,17 @@
 #include "LoRaCom.h"
 #include "logger.h"
 
-#ifdef TTGO
+#ifdef ESP32
 // #include "LoRaTTGO.h"
 #include "LoRa32.h"
 
 #elif RF95
 #include <LoRaRF95.h>
-#include "LoRaRF95.h"
 
 #endif
 
 #include "config.h"
 #include "system_state.h"
-#include "display_manager.h"
 #include "device_info.h"
 
 // Define the static member
@@ -110,7 +108,7 @@ void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const
 void LoRaCom::ack(bool ak, uint8_t tid)
 {
     loraInstance->send(tid, (char *)(ak) ? "ack" : "nak", "", 0);
-    displayManager.message((String)tid + "->" + (ak) ? "ack" : "nak");
+    displayManager.showMessage((String)tid + "->" + (ak) ? "ack" : "nak");
 }
 
 int LoRaCom::packetRssi()
@@ -138,7 +136,7 @@ bool LoRaCom::waitAck()
 bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
 {
     loraInstance->send(tid, event.c_str(), value.c_str(), 0);
-    displayManager.message((String)(tid) + "->" + event + ": " + value);
+    displayManager.showMessage((String)(tid) + "->" + event + ": " + value);
     return true;
 }
 

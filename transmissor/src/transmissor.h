@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 #include "prefers.h"
+
 #ifdef ESP32
-#include "display_manager.h"
 #include <WiFi.h>
 #include <time.h>
 #include <esp_task_wdt.h>
@@ -26,10 +26,6 @@
 #endif
 #include "device_info.h"
 #include "system_state.h"
-
-#ifdef TTGO
-#include "display_manager.h"
-#endif
 
 #ifdef ALEXA
 #include "AlexaCom.h"
@@ -228,7 +224,7 @@ public:
             sinricCom.setup();
 #endif
 
-            displayManager.updateDisplay();
+            displayManager.update();
             systemState.setDiscovery(true);
         }
         catch (const std::exception &e)
@@ -349,7 +345,7 @@ protected:
 
         if (handled)
         {
-            displayManager.setEvent(tid, rec->event, rec->value);
+            displayManager.showMessage(rec->event); // showEvent(tid, rec->event, rec->value);
         }
         LoRaCom::ack(handled, tid);
     }

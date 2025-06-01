@@ -35,7 +35,7 @@ namespace Config
     constexpr const uint8_t LORA_IRQ_PIN = 26;   // GPIO26 - Interrupção
 #endif
 
-#ifdef TTGO
+#if defined(TTGO) || defined(HELTEC)
     constexpr const uint32_t LORA_BAND = 868E6; // usado esp32 TTGO LoRa32 v1
 #elif RF95
     constexpr const uint32_t LORA_BAND = 868.0; // usado RF95
@@ -70,5 +70,20 @@ namespace Config
     // Tuya IoT
     constexpr const char *LPID = "sshilmfl"; // Substituir pelo PID real
     constexpr const char *LMCU_VER = "1.0";
+
 }
+
+#ifdef DISPLAYHELTEC
+#include "DisplayNone.h"
+static NoneDisplay displayManager;
+#endif
+#ifdef DISPLAYTTGO
+#include "DisplayTtgo.h"
+static TtgoDisplay displayManager;
+#endif
+#ifdef DISPLAYNONE
+#include "DisplayNone.h"
+static NoneDisplay displayManager;
+#endif
+
 #endif
