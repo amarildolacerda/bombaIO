@@ -325,19 +325,32 @@ namespace HtmlServer
         action.toLowerCase();
 
         const int16_t x = DeviceInfo::dataOf(tid);
-        String status = "???";
+
+        if (action == "toggle")
+        { // o tid é o handle do dispositivo, nao depende de procura
+            // pode ser que o terminal nao esta respondendo, mas mesh o alcance
+            LoRaCom::sendCommand("gpio", "toggle", tid);
+        }
+        if (action == "on")
+        { // o tid é o handle do dispositivo, nao depende de procura
+            // pode ser que o terminal nao esta respondendo, mas mesh o alcance
+            LoRaCom::sendCommand("gpio", "on", tid);
+        }
+        if (action == "off")
+        { // o tid é o handle do dispositivo, nao depende de procura
+            // pode ser que o terminal nao esta respondendo, mas mesh o alcance
+            LoRaCom::sendCommand("gpio", "off", tid);
+        }
+
+        String status = "Aguardando";
         if (x >= 0)
         {
             const DeviceInfoData &data = DeviceInfo::deviceList[x];
 
-            if (action == "toggle")
-            {
-                LoRaCom::sendCommand("gpio", "toggle", tid);
-            }
             // LoRaCom::sendCommand("status", "get", tid); // muitas chamadas redundandtes.
             int timeDiff = DeviceInfo::getTimeDifferenceSeconds(data.lastSeenISOTime);
             bool isOffline = (timeDiff == -1) || (timeDiff > 60);
-            status = isOffline ? "OffLine" : (data.value.length() == 0 ? "???" : data.value);
+            status = isOffline ? "Não Responde" : (data.value.length() == 0 ? "???" : data.value);
         }
         respStatus(request, tid, status);
     }

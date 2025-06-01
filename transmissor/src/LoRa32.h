@@ -47,7 +47,6 @@ private:
     const char bBOF = '{';
     const char bSEP = '|';
     LoRaStates state = LoRaRX;
-    uint8_t terminalId = 0;
 
     // Funções para controle de dispositivos ativos
     void setDeviceActive(uint8_t deviceId)
@@ -71,11 +70,6 @@ private:
         {
             noMesh[deviceId / 8] &= ~(1 << (deviceId % 8));
         }
-    }
-
-    void setHeaderFrom(const uint8_t tid) override
-    {
-        terminalId = tid;
     }
 
     void setState(const LoRaStates st)
@@ -294,7 +288,7 @@ public:
         uint8_t packetSize = LoRa.parsePacket();
         if (packetSize < 5)
             return false;
-
+        delay(5);
         char buffer[Config::MESSAGE_MAX_LEN];
         uint8_t len = 0;
 
@@ -315,6 +309,7 @@ public:
                 passouPipe = true;
             if (passouPipe && r == '}')
                 break;
+            delay(5);
         }
         buffer[len] = '\0';
 
@@ -326,7 +321,7 @@ public:
         {
             if (_headerTo != terminalId)
                 return false;
-            txQueue.push(_headerFrom, "pong", "0", terminalId, ALIVE_PACKET, _headerId);
+            txQueue.push(_headerFrom, "pong", terminalName, terminalId, ALIVE_PACKET, _headerId);
             return true;
         }
         else if (strstr(buffer, "pong") != NULL)
@@ -343,13 +338,9 @@ public:
         if (!parseRecv(buffer, len, rec))
             return false;
 
-        bool handled = true;
-        if (!inPromiscuous)
-        {
-            handled = (_headerTo == 0xFF || _headerTo == terminalId);
-        }
+        bool handled = (_headerTo == 0xFF || _headerTo == terminalId);
 
-        if (handled)
+        if (_headerTo == 0xFF || _headerTo != terminalId)
         {
             if (rec.dv() == lastRcvMesssage)
             {
@@ -373,16 +364,15 @@ public:
                         txQueue.pushItem(rec);
                         Logger::log(LogLevel::INFO, "MESH From: %d", _headerFrom);
                     }
-                    return _headerTo == 0xFF;
-                }
-
-                if (!rxQueue.pushItem(rec))
-                {
-                    handled = false;
                 }
             }
         }
 
+        if (handled)
+            if (!rxQueue.pushItem(rec))
+            {
+                handled = false;
+            }
         Logger::log(handled ? LogLevel::RECEIVE : LogLevel::WARNING,
                     "(%d)[%X→%X:%X](%d) L: %d  %s",
                     _headerSender, _headerFrom, _headerTo, _headerId, _headerHope, len, buffer);

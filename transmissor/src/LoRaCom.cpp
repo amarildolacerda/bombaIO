@@ -46,7 +46,8 @@ bool LoRaCom::initialize()
         Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");
         return false;
     }
-    loraInstance->setHeaderFrom(Config::TERMINAL_ID);
+    loraInstance->setTerminalId(Config::TERMINAL_ID);
+    loraInstance->setTerminalName("GW");
     displayManager.setVersion(Config::LMCU_VER);
 
     loraInstance->endSetup();
