@@ -11,6 +11,7 @@
 #endif
 
 #include "config.h"
+#include "display_manager.h"
 #include "system_state.h"
 #include "device_info.h"
 

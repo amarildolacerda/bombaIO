@@ -73,17 +73,4 @@ namespace Config
 
 }
 
-#ifdef DISPLAYHELTEC
-#include "DisplayNone.h"
-static NoneDisplay displayManager;
-#endif
-#ifdef DISPLAYTTGO
-#include "DisplayTtgo.h"
-static TtgoDisplay displayManager;
-#endif
-#ifdef DISPLAYNONE
-#include "DisplayNone.h"
-static NoneDisplay displayManager;
-#endif
-
 #endif

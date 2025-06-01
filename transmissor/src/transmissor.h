@@ -21,6 +21,7 @@
 #include "LoRaCom.h"
 #include "logger.h"
 #include "config.h"
+#include "display_manager.h"
 #ifdef WS
 #include "html_tserver.h"
 #endif
@@ -178,28 +179,11 @@ public:
         {
             Prefers::restoreRegs();
 
-#if defined(TTGO)
-            if (display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS))
-            {
-                display.setTextSize(1);
-                display.setTextColor(SSD1306_WHITE);
-                display.clearDisplay();
-                display.setCursor(0, 0);
-                display.println("Iniciando...");
-                display.display();
-            }
-            else
-            {
-                Logger::log(LogLevel::ERROR, F("Falha ao iniciar display OLED"));
-            }
-#elif defined(ESP8266)
-            Logger::log(LogLevel::WARNING, F("ESP8266 não possui display."));
-#endif
-
             if (!LoRaCom::initialize())
             {
                 throw std::runtime_error("Falha na inicialização do LoRa");
             }
+            displayManager.initialize();
 
             LoRaCom::setReceiveCallback(processIncoming);
 

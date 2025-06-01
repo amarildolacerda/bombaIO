@@ -3,6 +3,7 @@
 #include "logger.h"
 #include <Arduino.h>
 #include "config.h"
+#include "display_manager.h"
 #include "system_state.h"
 #include "device_info.h"
 #include "LoRaCom.h"
