@@ -23,7 +23,7 @@
 #endif
 
 #define MAX_EVENT_LEN 13
-#define MAX_VALUE_LEN 25
+#define MAX_VALUE_LEN 64
 #ifdef ESP32
 #define MAX_ITEMS 5
 #else

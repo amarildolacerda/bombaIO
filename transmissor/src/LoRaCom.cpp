@@ -47,7 +47,7 @@ bool LoRaCom::initialize()
         return false;
     }
     loraInstance->setTerminalId(Config::TERMINAL_ID);
-    loraInstance->setTerminalName("GW");
+    loraInstance->setTerminalName(Config::TERMINAL_NAME);
     displayManager.setVersion(Config::LMCU_VER);
 
     loraInstance->endSetup();
@@ -93,16 +93,9 @@ void LoRaCom::handle()
     }
     if (millis() - lastPing > 30000 + idPing * 200)
     {
-        if (idPing >= DeviceInfo::deviceRegList.size())
-        {
-            idPing = 0;
-            lastPing = millis();
-            return;
-        }
-        DeviceRegData dev = DeviceInfo::deviceRegList[idPing++];
-        {
-            sendCommand("ping", "gw", dev.tid);
-        }
+        lastPing = millis();
+
+        sendCommand("ping", Config::TERMINAL_NAME, 0xFF);
     }
 }
 

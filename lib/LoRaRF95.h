@@ -1,6 +1,8 @@
 #ifndef LORARF95_H
 #define LORARF95_H
 
+#ifdef RF95
+
 #include "RH_RF95.h"
 #include "config.h"
 #include "logger.h"
@@ -51,7 +53,6 @@ class LoraRF : public LoRaInterface
 {
 private:
     RH_RF95<decltype(RFSerial)> rf95;
-    uint8_t terminalId = Config::TERMINAL_ID;
     bool _promiscuos = false;
     const uint8_t STX = '{';
     const uint8_t ETX = '}';
@@ -354,4 +355,5 @@ private:
 
 static LoraRF lora;
 
+#endif
 #endif

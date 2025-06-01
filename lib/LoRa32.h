@@ -8,11 +8,20 @@
 #include "LoRaInterface.h"
 
 #ifdef ESP32
+
+// HELTEC
 #if defined(HELTEC)
 #include "Arduino.h"
 #include "heltec.h"
-#include "lora/LoRa.h"
+#ifdef Heltec_LoRa
+#define LoRa Heltec.LoRa
 #else
+
+#include "lora/LoRa.h"
+#endif
+
+#else
+// TTGO
 #include "LoRa.h"
 #endif
 #endif
@@ -28,7 +37,8 @@ enum LoRaStates
 {
     LoRaTX,
     LoRaRX,
-    LoRaWAITING
+    LoRaWAITING,
+    LoRaIDLE,
 };
 
 class LoRa32 : public LoRaInterface
@@ -47,7 +57,6 @@ private:
     const char bBOF = '{';
     const char bSEP = '|';
     LoRaStates state = LoRaRX;
-    uint8_t terminalId = 0;
 
     // Funções para controle de dispositivos ativos
     void setDeviceActive(uint8_t deviceId)
@@ -73,11 +82,6 @@ private:
         }
     }
 
-    void setHeaderFrom(const uint8_t tid) override
-    {
-        terminalId = tid;
-    }
-
     void setState(const LoRaStates st)
     {
         state = st;
@@ -86,6 +90,9 @@ private:
         case LoRaRX:
             LoRa.receive();
             rxDelay = millis();
+            break;
+        case LoRaIDLE:
+            LoRa.idle();
             break;
         case LoRaTX:
             LoRa.idle();
@@ -109,9 +116,11 @@ public:
 
 #ifdef HELTEC
         isHeltec = true;
-        Heltec.begin(true /*DisplayEnable*/, false /*LoRaEnable*/, true /*SerialEnable*/);
+        Heltec.begin(Heltec_Screen /*DisplayEnable*/, false /*LoRaEnable*/, false /*SerialEnable*/);
+        delay(100);
+
         // LoRa.setPins(Config::LORA_CS, Config::LORA_RST, Config::LORA_IRQ);
-        LoRa.begin(band, true /* PABOOST */);
+        LoRa.begin(band, true); // true /* PABOOST */);
 
         // Configurações otimizadas para Heltec
         LoRa.setSpreadingFactor(7);
@@ -119,14 +128,14 @@ public:
         LoRa.setCodingRate4(5);
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
 
-        //        LoRa.setTxPower(14, RF_PACONFIG_PASELECT_RFO); // Usar RFO para menor potência
-        // Ou alternativamente:
+        // LoRa.setTxPower(14, RF_PACONFIG_PASELECT_RFO); // Usar RFO para menor potência
+        //  Ou alternativamente:
         LoRa.setTxPower(20, RF_PACONFIG_PASELECT_PABOOST); // Máxima potência
         LoRa.setPreambleLength(8);
 
         // Habilitar CRC
         LoRa.enableCrc();
-        LoRa.setTxPowerMax(20);
+        LoRa.setTxPowerMax(14);
 #else
         isHeltec = false;
         // LoRa.setPins(Config::LORA_CS, Config::LORA_RST, Config::LORA_IRQ);
@@ -154,6 +163,14 @@ public:
 
         switch (state)
         {
+        case LoRaIDLE:
+            if (txQueue.size() > 0)
+            {
+                setState(LoRaTX);
+            }
+            else
+                setState(LoRaRX);
+            break;
         case LoRaRX:
             if (LoRa.available() && millis() - rxDelay > 5)
             {
@@ -230,7 +247,7 @@ public:
     bool sendMessage(uint8_t tidTo, const char *event, const char *value, const uint8_t tidFrom, uint8_t hope, uint8_t id)
     {
         char message[Config::MESSAGE_MAX_LEN] = {0};
-        int x = snprintf(message, sizeof(message), "%s|%s", event, value);
+        int x = snprintf(message, sizeof(message), "{%s|%s}", event, value);
         message[x] = '\0';
 
         uint8_t len = strlen(message);
@@ -251,9 +268,10 @@ public:
         LoRa.write(terminalId);
 
         // Escrever payload
-        LoRa.write('{');
-        LoRa.write((const uint8_t *)message, len);
-        LoRa.write('}');
+        // LoRa.write('{');
+        // LoRa.write((const uint8_t *)message, len);
+        LoRa.print(message);
+        // LoRa.write('}');
 
         int result = 0;
 
@@ -307,27 +325,45 @@ public:
         memset(buffer, 0, sizeof(buffer));
         bool passouPipe = false;
 
-        while (LoRa.available() && len <= packetSize + 5)
+        if (isHeltec)
+            LoRa.setTimeout(10);
+        long waitingRcv = millis();
+        while (len <= packetSize + 5)
         {
+            if (!LoRa.available() && (millis() - waitingRcv > 100))
+            {
+                break;
+            }
             uint8_t r = LoRa.read();
             buffer[len++] = (char)r;
+            waitingRcv = millis();
+
             if (r == '|')
                 passouPipe = true;
             if (passouPipe && r == '}')
                 break;
+
             delay(5);
         }
-        buffer[len] = '\0';
+        while (LoRa.available())
+            ; // limpa sujeira.
 
+        buffer[len] = '\0';
         if (len == 0 || _headerFrom == terminalId || _headerSender == terminalId)
             return false;
+
+        setState(LoRaIDLE);
+
+        Logger::log(LogLevel::VERBOSE,
+                    "(%d)[%X→%X:%X](%d) L: %d  %s",
+                    _headerSender, _headerFrom, _headerTo, _headerId, _headerHope, len, buffer);
 
         // Tratamento de mensagens de controle (ping/pong)
         if (strstr(buffer, "ping") != NULL)
         {
             if (_headerTo != terminalId)
                 return false;
-            txQueue.push(_headerFrom, "pong", "0", terminalId, ALIVE_PACKET, _headerId);
+            txQueue.push(_headerFrom, "pong", terminalName, terminalId, ALIVE_PACKET, _headerId);
             return true;
         }
         else if (strstr(buffer, "pong") != NULL)

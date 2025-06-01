@@ -5,14 +5,26 @@
 #include "RH_RF95.h"
 #include <SoftwareSerial.h>
 #include "LoRaRF95.h"
+#include "DisplayNone.h"
 #endif
 
-#ifdef ESP32
-#ifdef HELTEC
-#include <heltec.h>
-#include <display_manager.h>
+#ifdef __AVR__
+#ifdef OLEDDISPLAY
+#include "DisplayNone.h"
 #endif
+
+#elif HELTEC
+#include <heltec.h>
 #include <LoRa32.h>
+#ifdef OLEDDISPLAY
+#include <DisplayHeltec.h>
+#endif
+
+#elif TTGO
+#include <LoRa32.h>
+#ifdef OLEDDISPLAY
+#include "DisplayTtgo.h"
+#endif
 #endif
 
 #include "logger.h"
@@ -212,6 +224,9 @@ public:
         {
             Serial.println("LoRa failed to start");
         };
+#ifdef OLEDDISPLAY
+        displayManager.initialize();
+#endif
 
         pinMode(Config::LED_PIN, OUTPUT);
         pinMode(Config::RELAY_PIN, OUTPUT);
@@ -303,17 +318,10 @@ public:
         MessageRec rec;
         memset(&rec, 0, sizeof(MessageRec));
 
-        bool hasMessage = lora.processIncoming(rec);
-
-        if (!hasMessage)
-        {
+        if (!lora.processIncoming(rec))
             return false;
-        }
-        Serial.print("handleMessage: {");
-        Serial.print(rec.event);
-        Serial.print("|");
-        Serial.print(rec.value);
-        Serial.println("}");
+
+        Logger::info("Handled: %d: %s|%s", rec.from, rec.event, rec.value);
 
         bool handled = false;
 
