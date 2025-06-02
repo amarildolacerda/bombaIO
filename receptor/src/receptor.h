@@ -214,7 +214,7 @@ App app;
 
 void triggerCallback()
 {
-    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    CRITICAL_SECTION
     {
         app.savePinState(digitalRead(Config::RELAY_PIN));
         interrupts();
