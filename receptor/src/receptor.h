@@ -1,6 +1,5 @@
 #pragma
 
-#include <RH_RF95.h>
 #include "config.h"
 
 /*
@@ -56,7 +55,12 @@ RH_RF95<HardwareSerial> rf95(COMSerial);
 RH_RF95<Uart> rf95(COMSerial);
 #endif
 
+#ifdef HELTEC
+#include "LoRa32.h"
+#else
+#include <RH_RF95.h>
 #include "LoRaRF95.h"
+#endif
 #include "AppProcess.h"
 
 class App
@@ -64,8 +68,8 @@ class App
 public:
     void setup()
     {
-        ShowSerial.begin(Config::SERIAL_SPEED);
-        ShowSerial.println("Starting...");
+        Serial.begin(Config::SERIAL_SPEED);
+        Serial.println("Starting...");
 
         // Tentativa de inicialização com retry
         for (int i = 0; i < 3; i++)
@@ -80,7 +84,7 @@ public:
         // Verificar se inicializou corretamente
         if (!lora.connected)
         {
-            ShowSerial.println("Failed to initialize LoRa!");
+            Serial.println("Failed to initialize LoRa!");
             while (1)
                 ; // Trava se não inicializar
         }
@@ -98,7 +102,7 @@ public:
         if (millis() - lastCheck > 5000)
         {
             lastCheck = millis();
-            ShowSerial.println("System OK");
+            Serial.println("System OK");
             // Adicione outras verificações aqui
         }
     }

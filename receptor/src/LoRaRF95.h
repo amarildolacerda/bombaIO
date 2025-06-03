@@ -36,7 +36,7 @@ public:
         return connected;
     }
 
-        uint8_t headerFrom()
+    uint8_t headerFrom()
     {
         return rf95.headerFrom();
     }
@@ -105,7 +105,8 @@ private:
         }
         else
         {
-            sprintf(rec.value, '\0');
+            rec.value[0] = '\0';
+            // sprintf(rec.value, '\0');
         }
         return true;
     }
@@ -205,48 +206,69 @@ private:
     }
 
     bool sendMessage(MessageRec &rec) override
-    // uint8_t terminalTo, const char *message, uint8_t terminalFrom,
-    //                 uint8_t hope, uint8_t seq)
     {
+        Serial.println("\n--- Iniciando sendMessage ---");
+        Serial.print("Conteúdo: ");
+        rec.print();
+
+        // 1. Preparar mensagem
         char message[Config::MESSAGE_MAX_LEN] = {0};
         uint8_t len = snprintf(message, sizeof(message), "%s|%s", rec.event, rec.value);
-        Serial.println(message);
+
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
         {
-            Logger::error("Invalid message size");
+            Serial.println("ERRO: Tamanho de mensagem inválido");
             return false;
         }
 
+        // 2. Configurar rádio
         rf95.setModeTx();
+
         rf95.setHeaderFrom(rec.from);
         rf95.setHeaderTo(rec.to);
-        if (rec.id == 0)
-            rec.id = ++nHeaderId;
         rf95.setHeaderId(rec.id);
         rf95.setHeaderFlags(rec.hope, 0xFF);
 
+        // 3. Formatar mensagem final
         char fullMessage[Config::MESSAGE_MAX_LEN];
-        memset(fullMessage, 0, sizeof(fullMessage));
-
-        bool result = false;
         snprintf(fullMessage, sizeof(fullMessage), "%c{%s}", terminalId, message);
-        len += 3;
+        len += 3; // Adiciona tamanho dos delimitadores
 
-        Logger::log(LogLevel::VERBOSE, "%s(%d)", fullMessage + 1, len);
-        if (rf95.send((uint8_t *)fullMessage, len))
+        Serial.print("Enviando: ");
+        Serial.println(fullMessage);
+
+        // 4. Tentar enviar
+        bool sendResult = false;
+        for (int attempt = 0; attempt < 3 && !sendResult; attempt++)
         {
-            Serial.print("saitPacketSend ");
-            if (rf95.waitPacketSent())
+            Serial.print("Tentativa ");
+            Serial.println(attempt + 1);
+
+            if (attempt > 0)
+                delay(100 * attempt); // Backoff
+
+            if (rf95.send((uint8_t *)fullMessage, len))
             {
-                Logger::log(LogLevel::SEND, "(%d)[%X->%X:%X](%d) %s", terminalId, rec.from, rec.to, rec.id, rec.hope, message);
-                result = true;
+                Serial.println("send() ok, aguardando confirmação...");
+                if (rf95.waitPacketSent(5000))
+                { // Timeout de 5 segundos
+                    sendResult = true;
+                    Serial.println("Mensagem enviada com sucesso!");
+                }
+                else
+                {
+                    Serial.println("ERRO: Timeout no waitPacketSent");
+                }
+            }
+            else
+            {
+                Serial.println("ERRO: Falha no send()");
             }
         }
-        Serial.println("End send ");
 
-        return result;
+        Serial.println("--- Finalizando sendMessage ---");
+        return sendResult;
     }
-
     void ackIf(bool ack = false)
     {
         if (rf95.headerTo() == terminalId)

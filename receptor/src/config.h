@@ -24,7 +24,7 @@
 namespace Config
 {
 
-    constexpr const char TERMINAL_NAME[] = VTERMINAL_NAME;
+    constexpr const char TERMINAL_NAME[] = "bemtevi"; // VTERMINAL_NAME;
 
     constexpr const bool PROMISCUOS = LORA_PROMISCUOS;
     constexpr const int TERMINAL_ID = VTERMINAL_ID;

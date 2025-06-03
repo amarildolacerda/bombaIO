@@ -117,96 +117,47 @@ public:
         return result;
     }
     virtual void setState(LoRaStates st) = 0;
+    bool sendNextMessage()
+    {
+        MessageRec rec;
+        if (!txQueue.popItem(rec))
+            return false;
+        return sendMessage(rec);
+    }
 
     // Modificar o loop para tratamento específico do Heltec
-    virtual bool loop()
+    void loop()
     {
-        bool handled = false;
-        static unsigned long lastTxCheck = 0;
-        const unsigned long txCheckInterval = 100; // Verificar TX a cada 100ms
-        static unsigned long txStartTime = 0;
+        static unsigned long lastStateChange = millis();
 
         switch (state)
         {
-        case LoRaIDLE:
-            // Estado inicial - decidir para onde ir
-            if (txQueue.size() > 0)
+        case LoRaRX:
+            if (receiveMessage())
+            {
+                // Mensagem recebida
+            }
+
+            if (txQueue.size() > 0 && millis() - lastStateChange > 100)
             {
                 setState(LoRaTX);
-            }
-            else
-            {
-                setState(LoRaRX);
-            }
-            break;
-
-        case LoRaRX:
-            // 1. Primeiro processar recebimento
-            if (millis() - rxDelay > 10)
-            { // Processar RX a cada 10ms
-                rxDelay = millis();
-                handled = receiveMessage();
-            }
-
-            // 2. Verificar se precisa transmitir periodicamente
-            if (millis() - lastTxCheck > txCheckInterval)
-            {
-                lastTxCheck = millis();
-
-                if (txQueue.size() > 0)
-                {
-                    setState(LoRaTX);
-                    txStartTime = millis();
-                }
+                lastStateChange = millis();
             }
             break;
 
         case LoRaTX:
-            // Processar transmissão
-            if (millis() - txDelay > 50)
-            { // Espaço entre transmissões
-                txDelay = millis();
-                MessageRec rec;
+            if (sendNextMessage())
+            { // Função modificada acima
+              // Mensagem enviada
+            }
 
-                if (txQueue.popItem(rec))
-                {
-                    if (sendMessage(rec))
-                    {
-                        handled = true;
-                    }
-                    else
-                    {
-                        // Se falhar, recoloca na fila (no final)
-                        txQueue.pushItem(rec);
-                    }
-                }
-
-                // Decidir próximo estado
-                if (txQueue.size() > 0)
-                {
-                    // Continua em TX se houver mais mensagens
-                    txDelay = millis();
-                }
-                else
-                {
-                    // Volta para RX quando fila estiver vazia
-                    setState(LoRaRX);
-                }
-                // Dentro do case LoRaTX:
-                if (millis() - txStartTime > 100)
-                {
-                    // Se ficar muito tempo em TX, volta para RX
-                    setState(LoRaRX);
-                }
+            if (txQueue.size() == 0 || millis() - lastStateChange > 5000)
+            {
+                setState(LoRaRX);
+                lastStateChange = millis();
             }
             break;
-
-        default:
-            setState(LoRaRX);
-            break;
         }
-
-        return handled;
     }
     virtual bool sendMessage(MessageRec &rec) = 0;
     virtual bool receiveMessage() = 0;
