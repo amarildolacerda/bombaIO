@@ -20,7 +20,7 @@ void AlexaCom::aliveOffLineAlexa()
         if (idx >= 0)
         {
             DeviceInfoData &data = DeviceInfo::deviceList[idx];
-            secs = DeviceInfo::getTimeDifferenceSeconds(data.lastSeenISOTime);
+            secs = DeviceInfo::getTimeDifferenceSeconds(data.lastSeen);
         }
         if (secs >= 60)
         {

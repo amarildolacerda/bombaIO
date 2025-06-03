@@ -33,8 +33,10 @@ public:
         rf95.setPromiscuous(true);
         rf95.setFrequency(band);
         rf95.setHeaderFlags(0, RH_FLAGS_NONE);
-        rf95.setTxPower(14, false);
+        rf95.setTxPower(23, false);
+
         rf95.setPreambleLength(8);
+        rf95.setModemConfig(rf95.Bw125Cr45Sf128);
 
         return connected;
     }

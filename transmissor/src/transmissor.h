@@ -298,7 +298,7 @@ protected:
         {
             data.event = rec->event;
             data.value = rec->value;
-            data.lastSeenISOTime = DeviceInfo::getISOTime();
+            data.lastSeen = millis(); // DeviceInfo::getISOTime();
             DeviceInfo::updateDeviceList(data.tid, data);
 
             systemState.updateState(rec->value);

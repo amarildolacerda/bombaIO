@@ -12,7 +12,7 @@ struct DeviceInfoData
     uint8_t tid;
     String event;
     String value;
-    String lastSeenISOTime;
+    unsigned long lastSeen;
     // String status;
     int rssi;
 };
@@ -62,7 +62,7 @@ public:
     static void updateDeviceList(uint8_t deviceId, DeviceInfoData data);
     static void updateRegList(u_int8_t tid, DeviceRegData data);
     static String getISOTime();
-    static int getTimeDifferenceSeconds(const String &lastSeenISOTime);
+    static int getTimeDifferenceSeconds(const unsigned long &lastSeenISOTime);
 
     static int16_t indexOf(uint8_t tid)
     {

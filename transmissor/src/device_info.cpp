@@ -21,7 +21,7 @@ void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
             device.event = data.event;
             device.value = data.value;
             device.rssi = data.rssi;
-            device.lastSeenISOTime = data.lastSeenISOTime;
+            device.lastSeen = millis(); // data.lastSeenISOTime;
             // if (data.event == "status")
             // {
             // data.value.toUpperCase();
@@ -73,9 +73,15 @@ void DeviceInfo::updateRegList(u_int8_t tid, DeviceRegData data)
     }
 }
 
+int DeviceInfo::getTimeDifferenceSeconds(const unsigned long &lastSeenISOTime)
+{
+    long dif = millis() - lastSeenISOTime;
+    return dif / 1000;
+}
+
 // Função que retorna a diferença em segundos entre o tempo atual e o lastSeenISOTime
 // Retorna -1 se o formato for inválido ou se lastSeenISOTime estiver vazio
-int DeviceInfo::getTimeDifferenceSeconds(const String &lastSeenISOTime)
+/*int DeviceInfo::getTimeDifferenceSeconds(const String &lastSeenISOTime)
 {
     // Se o tempo estiver vazio ou for o valor padrão, retorna -1 (offline)
     if (lastSeenISOTime.length() == 0 || lastSeenISOTime == "1970-01-01T00:00:00Z")
@@ -112,6 +118,7 @@ int DeviceInfo::getTimeDifferenceSeconds(const String &lastSeenISOTime)
            (currYear - lastYear) * 31536000 + // ~365 dias
            (currMonth - lastMonth) * 2592000; // ~30 dias
 }
+           */
 
 String DeviceInfo::getISOTime()
 {

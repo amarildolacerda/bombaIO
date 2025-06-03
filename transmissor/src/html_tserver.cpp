@@ -197,7 +197,7 @@ namespace HtmlServer
             html += "  <div class='card'>";
             html += "    <h2>" + rdata.name + "</h2>";
             html += "    <p>RSSI: " + ((didx >= 0) ? String(data.rssi) : "") + " dBm</p>";
-            html += "    <p>Última Atualização: " + ((didx >= 0) ? data.lastSeenISOTime : "") + "</p>";
+            html += "    <p>Última Atualização: " + ((didx >= 0) ? String(DeviceInfo::getTimeDifferenceSeconds(data.lastSeen)) : "") + "s</p>";
             html += "    <p id='device-status'>Estado: Carregando...</p>";
             html += "<script>";
             html += "async function updateStatus() {";
@@ -348,7 +348,7 @@ namespace HtmlServer
             const DeviceInfoData &data = DeviceInfo::deviceList[x];
 
             // LoRaCom::sendCommand("status", "get", tid); // muitas chamadas redundandtes.
-            int timeDiff = DeviceInfo::getTimeDifferenceSeconds(data.lastSeenISOTime);
+            int timeDiff = DeviceInfo::getTimeDifferenceSeconds(data.lastSeen);
             bool isOffline = (timeDiff == -1) || (timeDiff > 60);
             status = isOffline ? "Não Responde" : (data.value.length() == 0 ? "???" : data.value);
         }
