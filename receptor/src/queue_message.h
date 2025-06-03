@@ -3,8 +3,8 @@
 
 #include "Arduino.h"
 #if defined(__AVR__)
-#include <util/atomic.h>
-#define CRITICAL_SECTION ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+// #include <util/atomic.h>
+// #define CRITICAL_SECTION ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 #elif defined(ESP32)
 #define LoRaWAN_DEBUG_LEVEL 1 // Ou outro valor entre 0-4
 #include <freertos/FreeRTOS.h>
@@ -22,8 +22,8 @@
 #error "Plataforma não suportada"
 #endif
 
-#define MAX_EVENT_LEN 13
-#define MAX_VALUE_LEN 64
+#define MAX_EVENT_LEN 8
+#define MAX_VALUE_LEN 24
 #ifdef ESP32
 #define MAX_ITEMS 5
 #else
@@ -40,6 +40,12 @@ struct MessageRec
     int dv() const
     {
         return id + to + from + sizeof(event);
+    }
+    void print()
+    {
+        char msg[100] = {0};
+        snprintf(msg, sizeof(msg), "%d[%d-%d:%d](%d) {%s|%s}", from, from, to, id, hope, event, value);
+        Serial.println(msg);
     }
 };
 
@@ -61,39 +67,39 @@ public:
             if (contains(item))
                 return false;
         }
-        CRITICAL_SECTION
-        {
+        // CRITICAL_SECTION
+        // {
 
-            if (count < MAX_ITEMS)
-            {
-                items[tail] = item;
-                tail = (tail + 1) % MAX_ITEMS;
-                count++;
-                result = true;
+        if (count < MAX_ITEMS)
+        {
+            items[tail] = item;
+            tail = (tail + 1) % MAX_ITEMS;
+            count++;
+            result = true;
 #ifdef DEBUG_ON
-                //       Serial.print(" push: ");
-                //       Serial.println(size());
+            //       Serial.print(" push: ");
+            //       Serial.println(size());
 #endif
-            }
         }
+        //}
         return result;
     }
 
     bool contains(MessageRec item) const
     {
         bool result = false;
-        CRITICAL_SECTION
+        // CRITICAL_SECTION
+        // {
+        for (int i = 0; i < count; i++)
         {
-            for (int i = 0; i < count; i++)
+            int index = (head + i) % MAX_ITEMS;
+            if (items[index].dv() == item.dv())
             {
-                int index = (head + i) % MAX_ITEMS;
-                if (items[index].dv() == item.dv())
-                {
-                    result = true;
-                    break;
-                }
+                result = true;
+                break;
             }
         }
+        //}
         return result;
     }
     bool checkDup = true;
@@ -101,21 +107,21 @@ public:
     {
 
         bool result = false;
-        CRITICAL_SECTION
-        {
+        // CRITICAL_SECTION
+        // {
 
-            if (count > 0)
-            {
-                item = items[head];
-                head = (head + 1) % MAX_ITEMS;
-                count--;
-                result = true;
-            }
+        if (count > 0)
+        {
+            item = items[head];
+            head = (head + 1) % MAX_ITEMS;
+            count--;
+            result = true;
         }
+        //}
         return result;
     }
 
-    void push(const uint8_t to, const char *event, const char *value,
+    bool push(const uint8_t to, const char *event, const char *value,
               const uint8_t from, const uint8_t hope, const uint8_t id = 0)
     {
         MessageRec msg;
@@ -126,31 +132,26 @@ public:
         msg.id = id;
         strncpy(msg.event, event, MAX_EVENT_LEN - 1);
         strncpy(msg.value, value, MAX_VALUE_LEN - 1);
-        pushItem(msg);
-    }
-
-    bool pop(MessageRec &msg)
-    {
-        return popItem(msg);
+        return pushItem(msg);
     }
 
     bool isEmpty()
     {
         bool result = false;
-        CRITICAL_SECTION
-        {
-            result = (count == 0);
-        }
+        // CRITICAL_SECTION
+        // {
+        result = (count == 0);
+        // }
         return result;
     }
 
     bool isFull()
     {
         bool result = false;
-        CRITICAL_SECTION
-        {
-            result = (count == MAX_ITEMS);
-        }
+        // CRITICAL_SECTION
+        // {
+        result = (count == MAX_ITEMS);
+        // }
         return result;
     }
 

@@ -9,69 +9,24 @@
 #include "queue_message.h"
 #include "LoRaInterface.h"
 
-#ifdef __AVR__
-#include <SoftwareSerial.h>
-#endif
-
 #define ALIVE_PACKET 3
 #define MAX_MESH_DEVICES 255
 #define MESSAGE_TIMEOUT_MS 2000
 
-SoftwareSerial RFSerial(Config::RX_PIN, Config::TX_PIN);
+#include <SoftwareSerial.h>
+SoftwareSerial SSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
+#define COMSerial SSerial
+#define ShowSerial Serial
 
-uint8_t noMesh[(MAX_MESH_DEVICES + 7) / 8] = {0};
-
-void setDeviceActive(uint8_t deviceId)
-{
-    if (deviceId <= MAX_MESH_DEVICES)
-    {
-        noMesh[deviceId / 8] |= (1 << (deviceId % 8));
-    }
-}
-
-bool isDeviceActive(uint8_t deviceId)
-{
-    if (deviceId > MAX_MESH_DEVICES)
-        return false;
-    return (noMesh[deviceId / 8] & (1 << (deviceId % 8))) != 0;
-}
-
-void clearDeviceActive(uint8_t deviceId)
-{
-    if (deviceId <= MAX_MESH_DEVICES)
-    {
-        noMesh[deviceId / 8] &= ~(1 << (deviceId % 8));
-    }
-}
-
-bool isValidMessage(const char *msg, uint8_t len)
-{
-    return (len >= 4) && (msg[1] == '{') && (msg[len - 1] == '}');
-}
+RH_RF95<SoftwareSerial> rf95(COMSerial);
 
 class LoraRF : public LoRaInterface
 {
 private:
-    RH_RF95<decltype(RFSerial)> rf95;
-    bool _promiscuos = false;
-    const uint8_t STX = '{';
-    const uint8_t ETX = '}';
-    uint8_t sender = 0xFF;
-    uint8_t nHeaderId = 0;
-    FifoList txQueue;
-    FifoList rxQueue;
-    long txLoop = 0;
-    long rxLoop = 0;
-
 public:
-    bool connected = false;
-
-    LoraRF() : rf95(RFSerial) {}
-
     bool begin(const uint8_t terminal_Id, long band, bool promisc = true) override
     {
         terminalId = terminal_Id;
-        RFSerial.begin(Config::LORA_SPEED);
         connected = rf95.init();
         _promiscuos = promisc;
         rf95.setPromiscuous(true);
@@ -81,85 +36,39 @@ public:
         return connected;
     }
 
-    bool processIncoming(MessageRec &rec) override
-    {
-        bool result = false;
-
-        result = rxQueue.pop(rec);
-        return result;
-    }
-
-    // void send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId) override
-    bool send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId) override
-    {
-        MessageRec msg;
-        memset(&msg, 0, sizeof(MessageRec));
-        msg.to = tid;
-        msg.from = terminalId;
-        msg.hope = ALIVE_PACKET;
-        msg.id = ++nHeaderId;
-        strncpy(msg.event, event, MAX_EVENT_LEN - 1);
-        strncpy(msg.value, value, MAX_VALUE_LEN - 1);
-
-        return txQueue.pushItem(msg);
-    }
-
-    bool loop() override
-    {
-        bool processed = false;
-
-        // Processar envios
-        if (millis() - txLoop > 5)
-        {
-            txLoop = millis();
-            MessageRec rec;
-
-            bool hasItem = txQueue.pop(rec);
-
-            if (hasItem)
-            {
-                char msg[Config::MESSAGE_MAX_LEN];
-                memset(msg, 0, sizeof(msg));
-                snprintf(msg, sizeof(msg), "%s|%s", rec.event, rec.value);
-                sendMessage(rec.to, msg, rec.from, rec.hope, rec.id);
-            }
-        }
-
-        // Processar recebimentos
-        if (millis() - rxLoop > 5)
-        {
-            rxLoop = millis();
-            if (rf95.available())
-            {
-                char buf[Config::MESSAGE_MAX_LEN];
-                memset(buf, 0, sizeof(buf));
-                uint8_t len = sizeof(buf);
-                if (receiveMessage(buf, &len))
-                {
-                    MessageRec rec;
-                    if (parseRecv(buf, len, rec))
-                    {
-                        return rxQueue.pushItem(rec);
-                    }
-                }
-                processed = true;
-            }
-        }
-
-        return processed;
-    }
-
-    bool available() override
-    {
-        return !rxQueue.isEmpty();
-    }
-
-    uint8_t headerFrom()
+        uint8_t headerFrom()
     {
         return rf95.headerFrom();
     }
 
 private:
+    void setState(LoRaStates st) override
+    {
+        state = st;
+        switch (state)
+        {
+        case LoRaRX:
+            Serial.println("LoRaRX");
+            rf95.setModeRx();
+            rxDelay = millis();
+            break;
+        case LoRaTX:
+            Serial.println("LoRaTX");
+            rf95.setModeTx();
+            txDelay = millis();
+            break;
+        case LoRaWAITING:
+            Serial.println("LoRaWAITING");
+            setState(LoRaRX);
+            break;
+        case LoRaIDLE:
+            setState(LoRaRX);
+            break;
+        default:
+            break;
+        }
+    }
+
     bool parseRecv(char *buf, uint8_t len, MessageRec &rec)
     {
         memset(&rec, 0, sizeof(MessageRec));
@@ -201,33 +110,34 @@ private:
         return true;
     }
 
-    bool receiveMessage(char *buffer, uint8_t *len)
+    bool receiveMessage() override
     {
         if (!rf95.available())
         {
             return false;
         }
 
-        uint8_t recvLen = Config::MESSAGE_MAX_LEN + 3;
-        char localBuffer[recvLen];
-        memset(localBuffer, 0, recvLen);
+        char buffer[Config::MESSAGE_MAX_LEN];
+        uint8_t recvLen = sizeof(buffer);
 
-        if (rf95.recv((uint8_t *)localBuffer, &recvLen))
+        memset(buffer, 0, recvLen);
+
+        if (rf95.recv((uint8_t *)buffer, &recvLen))
         {
-            localBuffer[recvLen] = '\0';
+            buffer[recvLen] = '\0';
 
-            if (!isValidMessage(localBuffer, recvLen))
+            if (!isValidMessage(buffer, recvLen))
             {
-                Logger::error("Invalid message");
+                Logger::error("Invalid message: %s ", buffer + 1);
                 ackIf(false);
                 return false;
             }
 
             uint8_t mto = rf95.headerTo();
             uint8_t mfrom = rf95.headerFrom();
-            sender = (uint8_t)localBuffer[0];
+            headerSender = (uint8_t)buffer[0];
 
-            if (sender == terminalId || mfrom == terminalId)
+            if (headerSender == terminalId || mfrom == terminalId)
             {
                 return false;
             }
@@ -240,15 +150,11 @@ private:
                 return false;
             }
 
-            strncpy(buffer, localBuffer + 2, recvLen);
-            buffer[recvLen] = '\0';
-            *len = recvLen;
-
             if (strstr(buffer, "ping") != NULL)
             {
                 if (mto != terminalId)
                     return false;
-                txQueue.push(mfrom, "pong", "0", terminalId, ALIVE_PACKET, nHeaderId++);
+                txQueue.push(mfrom, "pong", terminalName, terminalId, ALIVE_PACKET, nHeaderId++);
                 return true;
             }
             else if (strstr(buffer, "pong") != NULL)
@@ -282,7 +188,7 @@ private:
                     salto--;
 
                     MessageRec rec;
-                    if (parseRecv(buffer, *len, rec))
+                    if (parseRecv(buffer, recvLen, rec))
                     {
                         rec.hope = salto;
                         txQueue.pushItem(rec);
@@ -298,10 +204,13 @@ private:
         return false;
     }
 
-    bool sendMessage(uint8_t terminalTo, const char *message, uint8_t terminalFrom,
-                     uint8_t hope, uint8_t seq)
+    bool sendMessage(MessageRec &rec) override
+    // uint8_t terminalTo, const char *message, uint8_t terminalFrom,
+    //                 uint8_t hope, uint8_t seq)
     {
-        uint8_t len = strlen(message);
+        char message[Config::MESSAGE_MAX_LEN] = {0};
+        uint8_t len = snprintf(message, sizeof(message), "%s|%s", rec.event, rec.value);
+        Serial.println(message);
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
         {
             Logger::error("Invalid message size");
@@ -309,34 +218,32 @@ private:
         }
 
         rf95.setModeTx();
-        rf95.setHeaderFrom(terminalFrom);
-        rf95.setHeaderTo(terminalTo);
-        rf95.setHeaderId(seq);
-        rf95.setHeaderFlags(hope, 0xFF);
+        rf95.setHeaderFrom(rec.from);
+        rf95.setHeaderTo(rec.to);
+        if (rec.id == 0)
+            rec.id = ++nHeaderId;
+        rf95.setHeaderId(rec.id);
+        rf95.setHeaderFlags(rec.hope, 0xFF);
 
-        char fullMessage[Config::MESSAGE_MAX_LEN + 3];
+        char fullMessage[Config::MESSAGE_MAX_LEN];
         memset(fullMessage, 0, sizeof(fullMessage));
-        fullMessage[0] = terminalId;
-        fullMessage[1] = STX;
-        strncpy(fullMessage + 2, message, len);
-        fullMessage[len + 2] = ETX;
 
         bool result = false;
-        uint32_t start = millis();
-        while (!result && (millis() - start < MESSAGE_TIMEOUT_MS))
-        {
-            if (rf95.send((uint8_t *)fullMessage, len + 3))
-            {
-                if (rf95.waitPacketSent(MESSAGE_TIMEOUT_MS))
-                {
-                    Logger::log(LogLevel::SEND, "(%d)[%X->%X:%X](%d) %s", terminalId, terminalFrom, terminalTo, seq, hope, message);
-                    result = true;
-                }
-            }
-            delay(10);
-        }
+        snprintf(fullMessage, sizeof(fullMessage), "%c{%s}", terminalId, message);
+        len += 3;
 
-        rf95.setModeRx();
+        Logger::log(LogLevel::VERBOSE, "%s(%d)", fullMessage + 1, len);
+        if (rf95.send((uint8_t *)fullMessage, len))
+        {
+            Serial.print("saitPacketSend ");
+            if (rf95.waitPacketSent())
+            {
+                Logger::log(LogLevel::SEND, "(%d)[%X->%X:%X](%d) %s", terminalId, rec.from, rec.to, rec.id, rec.hope, message);
+                result = true;
+            }
+        }
+        Serial.println("End send ");
+
         return result;
     }
 

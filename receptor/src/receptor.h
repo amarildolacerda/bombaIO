@@ -1,235 +1,106 @@
-#include "Arduino.h"
+#pragma
+
+#include <RH_RF95.h>
 #include "config.h"
 
+/*
 #ifdef __AVR__
-#include "RH_RF95.h"
 #include <SoftwareSerial.h>
+SoftwareSerial SSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
+#define COMSerial SSerial
+#define ShowSerial Serial
+
+RH_RF95<SoftwareSerial> rf95(COMSerial);
+#endif
+*/
+
+#if defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_RP2350) || defined(ARDUINO_XIAO_RA4M1)
+#include <SoftwareSerial.h>
+SoftwareSerial SSerial(D7, D6); // RX, TX
+#define COMSerial SSerial
+#define ShowSerial Serial
+
+RH_RF95<SoftwareSerial> rf95(COMSerial);
+#endif
+
+#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32S3)
+#define COMSerial Serial1
+#define ShowSerial Serial
+
+RH_RF95<HardwareSerial> rf95(COMSerial);
+#endif
+
+#ifdef SEEED_XIAO_M0
+#define COMSerial Serial1
+#define ShowSerial Serial
+
+RH_RF95<Uart> rf95(COMSerial);
+#elif defined(ARDUINO_SAMD_VARIANT_COMPLIANCE)
+#define COMSerial Serial1
+#define ShowSerial SerialUSB
+
+RH_RF95<Uart> rf95(COMSerial);
+#endif
+
+#ifdef ARDUINO_ARCH_STM32F4
+#define COMSerial Serial
+#define ShowSerial SerialUSB
+
+RH_RF95<HardwareSerial> rf95(COMSerial);
+#endif
+
+#if defined(NRF52840_XXAA)
+#define COMSerial Serial1
+#define ShowSerial Serial
+
+RH_RF95<Uart> rf95(COMSerial);
+#endif
+
 #include "LoRaRF95.h"
-#endif
-
-#ifdef ESP32
-#include "LoRa32.h"
-#endif
-
-#include "logger.h"
-#include "queue_message.h"
-
-#include <EEPROM.h>
-#define EEPROM_ADDR_BOOT_COUNT 0
-#define EEPROM_ADDR_LAST_BOOT 4
-#define EEPROM_ADDR_PIN5_STATE 8
-#define IDENTIFICATION_TIMEOUT_MS 10000UL
-#define IDENTIFICATION_POWER_WINDOW_MS 60000UL
-
-typedef void (*CallbackFunction)();
-CallbackFunction callback;
-
-void initCallback();
+#include "AppProcess.h"
 
 class App
 {
-private:
-    long statusUpdater = 0;
-    bool loraConnected = false;
-    const char *terminalName = Config::TERMINAL_NAME;
-    const uint8_t terminalId = Config::TERMINAL_ID;
-
 public:
-    void initLora()
-    {
-        loraConnected = lora.begin(terminalId, Config::LORA_BAND, Config::PROMISCUOS);
-    }
-
-    long sendUpdated = 0;
-
     void setup()
     {
-        Serial.begin(Config::SERIAL_SPEED);
-        while (!Serial)
-            ;
+        ShowSerial.begin(Config::SERIAL_SPEED);
+        ShowSerial.println("Starting...");
 
-        lora.begin(terminalId, Config::LORA_BAND, Config::PROMISCUOS);
+        // Tentativa de inicialização com retry
+        for (int i = 0; i < 3; i++)
+        {
+            if (lora.begin(Config::TERMINAL_ID, Config::LORA_BAND, false))
+            {
+                break;
+            }
+            delay(1000);
+        }
+
+        // Verificar se inicializou corretamente
         if (!lora.connected)
         {
-            Serial.print(F("LoRa failed to start"));
-        };
-
-        pinMode(Config::LED_PIN, OUTPUT);
-        pinMode(Config::RELAY_PIN, OUTPUT);
-        initPinRelay();
+            ShowSerial.println("Failed to initialize LoRa!");
+            while (1)
+                ; // Trava se não inicializar
+        }
     }
-
-    long ultimoReceived = 0;
 
     void loop()
     {
+        static unsigned long lastCheck = millis();
+
+        // Processar LoRa
         lora.loop();
-        if (handleMessage())
+        AppProcess::handle();
+
+        // Verificação periódica do sistema
+        if (millis() - lastCheck > 5000)
         {
-            ultimoReceived = millis();
+            lastCheck = millis();
+            ShowSerial.println("System OK");
+            // Adicione outras verificações aqui
         }
-
-        if (millis() - sendUpdated > 100)
-        {
-            // sendUpdated = millis();
-
-            // if (lora.connected)
-            // {
-            if (millis() - statusUpdater > Config::STATUS_INTERVAL)
-            {
-                setStatusChanged();
-                statusUpdater = millis();
-            }
-            //  }
-
-            if (millis() - ultimoReceived > 60000)
-            {
-                // initLora();
-                ultimoReceived = millis();
-                Logger::info("Tempo de atividade: %lu segundos", millis() / 1000);
-#ifdef ESP32
-                Logger::debug("Memória livre: %d bytes", ESP.getFreeHeap());
-#endif
-            }
-        }
-    }
-
-    void sendEvent(uint8_t tid, const char *event, const char *value)
-    {
-        noInterrupts();
-        lora.send(tid, event, value, terminalId);
-        interrupts();
-    }
-
-    void savePinState(bool state)
-    {
-        noInterrupts();
-#ifdef __AVR__
-        EEPROM.update(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
-#else
-        EEPROM.write(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
-        EEPROM.commit();
-#endif
-        interrupts();
-    }
-
-    bool readPinState()
-    {
-        noInterrupts();
-        uint8_t val = EEPROM.read(EEPROM_ADDR_PIN5_STATE);
-        interrupts();
-        return val == 1;
-    }
-
-    void initPinRelay()
-    {
-        noInterrupts();
-        pinMode(Config::RELAY_PIN, OUTPUT);
-        bool savedState = readPinState();
-        digitalWrite(Config::RELAY_PIN, savedState ? HIGH : LOW);
-        interrupts();
-
-        Logger::info(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF");
-#ifdef ESP32
-        initCallback();
-#endif
-    }
-
-    bool handleMessage()
-    {
-        MessageRec rec;
-        memset(&rec, 0, sizeof(MessageRec));
-
-        bool hasMessage = lora.processIncoming(rec);
-
-        if (!hasMessage)
-        {
-            return false;
-        }
-        Logger::info("Handled from: %d: %s|%s", rec.from, rec.event, rec.value);
-
-        bool handled = false;
-
-        if (strstr(rec.event, "ack"))
-            return true;
-        if (strstr(rec.event, "nak"))
-            return false;
-
-        if (strstr(rec.event, "gpio"))
-        {
-            if (strstr(rec.value, "on"))
-            {
-                digitalWrite(Config::RELAY_PIN, HIGH);
-                handled = true;
-            }
-            else if (strstr(rec.value, "off"))
-            {
-                digitalWrite(Config::RELAY_PIN, LOW);
-                handled = true;
-            }
-            else if (strstr(rec.value, "toggle"))
-            {
-                int currentState = digitalRead(Config::RELAY_PIN);
-                digitalWrite(Config::RELAY_PIN, !currentState);
-                handled = true;
-            }
-            setStatusChanged();
-        }
-
-        return true;
-
-        if (strstr(rec.event, "pub"))
-        {
-
-            lora.send(0, "pub", (char *)terminalName, terminalId);
-            return true;
-        }
-
-        if (strstr(rec.event, "status"))
-        {
-            setStatusChanged();
-            return true;
-        }
-        else if (strstr(rec.event, "reset"))
-        {
-            return true;
-        }
-
-        ack(rec.from, handled);
-        return handled;
-    }
-
-    void ack(uint8_t tid, bool handled)
-    {
-        lora.send(tid, handled ? "ack" : "nak", "", terminalId);
-    }
-
-    void setStatusChanged()
-    {
-        lora.send(0, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off", terminalId);
     }
 };
-
-App app;
-
-void triggerCallback()
-{
-    CRITICAL_SECTION
-    {
-        app.savePinState(digitalRead(Config::RELAY_PIN));
-        interrupts();
-        app.setStatusChanged();
-        systemState.pinStateChanged = true;
-    }
-}
-
-static bool callbackInstaled = false;
-void initCallback()
-{
-    if (callbackInstaled)
-    {
-        callbackInstaled = true;
-        detachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN));
-    }
-    attachInterrupt(digitalPinToInterrupt(Config::RELAY_PIN), triggerCallback, CHANGE);
-}
+static App app;

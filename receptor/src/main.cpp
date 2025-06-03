@@ -95,19 +95,20 @@ void setup()
     // you can set transmitter powers from 5 to 23 dBm:
     // rf95.setTxPower(13, false);
 
-    rf95.setFrequency(Config::BAND);
+    rf95.setFrequency(Config::LORA_BAND);
 }
 
 void loop()
 {
     ShowSerial.println("Sending to rf95_server");
     // Send a message to rf95_server
-    uint8_t data[] = "presentation|LoRaSenseBender";
+    char data[Config::MESSAGE_MAX_LEN] = {0};
+    sprintf(data, "%c{presentation|LoRaSenseBender}", 1);
     rf95.setModeTx();
-    rf95.setHeaderFrom(254);
-    rf95.setHeaderTo(0xFF);
+    rf95.setHeaderFrom(1);
+    rf95.setHeaderTo(0);
     rf95.setHeaderFlags(sizeof(data), 0xFF);
-    rf95.send(data, sizeof(data));
+    rf95.send((uint8_t *)data, sizeof(data));
 
     rf95.waitPacketSent(300);
 
