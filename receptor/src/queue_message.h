@@ -22,7 +22,7 @@
 #error "Plataforma não suportada"
 #endif
 
-#define MAX_EVENT_LEN 10
+#define MAX_EVENT_LEN 8
 #define MAX_VALUE_LEN 16
 #ifdef ESP32
 #define MAX_ITEMS 5
@@ -132,8 +132,8 @@ public:
         msg.from = from;
         msg.hope = hope;
         msg.id = id;
-        strncpy(msg.event, event, MAX_EVENT_LEN - 1);
-        strncpy(msg.value, value, MAX_VALUE_LEN - 1);
+        strncpy(msg.event, event, MAX_EVENT_LEN);
+        strncpy(msg.value, value, MAX_VALUE_LEN);
         return pushItem(msg);
     }
 
