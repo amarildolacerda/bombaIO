@@ -48,17 +48,23 @@ private:
         switch (state)
         {
         case LoRaRX:
+#ifdef DEBUG_ON
             Serial.println("LoRaRX");
+#endif
             rf95.setModeRx();
             rxDelay = millis();
             break;
         case LoRaTX:
+#ifdef DEBUG_ON
             Serial.println("LoRaTX");
+#endif
             rf95.setModeTx();
             txDelay = millis();
             break;
         case LoRaWAITING:
+#ifdef DEBUG_ON
             Serial.println("LoRaWAITING");
+#endif
             setState(LoRaRX);
             break;
         case LoRaIDLE:
@@ -113,7 +119,7 @@ private:
 
     bool receiveMessage() override
     {
-        if (!rf95.available())
+        if (!rf95.waitAvailableTimeout(50))
         {
             return false;
         }
@@ -193,8 +199,10 @@ private:
                     {
                         rec.hope = salto;
                         txQueue.pushItem(rec);
+#ifdef DEBUG_ON
                         Serial.print("MESH From: ");
                         Serial.println(rf95.headerFrom());
+#endif
                     }
                 }
                 return mto == 0xFF;
@@ -207,9 +215,11 @@ private:
 
     bool sendMessage(MessageRec &rec) override
     {
+#ifdef DEBUG_ON
         Serial.println("\n--- Iniciando sendMessage ---");
         Serial.print("Conteúdo: ");
         rec.print();
+#endif
 
         // 1. Preparar mensagem
         char message[Config::MESSAGE_MAX_LEN] = {0};
@@ -217,7 +227,9 @@ private:
 
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
         {
+#ifdef DEBUG_ON
             Serial.println("ERRO: Tamanho de mensagem inválido");
+#endif
             return false;
         }
 
@@ -234,26 +246,34 @@ private:
         snprintf(fullMessage, sizeof(fullMessage), "%c{%s}", terminalId, message);
         len += 3; // Adiciona tamanho dos delimitadores
 
+#ifdef DEBUG_ON
         Serial.print("Enviando: ");
         Serial.println(fullMessage);
-
+#endif
         // 4. Tentar enviar
         bool sendResult = false;
         for (int attempt = 0; attempt < 3 && !sendResult; attempt++)
         {
+#ifdef DEBUG_ON
             Serial.print("Tentativa ");
             Serial.println(attempt + 1);
-
+#endif
             if (attempt > 0)
                 delay(100 * attempt); // Backoff
 
             if (rf95.send((uint8_t *)fullMessage, len))
             {
+#ifdef DEBUG_ON
                 Serial.println("send() ok, aguardando confirmação...");
+#endif
                 if (rf95.waitPacketSent(5000))
                 { // Timeout de 5 segundos
                     sendResult = true;
+#ifdef DEBUG_ON
                     Serial.println("Mensagem enviada com sucesso!");
+#endif
+                    Logger::log(LogLevel::SEND, "(%d)[%X->%X:%X](%d) %s", terminalId, rec.from,
+                                rec.to, rec.id, rec.hope, fullMessage);
                 }
                 else
                 {
@@ -266,7 +286,9 @@ private:
             }
         }
 
+#ifdef DEBUG_ON
         Serial.println("--- Finalizando sendMessage ---");
+#endif
         return sendResult;
     }
     void ackIf(bool ack = false)

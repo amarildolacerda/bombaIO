@@ -104,8 +104,8 @@ public:
         MessageRec rec;
         rec.to = tid;
         rec.from = terminalId;
-        snprintf(rec.event, sizeof(rec.event) - 1, event);
-        snprintf(rec.value, sizeof(rec.value) - 1, value);
+        snprintf(rec.event, sizeof(rec.event), event);
+        snprintf(rec.value, sizeof(rec.value), value);
         rec.hope = ALIVE_PACKET;
         rec.id = ++nHeaderId;
         return txQueue.pushItem(rec);
@@ -151,7 +151,7 @@ public:
               // Mensagem enviada
             }
 
-            if (txQueue.size() == 0 || millis() - lastStateChange > 5000)
+            if (txQueue.size() == 0 || millis() - lastStateChange > 500)
             {
                 setState(LoRaRX);
                 lastStateChange = millis();

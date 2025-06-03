@@ -68,7 +68,6 @@ bool Logger::vlog(const LogLevel level, const char *format, va_list args)
 
     // Sua implementação existente do vlog aqui...
 
-#ifdef DEBUG_ON
     // Versão detalhada com cores (quando DEBUG_ON está definido)
     static const char levelStrings[][7] PROGMEM = {
         "[ERRO]", "[WARN]", "[RECV]", "[SEND]", "[INFO]",
@@ -100,10 +99,6 @@ bool Logger::vlog(const LogLevel level, const char *format, va_list args)
     Serial.print(F(" "));
     Serial.println(formattedMsg);
     Serial.print(F("\033[0m"));
-#else
-    // Versão simples (quando DEBUG_ON não está definido)
-    Serial.println(formattedMsg);
-#endif
 
     if (logCallback)
     {

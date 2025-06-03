@@ -22,8 +22,8 @@
 #error "Plataforma não suportada"
 #endif
 
-#define MAX_EVENT_LEN 8
-#define MAX_VALUE_LEN 24
+#define MAX_EVENT_LEN 10
+#define MAX_VALUE_LEN 16
 #ifdef ESP32
 #define MAX_ITEMS 5
 #else
@@ -41,12 +41,14 @@ struct MessageRec
     {
         return id + to + from + sizeof(event);
     }
+#ifdef DEBUG_ON
     void print()
     {
         char msg[100] = {0};
         snprintf(msg, sizeof(msg), "%d[%d-%d:%d](%d) {%s|%s}", from, from, to, id, hope, event, value);
         Serial.println(msg);
     }
+#endif
 };
 
 class FifoList
