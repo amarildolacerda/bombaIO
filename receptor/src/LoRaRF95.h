@@ -8,6 +8,7 @@
 #include "logger.h"
 #include "queue_message.h"
 #include "LoRaInterface.h"
+#include "app_messages.h"
 
 #define ALIVE_PACKET 3
 #define MAX_MESH_DEVICES 255
@@ -33,6 +34,8 @@ public:
         rf95.setFrequency(band);
         rf95.setHeaderFlags(0, RH_FLAGS_NONE);
         rf95.setTxPower(14, false);
+        rf95.setPreambleLength(8);
+
         return connected;
     }
 
@@ -157,14 +160,14 @@ private:
                 return false;
             }
 
-            if (strstr(buffer, "ping") != NULL)
+            if (strstr(buffer, EVT_PING) != NULL)
             {
                 if (mto != terminalId)
                     return false;
-                txQueue.push(mfrom, "pong", terminalName, terminalId, ALIVE_PACKET, nHeaderId++);
+                txQueue.push(mfrom, EVT_PONG, terminalName, terminalId, ALIVE_PACKET, nHeaderId++);
                 return true;
             }
-            else if (strstr(buffer, "pong") != NULL)
+            else if (strstr(buffer, EVT_PONG) != NULL)
             {
                 if (!isDeviceActive(mfrom))
                 {
@@ -173,7 +176,7 @@ private:
                 }
                 return false;
             }
-            else if (strstr(buffer, "time") != NULL)
+            else if (strstr(buffer, EVT_TIME) != NULL)
             {
                 return false;
             }
@@ -295,7 +298,7 @@ private:
     {
         if (rf95.headerTo() == terminalId)
         {
-            txQueue.push(rf95.headerFrom(), ack ? "ack" : "nak", "", terminalId, ALIVE_PACKET);
+            txQueue.push(rf95.headerFrom(), ack ? EVT_ACK : EVT_NAK, "", terminalId, ALIVE_PACKET);
         }
     }
 };

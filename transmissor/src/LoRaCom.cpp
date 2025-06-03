@@ -14,6 +14,7 @@
 #include "display_manager.h"
 #include "system_state.h"
 #include "device_info.h"
+#include "app_messages.h"
 
 // Define the static member
 LoRaInterface *LoRaCom::loraInstance = nullptr;
@@ -43,7 +44,7 @@ bool LoRaCom::initialize()
     );
     if (!rt)
     {
-        Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");
+        Logger::log(LogLevel::ERROR, F("Falha ao iniciar LoRa"));
         return false;
     }
     loraInstance->setTerminalId(Config::TERMINAL_ID);
@@ -95,7 +96,7 @@ void LoRaCom::handle()
     {
         lastPing = millis();
 
-        sendCommand("ping", Config::TERMINAL_NAME, 0xFF);
+        sendCommand(EVT_PING, Config::TERMINAL_NAME, 0xFF);
     }
 }
 
@@ -109,8 +110,8 @@ void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const
 
 void LoRaCom::ack(bool ak, uint8_t tid)
 {
-    loraInstance->send(tid, (char *)(ak) ? "ack" : "nak", "", 0);
-    displayManager.showMessage((String)tid + "->" + (ak) ? "ack" : "nak");
+    loraInstance->send(tid, (char *)(ak) ? EVT_ACK : EVT_NAK, "", 0);
+    displayManager.showMessage((String)tid + "->" + (ak) ? EVT_ACK : EVT_NAK);
 }
 
 int LoRaCom::packetRssi()
@@ -122,12 +123,12 @@ int LoRaCom::packetRssi()
 
 void LoRaCom::sendTime()
 {
-    sendCommand("time", DeviceInfo::getISOTime(), 0xFF);
+    sendCommand(EVT_TIME, DeviceInfo::getISOTime(), 0xFF);
 }
 
 void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
 {
-    loraInstance->send(tid, "pub", "ttgo", 0);
+    loraInstance->send(tid, EVT_PRESENTATION, "gw", 0);
 }
 
 bool LoRaCom::waitAck()

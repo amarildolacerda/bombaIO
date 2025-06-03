@@ -34,6 +34,7 @@
 
 #include "LoRaInterface.h"
 #include "queue_message.h"
+#include "app_messages.h"
 
 #ifdef SINRIC
 #include "SinricCom.h"
@@ -87,7 +88,7 @@ private:
                          dev.alexaId, dev.uniqueName().c_str(), state ? "ON" : "OFF");
                 Logger::info(logMsg);
 
-                LoRaCom::sendCommand("gpio", state ? "on" : "off", dev.tid);
+                LoRaCom::sendCommand(EVT_GPIO, state ? GPIO_ON : GPIO_OFF, dev.tid);
 
                 break;
             }
@@ -232,7 +233,7 @@ public:
 
         if ((presentationCount < 3) && (millis() - updatePressentation > 10000) && systemState.isDiscovering())
         {
-            LoRaCom::sendCommand("pub", "", 0xFF);
+            LoRaCom::sendCommand(EVT_PRESENTATION, "", 0xFF);
             updatePressentation = millis();
             if (presentationCount++ > 2)
             {
@@ -243,7 +244,7 @@ public:
         if (millis() - updatePressentation > 60 * 60 * 1000)
         { // Corrigido para 1 hora
             updatePressentation = millis();
-            LoRaCom::sendCommand("reset", "set", 0xFF);
+            LoRaCom::sendCommand(EVT_RESET, "gw", 0xFF);
         }
 
 #ifdef WS
@@ -283,7 +284,7 @@ protected:
             return; // Descarta pacotes próprios ou inválidos
         }
 
-        if (strstr(rec->event, "ack") != NULL || strstr(rec->event, "nak") != NULL)
+        if (strstr(rec->event, EVT_ACK) != NULL || strstr(rec->event, EVT_NAK) != NULL)
         {
             Logger::info(rec->event);
             return;
@@ -293,7 +294,7 @@ protected:
         DeviceInfoData data;
         data.tid = tid;
 
-        if (strstr(rec->event, "status") != NULL)
+        if (strstr(rec->event, EVT_STATUS) != NULL)
         {
             data.event = rec->event;
             data.value = rec->value;
@@ -308,7 +309,7 @@ protected:
 #endif
             handled = true;
         }
-        else if (strcmp(rec->event, "pub") == 0)
+        else if (strcmp(rec->event, EVT_PRESENTATION) == 0)
         {
             if (systemState.isDiscovering())
             {

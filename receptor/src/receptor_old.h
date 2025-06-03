@@ -178,19 +178,19 @@ public:
 
         return true;
 
-        if (strstr(rec.event, "pub"))
+        if (strstr(rec.event, EVT_PRESENTATION))
         {
 
-            lora.send(0, "pub", (char *)terminalName, terminalId);
+            lora.send(0, EVT_PRESENTATION, (char *)terminalName, terminalId);
             return true;
         }
 
-        if (strstr(rec.event, "status"))
+        if (strstr(rec.event, EVT_STATUS))
         {
             setStatusChanged();
             return true;
         }
-        else if (strstr(rec.event, "reset"))
+        else if (strstr(rec.event, EVT_RESET))
         {
             return true;
         }
@@ -201,12 +201,12 @@ public:
 
     void ack(uint8_t tid, bool handled)
     {
-        lora.send(tid, handled ? "ack" : "nak", "", terminalId);
+        lora.send(tid, handled ? EVT_ACK : EVT_NAK, "", terminalId);
     }
 
     void setStatusChanged()
     {
-        lora.send(0, "status", digitalRead(Config::RELAY_PIN) ? "on" : "off", terminalId);
+        lora.send(0, EVT_STATUS, digitalRead(Config::RELAY_PIN) ? GPIO_ON : GPIO_OFF, terminalId);
     }
 };
 
