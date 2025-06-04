@@ -1,6 +1,6 @@
 #include "logger.h"
 
-// Definição da variável estática
+#ifdef __AVR__
 
 LogCallback Logger::logCallback = nullptr;
 
@@ -8,6 +8,16 @@ void Logger::setLogCallback(LogCallback callback)
 {
     logCallback = callback;
 }
+
+#else
+// Definição da variável estática
+std::function<void(const String &)> Logger::logCallback = nullptr;
+
+void Logger::setLogCallback(std::function<void(const String &)> callback)
+{
+    logCallback = callback;
+}
+#endif
 
 // Implementações dos outros métodos
 void Logger::info(const char *msg, ...)
@@ -66,9 +76,6 @@ bool Logger::vlog(const LogLevel level, const char *format, va_list args)
     char formattedMsg[MAX_LOG_LENGTH];
     vsnprintf(formattedMsg, MAX_LOG_LENGTH, format, args);
 
-    // Sua implementação existente do vlog aqui...
-
-    // Versão detalhada com cores (quando DEBUG_ON está definido)
     static const char levelStrings[][7] PROGMEM = {
         "[ERRO]", "[WARN]", "[RECV]", "[SEND]", "[INFO]",
         "[DBUG]",

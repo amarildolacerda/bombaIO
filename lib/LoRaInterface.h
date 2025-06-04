@@ -126,7 +126,7 @@ public:
     }
 
     // Modificar o loop para tratamento específico do Heltec
-    void loop()
+    virtual void loop()
     {
         static unsigned long lastStateChange = millis();
 

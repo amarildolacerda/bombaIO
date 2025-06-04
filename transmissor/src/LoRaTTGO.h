@@ -11,18 +11,33 @@
 class LoRaTTGO : public LoRaInterface
 {
 private:
-    enum StatusState
+    long lastAvailable = 0;
+    uint8_t headerTo = 0;
+    uint8_t headerFrom = 0;
+    uint8_t headerId = 0;
+    uint8_t headerHope = 0;
+
+public:
+    bool begin(const uint8_t terminal_Id, long frequency, bool promiscuous = true) override
     {
-        LoRaRX,
-        LoRaTX,
-        LoRaIDLE
-    };
-    StatusState state = LoRaRX;
-    long rxDelay = millis();
-    long txDelay = millis();
-    void setState(StatusState v)
+        terminalId = terminal_Id;
+        LoRa.begin(frequency);
+        LoRa.setSpreadingFactor(12);    // Padrão é 7 (6-12)
+        LoRa.setSignalBandwidth(125E3); // 125kHz
+        LoRa.setCodingRate4(5);         // 4/5 coding rate
+        LoRa.setSyncWord(Config::LORA_SYNC_WORD);
+        LoRa.setTxPower(14);
+        LoRa.setPreambleLength(8);
+
+        _promiscuos = promiscuous;
+        setState(LoRaRX);
+
+        return true;
+    }
+
+    void setState(LoRaStates st) override
     {
-        state = v;
+        state = st;
         switch (state)
         {
         case LoRaRX:
@@ -31,10 +46,7 @@ private:
             LoRa.receive();
             break;
         case LoRaTX:
-            LoRa.idle();
             txDelay = millis();
-            break;
-        case LoRaIDLE:
             LoRa.idle();
             break;
 
@@ -42,39 +54,7 @@ private:
             break;
         }
     }
-    FifoList rxQueue;
-    FifoList txQueue;
-    uint8_t terminalId = 0xFF;
-    uint8_t _tidTo = 0xFF;
-    long lastAvailable = 0;
-    uint8_t headerTo = 0;
-    uint8_t headerFrom = 0;
-    uint8_t headerId = 0;
-    uint8_t headerHope = 0;
-    uint8_t headerSender = 0xFF;
-    bool inPromiscuous = false;
-    const uint8_t STX = '{';
-    const uint8_t ETX = '}';
 
-public:
-    bool begin(const uint8_t terminal_Id, long frequency, bool promiscuous = true) override
-    {
-        terminalId = terminal_Id;
-        LoRa.begin(frequency);
-        LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
-        LoRa.setSignalBandwidth(125E3); // 125kHz
-        LoRa.setCodingRate4(5);         // 4/5 coding rate
-        LoRa.setSyncWord(Config::LORA_SYNC_WORD);
-        LoRa.setTxPower(14);
-        LoRa.setPreambleLength(8);
-
-        inPromiscuous = promiscuous;
-        LoRa.receive();
-
-        return true;
-    }
-
-    uint8_t nHeaderId = 0;
     bool sendMessage(MessageRec &rec) // uint8_t tidTo, const char *message)
     {
 
@@ -213,9 +193,6 @@ public:
         Logger::info("Configuração do LoRa com CS: %d   RESET: %d  IRQ: %d", cs, reset, irq);
         LoRa.setPins(cs, reset, irq);
     }
-    void endSetup() override
-    {
-    }
 
     int packetRssi() override
     {
@@ -224,68 +201,6 @@ public:
     int packetSnr() override
     {
         return LoRa.packetSnr();
-    }
-
-    bool available() override
-    {
-        if (millis() - lastAvailable < 20)
-        {
-            return false;
-        }
-        int b = LoRa.parsePacket();
-        lastAvailable = millis();
-        return (b > 0);
-    }
-
-    bool send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId)
-    {
-        MessageRec rec;
-        rec.to = tid;
-        rec.from = terminalId;
-        rec.hope = 3;
-        rec.id = 0;
-        snprintf(rec.event, sizeof(rec.event), event);
-        snprintf(rec.value, sizeof(rec.value), value);
-        rec.id = nHeaderId++;
-        return txQueue.pushItem(rec);
-    }
-    bool processIncoming(MessageRec &rec)
-    {
-        return rxQueue.popItem(rec);
-    }
-
-    bool loop() override
-    {
-
-        switch (state)
-        {
-        case LoRaIDLE:
-            if (millis() - rxDelay > 10)
-                setState(LoRaRX); // reservado
-            break;
-        case LoRaRX:
-            /* code */
-            if (millis() - rxDelay > 10)
-            {
-                rxDelay = millis();
-                receiveMessage();
-            }
-            else if (txQueue.size() > 0)
-                setState(LoRaTX);
-            break;
-        case LoRaTX:
-            MessageRec rec;
-            if (txQueue.popItem(rec))
-            {
-                sendMessage(rec);
-            }
-            setState(LoRaRX);
-
-            break;
-        default:
-            break;
-        }
-        return false;
     }
 };
 

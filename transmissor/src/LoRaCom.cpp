@@ -123,7 +123,8 @@ int LoRaCom::packetRssi()
 
 void LoRaCom::sendTime()
 {
-    sendCommand(EVT_TIME, DeviceInfo::getISOTime(), 0xFF);
+    // sendCommand(EVT_TIME, DeviceInfo::getISOTime(), 0xFF);
+    // suspenso, esta travando o client
 }
 
 void LoRaCom::sendPresentation(const uint8_t tid, const uint8_t n)
