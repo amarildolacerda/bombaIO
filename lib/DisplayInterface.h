@@ -14,7 +14,7 @@ public:
     virtual void print(const String msg) = 0;
     virtual void println(const String msg) = 0;
     virtual void clearDisplay() = 0;
-    virtual void display() = 0;
+    virtual void show() = 0;
     virtual void setTextColor(uint8_t color, uint8_t fundo) = 0;
     virtual void setTextSize(uint8_t tam) = 0;
 };
