@@ -25,7 +25,7 @@
 #define MAX_EVENT_LEN 8
 #define MAX_VALUE_LEN 24
 #ifdef ESP32
-#define MAX_ITEMS 5
+#define MAX_ITEMS 3
 #else
 #define MAX_ITEMS 2
 #endif

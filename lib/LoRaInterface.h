@@ -25,8 +25,7 @@ protected:
     char terminalName[10] = {0};
     FifoList txQueue;
     FifoList rxQueue;
-    long rxDelay = 0;
-    long txDelay = 0;
+    unsigned long lastStateChange = millis();
 
     uint8_t nHeaderId = 0;
     uint8_t headerSender = 0;
@@ -128,7 +127,6 @@ public:
     // Modificar o loop para tratamento específico do Heltec
     virtual void loop()
     {
-        static unsigned long lastStateChange = millis();
 
         switch (state)
         {

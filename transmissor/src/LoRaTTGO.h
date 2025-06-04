@@ -22,7 +22,7 @@ public:
     {
         terminalId = terminal_Id;
         LoRa.begin(frequency);
-        LoRa.setSpreadingFactor(12);    // Padrão é 7 (6-12)
+        LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
         LoRa.setSignalBandwidth(125E3); // 125kHz
         LoRa.setCodingRate4(5);         // 4/5 coding rate
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
@@ -42,11 +42,9 @@ public:
         {
         case LoRaRX:
             /* code */
-            rxDelay = millis();
             LoRa.receive();
             break;
         case LoRaTX:
-            txDelay = millis();
             LoRa.idle();
             break;
 
@@ -84,8 +82,6 @@ public:
 
         Logger::log(LogLevel::SEND, "(%d)[%d→%d:%d] L: %d B: %s", terminalId, rec.from, rec.to, rec.id, len, message);
 
-        delay(50);
-        LoRa.receive();
         return rt;
     }
 
