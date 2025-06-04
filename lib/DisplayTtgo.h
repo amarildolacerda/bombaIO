@@ -3,15 +3,15 @@
 
 #ifdef DISPLAYTTGO
 #include "DisplayInterface.h"
-#include <Adafruit_SSD1306.h>
 #include <Wire.h>
 #include "logger.h"
 
 #define OLED_RST 16 // Pino de reset (para TTGO)
-static Adafruit_SSD1306 displayTtgo(128, 64, &Wire, OLED_RST);
-//static Adafruit_SSD1306 displayTtgo;
+#include <Adafruit_SSD1306.h>
+#include <Adafruit_GFX.h>
+static Adafruit_SSD1306 display(Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT, &Wire, -1);
 
-class TtgoDisplay : public DisplayInterface
+class DisplayTTGO : public DisplayInterface
 {
 private:
     const long rowHeight = 9.30; // Config::SCREEN_HEIGHT / 7;
@@ -20,27 +20,20 @@ private:
 public:
     void setPos(const uint8_t linha, const uint8_t coluna) override
     {
-        displayTtgo.setCursor((coluna * (colWidth)) + 1, (linha * rowHeight) + (linha < 6 ? 1 : 2));
+        display.setCursor((coluna * (colWidth)) + 1, (linha * rowHeight) + (linha < 6 ? 1 : 2));
     }
+
     bool initialize() override
     {
 
-        if (displayTtgo.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+        if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
         {
 
-            // Configurações originais de fábrica:
-            displayTtgo.setRotation(0);                        // Orientação padrão
-            displayTtgo.dim(false);                            // Brilho normal
-            displayTtgo.setTextWrap(false);                    // Desativar quebra de texto
-            displayTtgo.ssd1306_command(SSD1306_SETPRECHARGE); // Resetar timing
-            displayTtgo.ssd1306_command(0xF1);
-
-            displayTtgo.clearDisplay();
-            displayTtgo.cp437(true);
-            displayTtgo.setTextSize(1);
-            displayTtgo.setTextColor(SSD1306_WHITE);
-            displayTtgo.print("Carregando...");
-            displayTtgo.display();
+            display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS);
+            display.clearDisplay();
+            display.setTextSize(1);
+            display.setTextColor(SSD1306_WHITE);
+            display.display();
             return true;
         }
         return false;
@@ -48,31 +41,31 @@ public:
 
     void setTextColor(uint8_t color, uint8_t fundo)
     {
-        displayTtgo.setTextColor(color, fundo);
+        display.setTextColor(color, fundo);
     }
     void setTextSize(uint8_t tam)
     {
-        displayTtgo.setTextSize(tam);
+        display.setTextSize(tam);
     }
 
     void print(const String msg) override
     {
-        Serial.println(msg);
-        displayTtgo.print(msg);
+        // Serial.println(msg);
+        display.print(msg);
     }
     void println(const String msg)
     {
-        displayTtgo.println(msg);
+        display.println(msg);
     }
 
     void clearDisplay() override
     {
-        displayTtgo.clearDisplay();
+        display.clearDisplay();
     }
 
-    void display() override
+    void show() override
     {
-        displayTtgo.display();
+        display.display();
     }
 };
 

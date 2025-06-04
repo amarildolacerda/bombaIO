@@ -1,76 +1,121 @@
-#ifndef DISPLAY_MANAGER_H
-#define DISPLAY_MANAGER_H
+#pragma
 
-#ifdef TTGO
-#include "config.h"
-#include "logger.h"
-
-#include <Adafruit_SSD1306.h>
-#include <LoRa.h>
+#include "device_info.h"
+#include "queue_message.h"
 #include <WiFi.h>
 #include "system_state.h"
-
-extern Adafruit_SSD1306 display;
+#ifdef DISPLAYTTGO
+#include <DisplayTtgo.h>
+static DisplayTTGO disp;
+#endif
 
 class DisplayManager
 {
 private:
-    String loraRcvEvent;
-    String loraRcvValue;
-    uint8_t _tid;
-    uint32_t lastUpdate = 0;
-    bool wifiConnected;
-    bool loraInitialized;
-    String relayState;
-    String loraRcvMessage;
-    uint32_t stateTimeout = 1000;
-    String ver = "1.0.0";
-    int dispCount = 0;
-    void showFooter();
+    unsigned long updated = 0;
 
 public:
+    int snr = 0;
     int rssi = 0;
-    float snr = 0;
+    void setVersion(const String ver)
+    {
+    }
+    void showMessage(const String event)
+    {
+    }
+    void handle()
+    {
+        if (millis() - updated > 1000)
+        {
+            update();
+        }
+    }
+    bool initialize()
+    {
+        return disp.initialize();
+    }
+    void showFooter()
+    {
+        int dispCount = DeviceInfo::deviceList.size();
+        uint8_t regCount = DeviceInfo::deviceRegList.size();
+        disp.setTextColor(WHITE, BLACK);
+        // disp.fillRect(0, Config::SCREEN_HEIGHT - 9, Config::SCREEN_WIDTH,
+        //               9, SSD1306_WHITE);
+        disp.setTextColor(BLACK, WHITE);
+        disp.setPos(6, 0);
+        disp.print("D:");
+        disp.print((String)dispCount);
+        disp.print("/");
+        disp.print((String)regCount);
+        disp.print("           ");
+        disp.setPos(6, 13);
+        disp.println(DeviceInfo::getISOTime().substring(11, 19)); // Mostra apenas HH:MM:SS
+        disp.setTextColor(WHITE, BLACK);
+    }
+    bool loraConnected = false;
+    String loraRcvEvent;
+    void update()
 
-    void initialize();
-    void update();
-    void clearDisplay();
-    void wifiStatus(const bool conn)
     {
-        wifiConnected = conn;
-    }
-    void loraStatus(const bool conn)
-    {
-        loraInitialized = conn;
-    }
-    void relayStatus(const String st)
-    {
-        relayState = st;
-    }
-    void showMessage(const String &event);
-    void info(const String &event);
-    void handle();
-    void setEvent(const uint8_t id, const String event, const String value)
-    {
-        loraRcvEvent = event;
-        loraRcvValue = value;
-        _tid = id;
-    }
-    void resetDisplayUpdate()
-    {
-        lastUpdate = millis();
-    }
-    void setVersion(String v)
-    {
-        ver = v;
-    }
-    void setDispCount(int cnt)
-    {
-        dispCount = cnt;
+        disp.clearDisplay();
+        disp.setPos(0, 0);
+
+        disp.print("WiFi: ");
+        disp.println(WiFi.isConnected() ? WiFi.localIP().toString() : "DESCONECTADO");
+
+        static bool baixo = false;
+        static uint32_t ultimoBaixo = 0;
+        if (millis() - ultimoBaixo > 10000)
+        {
+            baixo = (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD);
+            // Logger::log(LogLevel::WARNING, String("Sinal LoRa baixo: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
+            ultimoBaixo = millis();
+        }
+        disp.setPos(1, 0);
+        disp.print("Radio: ");
+        disp.print(loraConnected ? (baixo) ? "Baixo" : "OK" : "FALHA");
+        disp.print(" ");
+        if (!baixo)
+        {
+            disp.setPos(1, 13);
+            disp.println(systemState.lastUpdateTime);
+        }
+        else
+        {
+            disp.println((String)rssi);
+        }
+        disp.println("");
+
+        /*   if (systemState.isDiscovering())
+           {
+               disp.setPos(3, 0);
+               disp.println(F("  Modo pareamento"));
+               disp.println(F("   em andamento")); // redundante, so esta preenchendo espaço no display
+           }
+        else */
+        if (DeviceInfo::history.size() > 0)
+        {
+            uint8_t i = 2;
+            for (const auto &d : DeviceInfo::history)
+            {
+                disp.setPos(i, 0);
+                disp.print("                     ");
+                disp.setPos(i, 0);
+                disp.print((String)d.tid);
+                disp.setPos(i, 3);
+                disp.print(d.name.substring(0, 11));
+                disp.setPos(i++, 15);
+                disp.print(d.value);
+                // Serial.print(d.value);
+            }
+        }
+        else
+        {
+            disp.println(F("Evento: NENHUM"));
+        }
+        showFooter();
+        disp.show();
     }
 };
 
-extern DisplayManager displayManager;
-
-#endif
-#endif // DISPLAY_MANAGER_H
+static DisplayManager displayManager;

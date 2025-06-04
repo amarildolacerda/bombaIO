@@ -9,6 +9,7 @@ class LoRaCom
 {
 private:
     static LoRaInterface *loraInstance;
+    static bool loraConnected;
     uint8_t nHeaderId = 0;
 
 protected:

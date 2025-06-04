@@ -18,6 +18,7 @@
 
 // Define the static member
 LoRaInterface *LoRaCom::loraInstance = nullptr;
+bool LoRaCom::loraConnected = false;
 
 // Define the static receiveCallback pointer
 void (*LoRaCom::onReceiveCallback)(MessageRec *) = nullptr;
@@ -35,14 +36,14 @@ bool LoRaCom::initialize()
 #ifdef TTGO
     loraInstance->setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
 #endif
-    bool rt = loraInstance->begin(0, Config::LORA_BAND,
+    loraConnected = loraInstance->begin(0, Config::LORA_BAND,
 #ifdef TTGO
-                                  false
+                                        false
 #else
-                                  true
+                                        true
 #endif
     );
-    if (!rt)
+    if (!loraConnected)
     {
         Logger::log(LogLevel::ERROR, F("Falha ao iniciar LoRa"));
         return false;
@@ -65,6 +66,12 @@ uint8_t idPing = 0;
 void LoRaCom::handle()
 {
     loraInstance->loop();
+
+    displayManager.handle();
+    displayManager.rssi = loraInstance->packetRssi();
+    displayManager.snr = loraInstance->packetSnr();
+    displayManager.loraConnected = loraConnected;
+
     MessageRec rec;
     if (loraInstance->processIncoming(rec))
     {

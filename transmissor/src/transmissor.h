@@ -261,7 +261,6 @@ public:
         sinricCom.loop();
 #endif
 
-        displayManager.handle();
 
         if (primeiraVez)
         {

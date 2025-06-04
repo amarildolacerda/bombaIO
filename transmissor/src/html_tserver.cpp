@@ -349,7 +349,7 @@ namespace HtmlServer
 
             // LoRaCom::sendCommand("status", "get", tid); // muitas chamadas redundandtes.
             int timeDiff = DeviceInfo::getTimeDifferenceSeconds(data.lastSeen);
-            bool isOffline = (timeDiff == -1) || (timeDiff > 60);
+            bool isOffline = (timeDiff == -1) || (timeDiff > 60 * 2);
             status = isOffline ? "Não Responde" : (data.value.length() == 0 ? "???" : data.value);
         }
         respStatus(request, tid, status);
