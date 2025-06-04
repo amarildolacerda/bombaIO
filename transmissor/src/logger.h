@@ -3,7 +3,6 @@
 
 #include "Arduino.h"
 #include <stdarg.h>
-#include <functional>
 
 enum class LogLevel
 {
