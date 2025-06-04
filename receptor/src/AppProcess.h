@@ -9,7 +9,7 @@ namespace AppProcess
 {
     void ack(uint8_t tid, bool handled)
     {
-        lora.send(tid, handled ? MSG_ACK : MSG_NAK, "", Config::TERMINAL_ID);
+        lora.send(tid, handled ? EVT_ACK : EVT_NAK, "", Config::TERMINAL_ID);
     }
 
     void setStatusChanged()

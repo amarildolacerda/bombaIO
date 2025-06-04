@@ -23,11 +23,11 @@
 #endif
 
 #define MAX_EVENT_LEN 8
-#define MAX_VALUE_LEN 16
+#define MAX_VALUE_LEN 24
 #ifdef ESP32
 #define MAX_ITEMS 5
 #else
-#define MAX_ITEMS 3
+#define MAX_ITEMS 2
 #endif
 struct MessageRec
 {
@@ -71,7 +71,10 @@ public:
         }
         // CRITICAL_SECTION
         // {
-
+#ifdef DEBUG_ON
+        Serial.print("Push item: ");
+        Serial.println(count + 1);
+#endif
         if (count < MAX_ITEMS)
         {
             items[tail] = item;
@@ -104,7 +107,7 @@ public:
         //}
         return result;
     }
-    bool checkDup = true;
+    bool checkDup = false;
     bool popItem(MessageRec &item)
     {
 

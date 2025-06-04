@@ -32,10 +32,10 @@ public:
         _promiscuos = promisc;
         rf95.setPromiscuous(true);
         rf95.setFrequency(band);
-        rf95.setHeaderFlags(0, RH_FLAGS_NONE);
-        rf95.setTxPower(23, false);
+        // rf95.setHeaderFlags(0, RH_FLAGS_NONE);
+        rf95.setTxPower(14, false);
 
-        rf95.setPreambleLength(8);
+        // rf95.setPreambleLength(8);
         rf95.setModemConfig(rf95.Bw125Cr45Sf128);
 
         return connected;
@@ -83,6 +83,11 @@ private:
     bool parseRecv(char *buf, uint8_t len, MessageRec &rec)
     {
         memset(&rec, 0, sizeof(MessageRec));
+        len = strlen(buf);
+        // Serial.print(len);
+        // Serial.print(":");
+        // Serial.println(buf);
+
         rec.to = rf95.headerTo();
         rec.from = rf95.headerFrom();
         rec.id = rf95.headerId();
@@ -90,7 +95,7 @@ private:
 
         if (buf == NULL || buf[0] != '{' || buf[len - 1] != '}')
         {
-            // Serial.println("Mensagem mal formatada");
+            Logger::error("Mensagem mal formatada (%s)", buf);
             // Serial.println(buf);
             return false;
         }
@@ -119,6 +124,7 @@ private:
             rec.value[0] = '\0';
             // sprintf(rec.value, '\0');
         }
+
         return true;
     }
 
@@ -138,13 +144,6 @@ private:
         {
             buffer[recvLen] = '\0';
 
-            if (!isValidMessage(buffer, recvLen))
-            {
-                Logger::error("Invalid message: %s ", buffer + 1);
-                ackIf(false);
-                return false;
-            }
-
             uint8_t mto = rf95.headerTo();
             uint8_t mfrom = rf95.headerFrom();
             headerSender = (uint8_t)buffer[0];
@@ -161,6 +160,9 @@ private:
                 ackIf(false);
                 return false;
             }
+
+            MessageRec rec;
+            bool parsed = parseRecv(buffer + 1, recvLen - 1, rec);
 
             if (strstr(buffer, EVT_PING) != NULL)
             {
@@ -186,7 +188,9 @@ private:
             if ((mto == terminalId) || (mto == 0xFF))
             {
                 //                Logger::log(LogLevel::DEBUG, "Direct message [%d->%d]: %s", mfrom, mto, buffer);
-                Logger::log(LogLevel::RECEIVE, "(%d)[%X->%X:%X](%d) %s", terminalId, mfrom, mto, rf95.headerId(), rf95.headerFlags(), buffer);
+                Logger::log(parsed ? LogLevel::RECEIVE : LogLevel::VERBOSE, "(%d)[%X->%X:%X](%d) %s|%s", terminalId, mfrom, mto, rf95.headerId(), rf95.headerFlags(), rec.event, rec.value);
+                if (parsed)
+                    rxQueue.push(rec.to, rec.event, rec.value, rec.from, rec.hope, rec.id);
                 if (mto == terminalId)
                     return true;
             }
@@ -199,13 +203,14 @@ private:
                 {
                     salto--;
 
-                    MessageRec rec;
-                    if (parseRecv(buffer, recvLen, rec))
+                    if (parsed)
                     {
                         rec.hope = salto;
-                        txQueue.pushItem(rec);
+                        //                        txQueue.pushItem(rec);
+                        txQueue.push(rec.to, rec.event, rec.value, rec.from, rec.hope, rec.id);
+
 #ifdef DEBUG_ON
-                        Serial.print("MESH From: ");
+                        Serial.print(F("MESH From: "));
                         Serial.println(rf95.headerFrom());
 #endif
                     }

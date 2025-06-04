@@ -66,7 +66,7 @@ protected:
 
     bool isValidMessage(const char *msg, uint8_t len)
     {
-        return (len >= 4) && (msg[1] == '{') && (msg[len - 1] == '}');
+        return (len >= 4) && (msg[0] == '{') && (msg[len - 1] == '}');
     }
 
 public:
@@ -132,10 +132,17 @@ public:
 
         switch (state)
         {
+        case LoRaIDLE:
+            setState(LoRaRX);
+            break;
+        case LoRaWAITING:
+            setState(LoRaRX);
+            break;
         case LoRaRX:
             if (receiveMessage())
             {
                 // Mensagem recebida
+                lastStateChange = millis();
             }
 
             if (txQueue.size() > 0 && millis() - lastStateChange > 100)
@@ -149,12 +156,12 @@ public:
             if (sendNextMessage())
             { // Função modificada acima
               // Mensagem enviada
+                lastStateChange = millis();
             }
 
-            if (txQueue.size() == 0 || millis() - lastStateChange > 500)
+            if (lastStateChange > 100)
             {
                 setState(LoRaRX);
-                lastStateChange = millis();
             }
             break;
         }
