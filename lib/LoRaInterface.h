@@ -77,7 +77,7 @@ protected:
 
 public:
     bool connected = false;
-    LoRaConfig config = LORA_FAST;
+    LoRaConfig config = LORA_MED;
 
     virtual bool begin(const uint8_t terminal_Id, long band, bool promisc = true) = 0;
     virtual void setTerminalName(const char name[10])
