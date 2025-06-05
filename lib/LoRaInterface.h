@@ -78,7 +78,8 @@ protected:
 public:
     bool connected = false;
     LoRaConfig config = LORA_MED;
-
+    virtual void modeRx() = 0;
+    virtual void modeTx() = 0;
     virtual bool begin(const uint8_t terminal_Id, long band, bool promisc = true) = 0;
     virtual void setTerminalName(const char name[10])
     {
@@ -123,7 +124,23 @@ public:
         result = rxQueue.popItem(rec);
         return result;
     }
-    virtual void setState(LoRaStates st) = 0;
+    virtual void setState(LoRaStates st)
+    {
+        state = st;
+        switch (state)
+        {
+        case LoRaRX:
+            modeRx();
+            /* code */
+            break;
+        case LoRaTX:
+            modeTx();
+            break;
+        default:
+
+            break;
+        }
+    }
     bool sendNextMessage()
     {
         MessageRec rec;

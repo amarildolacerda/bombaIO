@@ -48,6 +48,7 @@ public:
         while (!Serial)
             ;
 
+        lora.config = LORA_FAST;
         lora.begin(terminalId, Config::LORA_BAND, Config::PROMISCUOS);
         if (!lora.connected)
         {

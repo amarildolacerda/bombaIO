@@ -14,6 +14,7 @@ private:
 
 protected:
 public:
+    String startedISODate = "";
     String relayState = "...";
     String lastUpdateTime = "";
     bool discoveryMode = false;

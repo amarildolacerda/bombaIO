@@ -141,6 +141,10 @@ private:
             Logger::log(LogLevel::WARNING, F("Falha ao obter tempo NTP"));
             return;
         }
+        else
+        {
+            systemState.startedISODate = DeviceInfo::getISOTime().substring(11, 18);
+        }
     }
 #endif
 
@@ -260,7 +264,6 @@ public:
 #ifdef SINRIC
         sinricCom.loop();
 #endif
-
 
         if (primeiraVez)
         {

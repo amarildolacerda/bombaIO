@@ -12,21 +12,23 @@ AlexaCom alexaCom;
 
 void AlexaCom::aliveOffLineAlexa()
 {
-
+    DeviceInfoData data;
     for (auto &dev : alexaDevices)
     {
         int idx = DeviceInfo::dataOf(dev.tid);
         int secs = 60;
         if (idx >= 0)
         {
-            DeviceInfoData &data = DeviceInfo::deviceList[idx];
+            data = DeviceInfo::deviceList[idx];
             secs = DeviceInfo::getTimeDifferenceSeconds(data.lastSeen);
-        }
-        if (secs >= 60)
-        {
-            alexa.setState(dev.uniqueName().c_str(), false, 0);
-            // Logger::warn(String(dev.name + " esta a mais de " + String(secs) + "s sem conexao ").c_str());
-            //}
+            if (secs >= 60 * 5)
+            {
+                alexa.setState(dev.uniqueName().c_str(), false, 0);
+            }
+            else
+            {
+                alexa.setState(dev.uniqueName().c_str(), data.value == "on", 100);
+            }
         }
     }
 }

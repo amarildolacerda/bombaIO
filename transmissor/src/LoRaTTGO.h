@@ -41,9 +41,9 @@ public:
         default:
 
             // Config 3 (Balanced):
-            LoRa.setSpreadingFactor(9);
+            LoRa.setSpreadingFactor(8);
             LoRa.setSignalBandwidth(125E3);
-            LoRa.setCodingRate4(6);
+            LoRa.setCodingRate4(5);
             break;
         }
 

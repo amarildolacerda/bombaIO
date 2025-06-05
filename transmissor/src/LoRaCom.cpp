@@ -33,6 +33,8 @@ bool LoRaCom::initialize()
     setInstance(new LoRaRF95());
 #endif
 
+    loraInstance->config = LORA_MED;
+
 #ifdef TTGO
     loraInstance->setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
 #endif

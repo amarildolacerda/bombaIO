@@ -22,6 +22,8 @@ public:
     }
     void showMessage(const String event)
     {
+        disp.setPos(5, 0);
+        disp.print(event);
     }
     void handle()
     {
@@ -47,7 +49,9 @@ public:
         disp.print((String)dispCount);
         disp.print("/");
         disp.print((String)regCount);
-        disp.print("           ");
+        disp.print(" ");
+        disp.print(systemState.startedISODate.substring(0, 5));
+        disp.print("     ");
         disp.setPos(6, 13);
         disp.println(DeviceInfo::getISOTime().substring(11, 19)); // Mostra apenas HH:MM:SS
         disp.setTextColor(WHITE, BLACK);

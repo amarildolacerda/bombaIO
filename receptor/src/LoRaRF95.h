@@ -33,10 +33,27 @@ public:
         rf95.setPromiscuous(true);
         rf95.setFrequency(band);
         // rf95.setHeaderFlags(0, RH_FLAGS_NONE);
-        rf95.setTxPower(14, false);
 
-        // rf95.setPreambleLength(8);
-        rf95.setModemConfig(rf95.Bw125Cr45Sf128);
+        switch (config)
+        {
+        case LORA_SLOW:
+            rf95.setModemConfig(rf95.Bw125Cr48Sf4096);
+            rf95.setTxPower(23, false);
+            rf95.setPreambleLength(12);
+
+            break;
+        case LORA_FAST:
+            rf95.setModemConfig(rf95.Bw500Cr45Sf128);
+            rf95.setTxPower(14, false);
+            rf95.setPreambleLength(8);
+            break;
+        default:
+            rf95.setModemConfig(rf95.Bw125Cr45Sf128);
+            rf95.setTxPower(18, false);
+            rf95.setPreambleLength(9);
+
+            break;
+        }
 
         return connected;
     }
@@ -47,39 +64,14 @@ public:
     }
 
 private:
-    void setState(LoRaStates st) override
+    void modeRx() override
     {
-        state = st;
-        switch (state)
-        {
-        case LoRaRX:
-#ifdef DEBUG_ON
-            Serial.println("LoRaRX");
-#endif
-            rf95.setModeRx();
-            rxDelay = millis();
-            break;
-        case LoRaTX:
-#ifdef DEBUG_ON
-            Serial.println("LoRaTX");
-#endif
-            rf95.setModeTx();
-            txDelay = millis();
-            break;
-        case LoRaWAITING:
-#ifdef DEBUG_ON
-            Serial.println("LoRaWAITING");
-#endif
-            setState(LoRaRX);
-            break;
-        case LoRaIDLE:
-            setState(LoRaRX);
-            break;
-        default:
-            break;
-        }
+        rf95.setModeRx();
     }
-
+    void modeTx() override
+    {
+        rf95.setModeTx();
+    }
     bool parseRecv(char *buf, uint8_t len, MessageRec &rec)
     {
         memset(&rec, 0, sizeof(MessageRec));
@@ -95,7 +87,7 @@ private:
 
         if (buf == NULL || buf[0] != '{' || buf[len - 1] != '}')
         {
-            Logger::error("Mensagem mal formatada (%s)", buf);
+            Logger::error("Mensagem mal formatada ");
             // Serial.println(buf);
             return false;
         }
@@ -128,6 +120,24 @@ private:
         return true;
     }
 
+    void printHex(const char *msg)
+    {
+        if (msg == NULL)
+        {
+            Serial.println("(NULL)");
+            return;
+        }
+
+        for (uint8_t i = 0; msg[i] != '\0'; i++)
+        {
+            uint8_t val = msg[i]; // Garante tratamento como byte unsigned
+            if (val < 0x10)
+                Serial.print("0");
+            Serial.print(val, HEX);
+            Serial.print(" ");
+        }
+        Serial.println();
+    }
     bool receiveMessage() override
     {
         if (!rf95.waitAvailableTimeout(50))
@@ -148,7 +158,7 @@ private:
             uint8_t mfrom = rf95.headerFrom();
             headerSender = (uint8_t)buffer[0];
 
-            if (headerSender == terminalId || mfrom == terminalId)
+            if (/*headerSender == terminalId ||*/ mfrom == terminalId)
             {
                 return false;
             }
@@ -163,7 +173,11 @@ private:
 
             MessageRec rec;
             bool parsed = parseRecv(buffer + 1, recvLen - 1, rec);
-
+            if (!parsed)
+            {
+                printHex(buffer + 1);
+                return false; // bloqueia caracteres invalidos
+            }
             if (strstr(buffer, EVT_PING) != NULL)
             {
                 if (mto != terminalId)
@@ -176,7 +190,7 @@ private:
                 if (!isDeviceActive(mfrom))
                 {
                     Logger::log(LogLevel::INFO, "Pong received from: %d", mfrom);
-                    setDeviceActive(mfrom);
+                    // setDeviceActive(mfrom);
                 }
                 return false;
             }
@@ -188,7 +202,7 @@ private:
             if ((mto == terminalId) || (mto == 0xFF))
             {
                 //                Logger::log(LogLevel::DEBUG, "Direct message [%d->%d]: %s", mfrom, mto, buffer);
-                Logger::log(parsed ? LogLevel::RECEIVE : LogLevel::VERBOSE, "(%d)[%X->%X:%X](%d) %s|%s", terminalId, mfrom, mto, rf95.headerId(), rf95.headerFlags(), rec.event, rec.value);
+                Logger::log(LogLevel::RECEIVE, "(%d)[%X->%X:%X](%d) %s|%s", terminalId, mfrom, mto, rf95.headerId(), rf95.headerFlags(), rec.event, rec.value);
                 if (parsed)
                     rxQueue.push(rec.to, rec.event, rec.value, rec.from, rec.hope, rec.id);
                 if (mto == terminalId)
@@ -197,7 +211,7 @@ private:
 
             // #ifdef MESH
             uint8_t salto = rf95.headerFlags();
-            if (salto > 1 && salto <= ALIVE_PACKET)
+            if (salto > 0 && salto <= ALIVE_PACKET)
             {
                 if (mto != terminalId && !isDeviceActive(mfrom))
                 {
