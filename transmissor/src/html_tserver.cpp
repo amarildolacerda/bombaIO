@@ -101,6 +101,8 @@ namespace HtmlServer
         html += "<title>Dispositivos Conectados</title>";
         html += "<style>";
         html += getCommonStyles();
+        html += "  .device-actions { display: flex; gap: 5px; margin-top: 10px; }";
+        html += "  .device-actions button { flex: 1; padding: 8px; font-size: 14px; }";
         html += "</style>";
         html += "</head>";
         html += "<body>";
@@ -120,7 +122,12 @@ namespace HtmlServer
                 html += "    <div class='device-card'>";
                 html += "      <h3>";
                 html += "      <div style='cursor:pointer;' onclick=\"window.location='/device?tid=" + String(data.tid) + "'\">" + String(data.name) + "</div></h3>";
-                html += "     <hr/> <p id='device-status-" + String(data.tid) + "' style=\"cursor:pointer;\" onclick=\"fetch('/ctlDevice?tid=" + String(data.tid) + "&action=toggle', {method: 'POST'}).then(() => updateStatus(" + String(data.tid) + "));\">...</p>";
+                html += "      <hr/>";
+                html += "      <p id='device-status-" + String(data.tid) + "'>...</p>";
+                html += "      <div class='device-actions'>";
+                html += "        <button onclick=\"controlDevice(" + String(data.tid) + ", 'on')\" class='btn-success'>Ligar</button>";
+                html += "        <button onclick=\"controlDevice(" + String(data.tid) + ", 'off')\" class='btn-danger'>Desligar</button>";
+                html += "      </div>";
                 html += "    </div>";
             }
         }
@@ -139,6 +146,10 @@ namespace HtmlServer
         html += "    statusElement.innerText = 'Erro';";
         html += "  }";
         html += "}";
+        html += "async function controlDevice(id, action) {";
+        html += "  await fetch(`/ctlDevice?tid=${id}&action=${action}`, { method: 'POST' });";
+        html += "  updateStatus(id);";
+        html += "}";
         html += "document.addEventListener('DOMContentLoaded', () => {";
         html += "  const devices = [";
         for (const auto &data : DeviceInfo::deviceRegList)
@@ -148,20 +159,18 @@ namespace HtmlServer
                 html += "'" + String(data.tid) + "',";
             }
         }
-
         html += "];";
-        html += "  let currentIndex = 0;"; // Adiciona um contador
+        html += "  let currentIndex = 0;";
         html += "  const updateNextDevice = () => {";
         html += "    if (currentIndex < devices.length) {";
         html += "      updateStatus(devices[currentIndex]);";
-        html += "      currentIndex++;"; // Incrementa o contador
+        html += "      currentIndex++;";
         html += "    } else {";
-        html += "      currentIndex = 0;"; // Reinicia o contador
+        html += "      currentIndex = 0;";
         html += "    }";
         html += "  };";
-        html += "  setInterval(updateNextDevice, 1000);"; // Atualiza um dispositivo a cada segundo
+        html += "  setInterval(updateNextDevice, 1000);";
         html += "});";
-
         html += "</script>";
 
         html += "</body></html>";
@@ -178,12 +187,13 @@ namespace HtmlServer
         html += "<title>Detalhes do Dispositivo</title>";
         html += "<style>";
         html += getCommonStyles();
+        html += "  .button-group { margin-top: 15px; }";
         html += "</style>";
         html += "</head>";
         html += "<body>";
         html += "<div class='container'>";
 
-        generateMenu();
+        html += generateMenu();
 
         const uint8_t idx = DeviceInfo::indexOf(tid);
         if (idx >= 0)
@@ -199,39 +209,34 @@ namespace HtmlServer
             html += "    <p>RSSI: " + ((didx >= 0) ? String(data.rssi) : "") + " dBm</p>";
             html += "    <p>Última Atualização: " + ((didx >= 0) ? String(DeviceInfo::getTimeDifferenceSeconds(data.lastSeen)) : "") + "s</p>";
             html += "    <p id='device-status'>Estado: Carregando...</p>";
+            html += "    <div class='button-group'>";
+            html += "      <button onclick=\"controlDevice('on')\" class='btn-success'>Ligar</button>";
+            html += "      <button onclick=\"controlDevice('off')\" class='btn-danger'>Desligar</button>";
+            html += "    </div>";
+            html += "  </div>";
+
             html += "<script>";
             html += "async function updateStatus() {";
             html += "  const res = await fetch(`/ctlDevice?tid=" + String(rdata.tid) + "&action=status`, { method: 'POST' });";
             html += "  if (res.ok) {";
             html += "    const json = await res.json();";
             html += "    document.getElementById('device-status').innerText = 'Estado: ' + json.status;";
-            html += "  } else {";
-            html += "    document.getElementById('device-status').innerText = 'Estado: Erro ao obter';";
             html += "  }";
+            html += "}";
+            html += "async function controlDevice(action) {";
+            html += "  await fetch(`/ctlDevice?tid=" + String(rdata.tid) + "&action=${action}`, { method: 'POST' });";
+            html += "  updateStatus();";
             html += "}";
             html += "updateStatus();";
             html += "setInterval(updateStatus, 1000);";
             html += "</script>";
-            html += "    <button onclick=\"toggleDevice('" + String(rdata.tid) + "')\" class='btn-warning'>Alternar Estado</button>";
-            html += "  </div>";
         }
         html += "  <a href='/' class='btn-info'>Voltar</a>";
         html += "</div>";
-
-        if (idx >= 0)
-        {
-            html += "<script>";
-            html += "async function toggleDevice(id) {";
-            html += "  await fetch(`/ctlDevice?tid=${id}&action=toggle`, { method: 'POST' });";
-            html += "  location.reload();";
-            html += "}";
-            html += "</script>";
-        }
         html += "</body></html>";
 
         request->send(200, "text/html", html.c_str());
     }
-
     void generateOTAPage(AsyncWebServerRequest *request)
     {
         String html = "<!DOCTYPE html><html lang='pt-BR'>";

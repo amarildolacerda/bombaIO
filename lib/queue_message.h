@@ -2,22 +2,18 @@
 #define QUEUEMESSAGE_H
 
 #include "Arduino.h"
+
 #if defined(__AVR__)
-// #include <util/atomic.h>
-// #define CRITICAL_SECTION ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+#include <util/atomic.h>
+#define CRITICAL_SECTION ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 #elif defined(ESP32)
-#define LoRaWAN_DEBUG_LEVEL 1 // Ou outro valor entre 0-4
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#define CRITICAL_SECTION ;
-
-// Versão 1: Usando portENTER_CRITICAL (recomendada para ESP32)
-// #define CRITICAL_SECTION                                            \
-//    for (portMUX_TYPE __tempMutex__ = portMUX_INITIALIZER_UNLOCKED; \
-//         (portENTER_CRITICAL(&__tempMutex__), true);                \
-//         portEXIT_CRITICAL(&__tempMutex__))
-
+static portMUX_TYPE queueMutex = portMUX_INITIALIZER_UNLOCKED;
+#define CRITICAL_SECTION             \
+    portENTER_CRITICAL(&queueMutex); \
+    portEXIT_CRITICAL(&queueMutex);
 #else
 #error "Plataforma não suportada"
 #endif
@@ -29,6 +25,7 @@
 #else
 #define MAX_ITEMS 2
 #endif
+
 struct MessageRec
 {
     uint8_t id;
@@ -37,10 +34,12 @@ struct MessageRec
     uint8_t hope;
     char event[MAX_EVENT_LEN];
     char value[MAX_VALUE_LEN];
+
     int dv() const
     {
         return id + to + from + sizeof(event);
     }
+
 #ifdef DEBUG_ON
     void print()
     {
@@ -60,69 +59,67 @@ private:
     volatile int count = 0;
 
 public:
+    bool checkDup = false;
+
     bool pushItem(const MessageRec &item)
     {
         bool result = false;
 
-        if (checkDup)
-        {
-            if (contains(item))
-                return false;
-        }
-        // CRITICAL_SECTION
-        // {
-#ifdef DEBUG_ON
-        Serial.print("Push item: ");
-        Serial.println(count + 1);
-#endif
-        if (count < MAX_ITEMS)
-        {
-            items[tail] = item;
-            tail = (tail + 1) % MAX_ITEMS;
-            count++;
-            result = true;
-#ifdef DEBUG_ON
-            //       Serial.print(" push: ");
-            //       Serial.println(size());
-#endif
-        }
-        //}
-        return result;
-    }
+        if (checkDup && contains(item))
+            return false;
 
-    bool contains(MessageRec item) const
-    {
-        bool result = false;
-        // CRITICAL_SECTION
-        // {
-        for (int i = 0; i < count; i++)
+        CRITICAL_SECTION
         {
-            int index = (head + i) % MAX_ITEMS;
-            if (items[index].dv() == item.dv())
+            if (count < MAX_ITEMS)
             {
+                items[tail] = item;
+                tail = (tail + 1) % MAX_ITEMS;
+                count++;
                 result = true;
-                break;
+#ifdef DEBUG_ON
+                Serial.print("Push item. Count: ");
+                Serial.println(count);
+#endif
             }
         }
-        //}
         return result;
     }
-    bool checkDup = false;
+
+    bool contains(const MessageRec &item) const
+    {
+        bool result = false;
+        CRITICAL_SECTION
+        {
+            for (int i = 0; i < count; i++)
+            {
+                int index = (head + i) % MAX_ITEMS;
+                if (items[index].dv() == item.dv())
+                {
+                    result = true;
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
     bool popItem(MessageRec &item)
     {
-
         bool result = false;
-        // CRITICAL_SECTION
-        // {
-
-        if (count > 0)
+        CRITICAL_SECTION
         {
-            item = items[head];
-            head = (head + 1) % MAX_ITEMS;
-            count--;
-            result = true;
+            if (count > 0)
+            {
+                item = items[head];
+                head = (head + 1) % MAX_ITEMS;
+                count--;
+                result = true;
+#ifdef DEBUG_ON
+                Serial.print("Pop item. Count: ");
+                Serial.println(count);
+#endif
+            }
         }
-        //}
         return result;
     }
 
@@ -142,31 +139,31 @@ public:
 
     bool isEmpty()
     {
-        bool result = false;
-        // CRITICAL_SECTION
-        // {
-        result = (count == 0);
-        // }
+        bool result;
+        CRITICAL_SECTION
+        {
+            result = (count == 0);
+        }
         return result;
     }
 
     bool isFull()
     {
-        bool result = false;
-        // CRITICAL_SECTION
-        // {
-        result = (count == MAX_ITEMS);
-        // }
+        bool result;
+        CRITICAL_SECTION
+        {
+            result = (count == MAX_ITEMS);
+        }
         return result;
     }
 
     int size()
     {
-        int result = 0;
-        // CRITICAL_SECTION
-        //{
-        result = count;
-        //}
+        int result;
+        CRITICAL_SECTION
+        {
+            result = count;
+        }
         return result;
     }
 };
