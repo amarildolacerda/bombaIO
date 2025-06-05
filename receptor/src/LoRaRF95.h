@@ -49,8 +49,8 @@ public:
             break;
         default:
             rf95.setModemConfig(rf95.Bw125Cr45Sf128);
-            rf95.setTxPower(18, false);
-            rf95.setPreambleLength(9);
+            rf95.setTxPower(14, false);
+            rf95.setPreambleLength(8);
 
             break;
         }
