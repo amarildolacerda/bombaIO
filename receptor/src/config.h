@@ -24,8 +24,10 @@
 namespace Config
 {
     constexpr const char *TIMEZONE = "BRT3BRST";
-    constexpr const char *NTP_SERVER = "pool.ntp.org";
+    constexpr const char *NTP_SERVER = "d.st1.ntp.br";
     constexpr const int WEBSERVER_PORT = 80;
+    constexpr int MIN_RSSI_THRESHOLD = -120; // ajuste conforme necessário
+    constexpr float MIN_SNR_THRESHOLD = -20.0;
 
     constexpr const char TERMINAL_NAME[] = "bemtevi"; // VTERMINAL_NAME;
 
@@ -70,6 +72,27 @@ public:
     bool lastPinState : 1;
     bool mustPresentation : 1;
     String startedISODate = "";
+    String lastUpdateTime = "";
+
+#ifdef ESP32
+    String getISOTime(String frmt = "%Y-%m-%dT%H:%M:%SZ")
+    {
+#ifdef __AVR__
+        return "1970-01-01T00:00:00Z"; // Fallback for AVR
+#else
+
+        struct tm timeinfo;
+        if (!getLocalTime(&timeinfo))
+        {
+            return "1970-01-01T00:00:00Z";
+        }
+
+        char timeStr[25];
+        strftime(timeStr, sizeof(timeStr), frmt.c_str(), &timeinfo);
+        return String(timeStr);
+#endif
+    }
+#endif
 };
 static SystemState systemState;
 

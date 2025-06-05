@@ -18,6 +18,10 @@ AsyncWebServer server(Config::WEBSERVER_PORT);
 #include "ws_logger.h"
 #endif
 
+#ifdef DISPLAY
+#include "display_mgr.h"
+#endif
+
 #elif ESP32
 #include "LoRa32.h"
 #endif
@@ -90,7 +94,7 @@ public:
         }
         else
         {
-            // systemState.startedISODate = DeviceInfo::getISOTime().substring(11, 18);
+            systemState.startedISODate = systemState.getISOTime().substring(11, 18);
         }
     }
 #endif
@@ -120,6 +124,10 @@ public:
         {
             Serial.print(F("LoRa failed to start"));
         };
+#ifdef DISPLAY
+        displayManager.initialize();
+        displayManager.loraConnected = lora.connected;
+#endif
 
         pinMode(Config::LED_PIN, OUTPUT);
         pinMode(Config::RELAY_PIN, OUTPUT);
@@ -159,42 +167,55 @@ public:
 #endif
             }
         }
+
+#ifdef DISPLAY
+        displayManager.ISOTime = systemState.getISOTime("%H:%M:%S");
+        displayManager.rssi = lora.packetRssi();
+        displayManager.snr = lora.packetSnr();
+        displayManager.handle();
+#endif
     }
 
     void sendEvent(uint8_t tid, const char *event, const char *value)
     {
-        noInterrupts();
-        lora.send(tid, event, value, terminalId);
-        interrupts();
+        CRITICAL_SECTION
+        {
+            lora.send(tid, event, value, terminalId);
+#ifdef DISPLAY
+            displayManager.showMessage("[SEND] " + String(event) + ": " + String(value));
+#endif
+        }
     }
 
     void savePinState(bool state)
     {
-        noInterrupts();
+        CRITICAL_SECTION
+        {
 #ifdef __AVR__
-        EEPROM.update(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
+            EEPROM.update(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
 #else
-        EEPROM.write(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
-        EEPROM.commit();
+            EEPROM.write(EEPROM_ADDR_PIN5_STATE, state ? 1 : 0);
+            EEPROM.commit();
 #endif
-        interrupts();
+        }
     }
 
     bool readPinState()
     {
-        noInterrupts();
-        uint8_t val = EEPROM.read(EEPROM_ADDR_PIN5_STATE);
-        interrupts();
+        uint8_t val = 0;
+        CRITICAL_SECTION
+        {
+            val = EEPROM.read(EEPROM_ADDR_PIN5_STATE);
+        }
         return val == 1;
     }
 
     void initPinRelay()
     {
-        noInterrupts();
+        bool savedState = false;
         pinMode(Config::RELAY_PIN, OUTPUT);
-        bool savedState = readPinState();
+        savedState = readPinState();
         digitalWrite(Config::RELAY_PIN, savedState ? HIGH : LOW);
-        interrupts();
 
         Logger::info(savedState ? "Pin Relay initialized ON" : "Pin Relay initialized OFF");
 #ifdef ESP32
@@ -214,6 +235,10 @@ public:
             return false;
         }
         Logger::info("Handled from: %d: %s|%s", rec.from, rec.event, rec.value);
+
+#ifdef DISPLAY
+        displayManager.showMessage("[RECV] (" + String(rec.id) + ") " + String(rec.event) + ": " + String(rec.value));
+#endif
 
         bool handled = false;
 
@@ -247,7 +272,8 @@ public:
 
         if (strstr(rec.event, EVT_PRESENTATION))
         {
-            lora.send(0, EVT_PRESENTATION, (char *)terminalName, terminalId);
+            // lora.send(0, EVT_PRESENTATION, (char *)terminalName, terminalId);
+            sendEvent(0, EVT_PRESENTATION, (char *)terminalName);
             return true;
         }
 
@@ -272,7 +298,7 @@ public:
 
     void setStatusChanged()
     {
-        lora.send(0, EVT_STATUS, digitalRead(Config::RELAY_PIN) ? GPIO_ON : GPIO_OFF, terminalId);
+        sendEvent(0, EVT_STATUS, digitalRead(Config::RELAY_PIN) ? GPIO_ON : GPIO_OFF);
     }
 };
 
@@ -283,7 +309,7 @@ void triggerCallback()
     CRITICAL_SECTION
     {
         app.savePinState(digitalRead(Config::RELAY_PIN));
-        interrupts();
+
         app.setStatusChanged();
         systemState.pinStateChanged = true;
     }

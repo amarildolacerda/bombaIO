@@ -56,7 +56,7 @@ public:
 
 #ifdef HELTEC
         isHeltec = true;
-        Heltec.begin(Heltec_Screen /*DisplayEnable*/, false /*LoRaEnable*/, false /*SerialEnable*/);
+        Heltec.begin(false /*DisplayEnable*/, false /*LoRaEnable*/, false /*SerialEnable*/);
         delay(100);
 
         // LoRa.setPins(Config::LORA_CS, Config::LORA_RST, Config::LORA_IRQ);
@@ -65,15 +65,35 @@ public:
             connected = true;
         }; // true /* PABOOST */);
 
-        // Configurações otimizadas para Heltec
-        LoRa.setSpreadingFactor(7);
-        LoRa.setSignalBandwidth(125E3);
-        LoRa.setCodingRate4(5);
-        LoRa.setSyncWord(Config::LORA_SYNC_WORD);
+        switch (config)
+        {
+        case LORA_SLOW:
+            // Config 1 (Long Range):
+            LoRa.setSpreadingFactor(12);
+            LoRa.setSignalBandwidth(125E3);
+            LoRa.setCodingRate4(8);
+            LoRa.setTxPower(23, RF_PACONFIG_PASELECT_PABOOST);
 
-        // LoRa.setTxPower(14, RF_PACONFIG_PASELECT_RFO); // Usar RFO para menor potência
-        //  Ou alternativamente:
-        LoRa.setTxPower(20, RF_PACONFIG_PASELECT_PABOOST); // Máxima potência
+            break;
+        case LORA_FAST:
+
+            // Config 2 (Fast):
+            LoRa.setSpreadingFactor(7);
+            LoRa.setSignalBandwidth(250E3);
+            LoRa.setCodingRate4(5);
+            LoRa.setTxPower(14, RF_PACONFIG_PASELECT_PABOOST);
+            break;
+        default:
+
+            // Config 3 (Balanced):
+            LoRa.setSpreadingFactor(7);
+            LoRa.setSignalBandwidth(125E3);
+            LoRa.setCodingRate4(5);
+            LoRa.setTxPower(20, RF_PACONFIG_PASELECT_PABOOST);
+            break;
+        }
+
+        LoRa.setSyncWord(Config::LORA_SYNC_WORD);
         LoRa.setPreambleLength(8);
 
         // Habilitar CRC
@@ -90,6 +110,8 @@ public:
         LoRa.setTxPower(14);
         LoRa.setPreambleLength(8);
 #endif
+
+        LoRa.setSyncWord(Config::LORA_SYNC_WORD);
 
         setState(LoRaRX);
         Serial.println("LoRa Iniciado");
