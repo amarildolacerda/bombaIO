@@ -16,19 +16,41 @@ private:
     uint8_t headerFrom = 0;
     uint8_t headerId = 0;
     uint8_t headerHope = 0;
+    LoRaConfig config = LORA_FAST;
 
 public:
     bool begin(const uint8_t terminal_Id, long frequency, bool promiscuous = true) override
     {
         terminalId = terminal_Id;
         LoRa.begin(frequency);
-        LoRa.setSpreadingFactor(7);     // Padrão é 7 (6-12)
-        LoRa.setSignalBandwidth(125E3); // 125kHz
-        LoRa.setCodingRate4(5);         // 4/5 coding rate
+
+        switch (config)
+        {
+        case LORA_SLOW:
+            // Config 1 (Long Range):
+            LoRa.setSpreadingFactor(12);
+            LoRa.setSignalBandwidth(125E3);
+            LoRa.setCodingRate4(8);
+            break;
+        case LORA_FAST:
+
+            // Config 2 (Fast):
+            LoRa.setSpreadingFactor(7);
+            LoRa.setSignalBandwidth(250E3);
+            LoRa.setCodingRate4(5);
+            break;
+        default:
+
+            // Config 3 (Balanced):
+            LoRa.setSpreadingFactor(9);
+            LoRa.setSignalBandwidth(125E3);
+            LoRa.setCodingRate4(6);
+            break;
+        }
+
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
         LoRa.setTxPower(14);
         LoRa.setPreambleLength(8);
-
         _promiscuos = promiscuous;
         setState(LoRaRX);
 
