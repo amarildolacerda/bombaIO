@@ -13,6 +13,13 @@ enum LoRaStates
     LoRaIDLE,
 };
 
+enum LoRaConfig
+{
+    LORA_SLOW,
+    LORA_FAST,
+    LORA_MED
+};
+
 // Constantes para controle de mesh
 #define ALIVE_PACKET 3
 #define MAX_MESH_DEVICES 255
@@ -70,6 +77,7 @@ protected:
 
 public:
     bool connected = false;
+    LoRaConfig config = LORA_FAST;
 
     virtual bool begin(const uint8_t terminal_Id, long band, bool promisc = true) = 0;
     virtual void setTerminalName(const char name[10])

@@ -16,7 +16,6 @@ private:
     uint8_t headerFrom = 0;
     uint8_t headerId = 0;
     uint8_t headerHope = 0;
-    LoRaConfig config = LORA_FAST;
 
 public:
     bool begin(const uint8_t terminal_Id, long frequency, bool promiscuous = true) override
