@@ -38,32 +38,16 @@ class LoRa32 : public LoRaInterface
 private:
     bool isHeltec = false;
 
-    void setState(const LoRaStates st) override
-    {
-        state = st;
-        switch (st)
-        {
-        case LoRaRX:
-            LoRa.receive();
-            rxDelay = millis();
-            break;
-        case LoRaIDLE:
-            LoRa.idle();
-            break;
-        case LoRaTX:
-            LoRa.idle();
-            break;
-        case LoRaWAITING:
-            break;
-        default:
-            state = LoRaRX;
-            LoRa.receive();
-            break;
-        }
-    }
-
 public:
     bool connected = false;
+    void modeTx() override
+    {
+        LoRa.idle();
+    }
+    void modeRx() override
+    {
+        LoRa.receive();
+    }
 
     bool begin(const uint8_t terminal_Id, long band, bool promisc = true) override
     {
@@ -76,7 +60,10 @@ public:
         delay(100);
 
         // LoRa.setPins(Config::LORA_CS, Config::LORA_RST, Config::LORA_IRQ);
-        LoRa.begin(band, true); // true /* PABOOST */);
+        if (LoRa.begin(band, true))
+        {
+            connected = true;
+        }; // true /* PABOOST */);
 
         // Configurações otimizadas para Heltec
         LoRa.setSpreadingFactor(7);
@@ -108,9 +95,6 @@ public:
         Serial.println("LoRa Iniciado");
         return true;
     }
-
-    long rxDelay = 0;
-    long txDelay = 0;
 
     void setPins(const uint8_t cs, const uint8_t reset, const uint8_t irq) override
     {
@@ -165,7 +149,7 @@ public:
         // Configuração específica para Heltec
         result = LoRa.endPacket(true); // true = async mode
 #else
-        result = LoRa.endPacket();
+        result = LoRa.endPacket(true);
 #endif
 
         if (result > 0)
@@ -174,18 +158,13 @@ public:
                         terminalId, tidFrom, tidTo, id, hope, message);
 
             // Espera adicional apenas para Heltec
-            if (isHeltec)
-            {
-                delay(10); // Pequeno delay para garantir o envio
-            }
+            delay(10); // Pequeno delay para garantir o envio
 
-            setState(LoRaRX);
             return true;
         }
         else
         {
             Logger::error("Failed to send packet");
-            setState(LoRaRX);
             return false;
         }
     }
@@ -232,13 +211,6 @@ public:
             uint8_t r = LoRa.read();
             buffer[len++] = (char)r;
             waitingRcv = millis();
-
-            /* if (r == '|')
-                 passouPipe = true;
-             if (passouPipe && r == '}')
-                 break;
-  */
-            //         delay(5);
         }
 
         buffer[len] = '\0';
@@ -247,12 +219,10 @@ public:
         if (!parseRecv(buffer, len, rec))
             return false;
 
-        receiveLogger(false, LogLevel::VERBOSE, buffer);
+        //        receiveLogger(false, LogLevel::VERBOSE, buffer);
 
         if (len == 0 || _headerFrom == terminalId || _headerSender == terminalId)
             return false;
-
-        setState(LoRaIDLE);
 
         // Tratamento de mensagens de controle (ping/pong)
         if (strstr(buffer, "ping") != NULL)
@@ -267,7 +237,7 @@ public:
             if (!isDeviceActive(_headerFrom))
             {
                 Logger::log(LogLevel::INFO, "Pong received from: %d", _headerFrom);
-                setDeviceActive(_headerFrom);
+                // setDeviceActive(_headerFrom);
             }
             return false;
         }
@@ -289,7 +259,7 @@ public:
                 // os dispositivos roteiam entre si para tentar chegar no gateway
                 // uma vez chegou no gateway, fim de transmissão
                 uint8_t salto = _headerHope;
-                if (salto > 1 && salto <= ALIVE_PACKET && terminalId != 0)
+                if (salto > 0 && salto <= ALIVE_PACKET && terminalId != 0)
                 {
                     if (_headerTo != terminalId && !isDeviceActive(_headerFrom))
                     {
@@ -303,13 +273,15 @@ public:
         }
 
         if (handled)
+        {
             if (!rxQueue.pushItem(rec))
             {
                 handled = false;
             }
-        Logger::log(handled ? LogLevel::RECEIVE : LogLevel::WARNING,
-                    "(%d)[%X→%X:%X](%d) L: %d  %s",
-                    _headerSender, _headerFrom, _headerTo, _headerId, _headerHope, len, buffer);
+            Logger::log(handled ? LogLevel::RECEIVE : LogLevel::WARNING,
+                        "(%d)[%X→%X:%X](%d) L: %d  %s",
+                        _headerSender, _headerFrom, _headerTo, _headerId, _headerHope, len, buffer);
+        }
         return handled;
     }
 
@@ -353,7 +325,11 @@ public:
     {
         return LoRa.packetRssi();
     }
+    int packetSnr() override
+    {
+        return LoRa.packetSnr();
+    }
 };
 
-LoRa32 lora;
+static LoRa32 lora;
 #endif

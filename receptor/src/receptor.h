@@ -1,5 +1,6 @@
 #include "Arduino.h"
 #include "config.h"
+#include "app_messages.h"
 
 #ifdef __AVR__
 #include "RH_RF95.h"
@@ -7,7 +8,17 @@
 #include "LoRaRF95.h"
 #endif
 
-#ifdef ESP32
+#ifdef HELTEC
+#include "heltec.h"
+#include "LoRa32.h"
+#ifdef WIFI
+#include "WiFIManager.h"
+#include <ESPAsyncWebServer.h>
+AsyncWebServer server(Config::WEBSERVER_PORT);
+#include "ws_logger.h"
+#endif
+
+#elif ESP32
 #include "LoRa32.h"
 #endif
 
@@ -30,14 +41,63 @@ class App
 {
 private:
     long statusUpdater = 0;
-    bool loraConnected = false;
     const char *terminalName = Config::TERMINAL_NAME;
     const uint8_t terminalId = Config::TERMINAL_ID;
 
 public:
+#if defined(WIFI)
+    void initWiFi()
+    {
+
+        WiFi.mode(WIFI_STA);
+        WiFiManager wifiManager;
+        // wifiManager.resetSettings();
+        wifiManager.setConnectTimeout(360);
+        wifiManager.setConfigPortalTimeout(360);
+
+        if (!wifiManager.autoConnect(Config::TERMINAL_NAME))
+        {
+            Logger::log(LogLevel::ERROR, F("Falha ao conectar WiFi - Reiniciando"));
+        }
+
+        delay(500); // Estabilização após conexão
+
+        WSLogger::initWs(server);
+        server.begin();
+        Logger::info("Servidor Web iniciado na porta 80");
+
+        //        systemState.setWifiStatus(true);
+
+        char ipBuffer[16];
+
+        snprintf(ipBuffer, sizeof(ipBuffer), "%s", WiFi.localIP().toString().c_str());
+        Logger::log(LogLevel::INFO, ipBuffer);
+    }
+#endif
+
+    //----------------------- NTP ----------------------
+#if defined(WIFI)
+    void initNTP()
+    {
+        configTzTime(Config::TIMEZONE, Config::NTP_SERVER);
+        Logger::log(LogLevel::INFO, F("Sincronizando com NTP..."));
+
+        struct tm timeinfo;
+        if (!getLocalTime(&timeinfo, 5000))
+        { // Timeout de 5 segundos
+            Logger::log(LogLevel::WARNING, F("Falha ao obter tempo NTP"));
+            return;
+        }
+        else
+        {
+            // systemState.startedISODate = DeviceInfo::getISOTime().substring(11, 18);
+        }
+    }
+#endif
+
     void initLora()
     {
-        loraConnected = lora.begin(terminalId, Config::LORA_BAND, Config::PROMISCUOS);
+        lora.begin(terminalId, Config::LORA_BAND, Config::PROMISCUOS);
     }
 
     long sendUpdated = 0;
@@ -47,6 +107,12 @@ public:
         Serial.begin(Config::SERIAL_SPEED);
         while (!Serial)
             ;
+
+#ifdef WIFI
+        initWiFi();
+        initNTP();
+        WSLogger::initWs(server);
+#endif
 
         lora.config = LORA_MED;
         lora.begin(terminalId, Config::LORA_BAND, Config::PROMISCUOS);

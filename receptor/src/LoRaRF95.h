@@ -38,8 +38,8 @@ public:
         {
         case LORA_SLOW:
             rf95.setModemConfig(rf95.Bw125Cr48Sf4096);
-            rf95.setTxPower(23, false);
-            rf95.setPreambleLength(12);
+            rf95.setTxPower(14, false);
+            rf95.setPreambleLength(9);
 
             break;
         case LORA_FAST:

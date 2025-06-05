@@ -23,6 +23,9 @@
 #endif
 namespace Config
 {
+    constexpr const char *TIMEZONE = "BRT3BRST";
+    constexpr const char *NTP_SERVER = "pool.ntp.org";
+    constexpr const int WEBSERVER_PORT = 80;
 
     constexpr const char TERMINAL_NAME[] = "bemtevi"; // VTERMINAL_NAME;
 
@@ -66,6 +69,7 @@ public:
     bool pinStateChanged : 1;
     bool lastPinState : 1;
     bool mustPresentation : 1;
+    String startedISODate = "";
 };
 static SystemState systemState;
 

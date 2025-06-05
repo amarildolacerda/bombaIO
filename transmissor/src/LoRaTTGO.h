@@ -30,6 +30,8 @@ public:
             LoRa.setSpreadingFactor(12);
             LoRa.setSignalBandwidth(125E3);
             LoRa.setCodingRate4(8);
+            LoRa.setTxPower(23);
+
             break;
         case LORA_FAST:
 
@@ -37,6 +39,7 @@ public:
             LoRa.setSpreadingFactor(7);
             LoRa.setSignalBandwidth(250E3);
             LoRa.setCodingRate4(5);
+            LoRa.setTxPower(14);
             break;
         default:
 
@@ -44,11 +47,11 @@ public:
             LoRa.setSpreadingFactor(8);
             LoRa.setSignalBandwidth(125E3);
             LoRa.setCodingRate4(5);
+            LoRa.setTxPower(18);
             break;
         }
 
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
-        LoRa.setTxPower(14);
         LoRa.setPreambleLength(8);
         _promiscuos = promiscuous;
         setState(LoRaRX);
