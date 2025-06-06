@@ -6,6 +6,7 @@
 #include "RH_RF95.h"
 #include <SoftwareSerial.h>
 #include "LoRaRF95.h"
+#undef DISPLAY
 #endif
 
 #ifdef HELTEC
@@ -170,9 +171,8 @@ public:
 
 #ifdef DISPLAY
         displayManager.ISOTime = systemState.getISOTime("%H:%M:%S");
-        displayManager.rssi = lora.packetRssi();
-        displayManager.snr = lora.packetSnr();
         displayManager.handle();
+#else
 #endif
     }
 
@@ -235,8 +235,11 @@ public:
             return false;
         }
         Logger::info("Handled from: %d: %s|%s", rec.from, rec.event, rec.value);
+        Logger::warning("RSSI: %d", lora.packetRssi());
 
 #ifdef DISPLAY
+        displayManager.rssi = lora.packetRssi();
+        displayManager.snr = lora.packetSnr();
         displayManager.showMessage("[RECV] (" + String(rec.id) + ") " + String(rec.event) + ": " + String(rec.value));
 #endif
 

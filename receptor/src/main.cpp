@@ -13,6 +13,41 @@ void loop()
 }
 #else
 
+#ifdef TEST2
+
+#include "LoRaRF95.h"
+#include "config.h"
+#include "queue_message.h"
+#include "app_messages.h"
+
+void setup()
+{
+    Serial.begin(115200);
+    pinMode(Config::RELAY_PIN, OUTPUT);
+    if (!lora.begin(Config::TERMINAL_ID, Config::LORA_BAND, false))
+    {
+        Serial.print("nao inicializou o LoRa");
+    }
+    Serial.println("Pronto");
+}
+
+long ultimo = 0;
+void loop()
+{
+    lora.loop();
+    MessageRec rec;
+    if (lora.processIncoming(rec))
+    {
+        rec.print();
+    }
+    if (millis() - ultimo > 1000)
+    {
+        lora.send(0, EVT_STATUS, digitalRead(Config::RELAY_PIN) ? "on" : "off", Config::TERMINAL_ID);
+    }
+}
+
+#else
+
 // rf95_client.pde
 // -*- mode: C++ -*-
 // Example sketch showing how to create a simple messageing client
@@ -137,5 +172,6 @@ void loop()
 
     delay(1000);
 }
+#endif
 
 #endif

@@ -131,13 +131,20 @@ public:
         {
         case LoRaRX:
             modeRx();
+#ifdef DEBUG_ON
+            Serial.println("ModeRx");
+#endif
             /* code */
             break;
         case LoRaTX:
             modeTx();
+#ifdef DEBUG_ON
+            Serial.println("ModeTx");
+#endif
             break;
         default:
-
+            modeRx();
+            state = LoRaRX;
             break;
         }
     }
@@ -182,7 +189,7 @@ public:
                 lastStateChange = millis();
             }
 
-            if (lastStateChange > 100)
+            if (millis() - lastStateChange > 100)
             {
                 setState(LoRaRX);
             }

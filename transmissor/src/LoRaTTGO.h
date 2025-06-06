@@ -18,6 +18,14 @@ private:
     uint8_t headerHope = 0;
 
 public:
+    void modeTx() override
+    {
+        // LoRa.idle();
+    }
+    void modeRx() override
+    {
+        LoRa.receive();
+    }
     bool begin(const uint8_t terminal_Id, long frequency, bool promiscuous = true) override
     {
         terminalId = terminal_Id;
@@ -47,7 +55,7 @@ public:
             LoRa.setSpreadingFactor(8);
             LoRa.setSignalBandwidth(125E3);
             LoRa.setCodingRate4(5);
-            LoRa.setTxPower(18);
+            LoRa.setTxPower(14);
             break;
         }
 
@@ -57,24 +65,6 @@ public:
         setState(LoRaRX);
 
         return true;
-    }
-
-    void setState(LoRaStates st) override
-    {
-        state = st;
-        switch (state)
-        {
-        case LoRaRX:
-            /* code */
-            LoRa.receive();
-            break;
-        case LoRaTX:
-            LoRa.idle();
-            break;
-
-        default:
-            break;
-        }
     }
 
     bool sendMessage(MessageRec &rec) // uint8_t tidTo, const char *message)

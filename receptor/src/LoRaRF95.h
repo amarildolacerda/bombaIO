@@ -48,7 +48,7 @@ public:
             rf95.setPreambleLength(8);
             break;
         default:
-            rf95.setModemConfig(rf95.Bw125Cr45Sf128);
+            // rf95.setModemConfig(rf95.Bw125Cr45Sf128);
             rf95.setTxPower(14, false);
             rf95.setPreambleLength(8);
 
@@ -61,6 +61,10 @@ public:
     uint8_t headerFrom()
     {
         return rf95.headerFrom();
+    }
+    int packetRssi() override
+    {
+        return rf95.lastRssi();
     }
 
 private:
@@ -140,6 +144,7 @@ private:
     }
     bool receiveMessage() override
     {
+        // Serial.println("Check if received messages");
         if (!rf95.waitAvailableTimeout(50))
         {
             return false;
@@ -241,7 +246,7 @@ private:
     {
 #ifdef DEBUG_ON
         Serial.println("\n--- Iniciando sendMessage ---");
-        Serial.print("Conteúdo: ");
+        Serial.print("Conteudo: ");
         rec.print();
 #endif
 
@@ -252,7 +257,7 @@ private:
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
         {
 #ifdef DEBUG_ON
-            Serial.println("ERRO: Tamanho de mensagem inválido");
+            Serial.println("ERRO: Tamanho de mensagem invalido");
 #endif
             return false;
         }
@@ -290,7 +295,7 @@ private:
 #ifdef DEBUG_ON
                 Serial.println("send() ok, aguardando confirmação...");
 #endif
-                if (rf95.waitPacketSent(5000))
+                if (rf95.waitPacketSent(500))
                 { // Timeout de 5 segundos
                     sendResult = true;
 #ifdef DEBUG_ON
