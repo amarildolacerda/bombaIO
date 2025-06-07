@@ -152,7 +152,7 @@ private:
     bool lastPacketLost = false;
 
 public:
-    LoRaTTGO() : autoTuner(8, 125E3, 5, 14) {} // Valores iniciais
+    LoRaTTGO() : autoTuner(LORA_SF, LORA_BW, LORA_CR, LORA_PW) {} // Valores iniciais
 
     void modeTx() override
     {
@@ -295,10 +295,12 @@ public:
 
     void checkAutoTune()
     {
+
         static uint32_t lastCheck = 0;
         if (millis() - lastCheck > 30000 || autoTuner.totalPackets >= 50)
         {
-            autoTuner.adjustParameters();
+            if (LORA_AUTO)
+                autoTuner.adjustParameters();
             autoTuner.printStatus();
             autoTuner.resetCounters();
             lastCheck = millis();

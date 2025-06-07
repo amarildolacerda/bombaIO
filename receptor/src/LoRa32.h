@@ -6,6 +6,7 @@
 #include "config.h"
 #include "logger.h"
 #include "LoRaInterface.h"
+#include "stats.h"
 
 #ifdef ESP32
 
@@ -196,7 +197,7 @@ private:
     long lastRcvMesssage;
 
 public:
-    LoRa32() : isHeltec(false), autoTuner(8, 125E3, 5, 14, false) {}
+    LoRa32() : isHeltec(false), autoTuner(LORA_SF, LORA_BW, LORA_CR, LORA_PW, false) {}
 
     void modeTx() override { LoRa.idle(); }
     void modeRx() override { LoRa.receive(); }
@@ -208,7 +209,7 @@ public:
 
 #ifdef HELTEC
         isHeltec = true;
-        autoTuner = LoRaAutoTuner(8, 125E3, 5, 17, true); // Valores iniciais para Heltec
+        autoTuner = LoRaAutoTuner(LORA_SF, LORA_BW, LORA_CR, LORA_PW, true); // Valores iniciais para Heltec
 
         Heltec.begin(false, false, false);
         delay(100);
@@ -251,6 +252,7 @@ public:
 
     bool sendMessage(MessageRec &rec) override
     {
+        stats.txCount++;
         char message[Config::MESSAGE_MAX_LEN] = {0};
         uint8_t len = snprintf(message, sizeof(message), "{%s|%s}", rec.event, rec.value);
 
@@ -269,6 +271,7 @@ public:
 
         if (result)
         {
+            stats.txSuccess++;
             Logger::log(LogLevel::SEND, "(%d)[%X→%X:%X](%d) %s",
                         terminalId, rec.from, rec.to, rec.id, rec.hope, message);
 
@@ -286,6 +289,7 @@ public:
 
     bool receiveMessage() override
     {
+        stats.rxCount++;
         if (!LoRa.available())
             return false;
 
@@ -318,6 +322,7 @@ public:
             buffer[len++] = (char)r;
             waitingRcv = millis();
         }
+        stats.rxSuccess++;
         buffer[len] = '\0';
 
         MessageRec rec;
@@ -374,10 +379,12 @@ public:
 
     void checkAutoTune()
     {
+
         static uint32_t lastCheck = 0;
         if (millis() - lastCheck > 30000 || autoTuner.totalPackets >= 50)
         {
-            autoTuner.adjustParameters();
+            if (LORA_AUTO)
+                autoTuner.adjustParameters();
             Logger::log(LogLevel::INFO, "Config: SF%d BW%ld CR%d PWR%d",
                         autoTuner.getCurrentSF(), autoTuner.getCurrentBW(),
                         autoTuner.getCurrentCR(), autoTuner.getCurrentPower());

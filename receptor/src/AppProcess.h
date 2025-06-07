@@ -1,6 +1,10 @@
 
 #pragma
+#ifdef HELTEC
+#include "LoRa32.h"
+#else
 #include "LoRaRF95.h"
+#endif
 #include "queue_message.h"
 #include "logger.h"
 #include "app_messages.h"

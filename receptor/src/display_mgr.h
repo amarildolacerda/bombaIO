@@ -1,4 +1,5 @@
-#pragma
+#ifndef DISPLAY_MGR_H
+#define DISPLAY_MGR_H
 
 #ifdef DISPLAY_ENABLED
 
@@ -16,6 +17,8 @@ static DisplayTTGO disp;
 #include "DisplayHeltec.h"
 static DisplayHeltec disp;
 #endif
+
+#include "stats.h"
 
 class DisplayManager
 {
@@ -100,7 +103,10 @@ public:
         {
             disp.println((String)rssi);
         }
-        disp.println("");
+
+        disp.setPos(2, 0);
+        disp.print("RxS: ");
+        disp.print(String(stats.rxCount / millis() / 1000));
 
         disp.setPos(4, 0);
         disp.print(showEvent);
@@ -112,4 +118,5 @@ public:
 
 static DisplayManager displayManager;
 
+#endif
 #endif

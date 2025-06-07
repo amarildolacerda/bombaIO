@@ -40,6 +40,13 @@ namespace Config
 #elif RF95
     constexpr uint32_t LORA_BAND = 868.0; // usado RF95
 #endif
+#ifdef HELTEC
+#define LORA_SF 8
+#define LORA_BW 125E3
+#define LORA_PW 14
+#define LORA_CR 5
+#define LORA_AUTO false
+#endif
 
 #ifndef VRELAY_PIN
     constexpr int RELAY_PIN = 4;
