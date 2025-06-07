@@ -25,6 +25,7 @@ class DisplayManager
 private:
     unsigned long updated = 0;
     String showEvent = "";
+    long ps = 0;
 
 public:
     int snr = 0;
@@ -40,7 +41,9 @@ public:
     {
         if (millis() - updated > 1000)
         {
+            ps = stats.ps();
             update();
+            updated = millis();
         }
     }
     bool initialize()
@@ -51,25 +54,13 @@ public:
     String ISOTime = "";
     void showFooter()
     {
-        // int dispCount = DeviceInfo::deviceList.size();
-        // uint8_t regCount = DeviceInfo::deviceRegList.size();
-        // disp.setTextColor(WHITE, BLACK);
-        // disp.fillRect(0, Config::SCREEN_HEIGHT - 9, Config::SCREEN_WIDTH,
-        //               9, SSD1306_WHITE);
-        // disp.setTextColor(BLACK, WHITE);
         disp.setPos(6, 0);
-        // disp.print("D:");
-        //  disp.print((String)dispCount);
-        // disp.print("/");
-        //  disp.print((String)regCount);
         disp.print("Id: ");
         disp.print((String)Config::TERMINAL_ID);
         disp.print("  ");
         disp.print(systemState.startedISODate.substring(0, 5));
         disp.setPos(6, 11);
-
         disp.print(ISOTime); // Mostra apenas HH:MM:SS
-        // disp.setTextColor(WHITE, BLACK);
     }
     bool loraConnected = false;
     String loraRcvEvent;
@@ -105,8 +96,9 @@ public:
         }
 
         disp.setPos(2, 0);
-        disp.print("RxS: ");
-        disp.print(String(stats.rxCount / millis() / 1000));
+        disp.print("Rx:  ");
+        disp.print(String(ps));
+        disp.print("ps");
 
         disp.setPos(4, 0);
         disp.print(showEvent);

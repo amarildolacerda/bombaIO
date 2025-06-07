@@ -18,7 +18,7 @@ public:
         Serial.print(":");
         Serial.print(rxSuccess);
         Serial.print(" Rxs: ");
-        Serial.print(rxCount / (millis() / 1000));
+        Serial.print(ps());
         Serial.print(" TxCount: ");
         Serial.print(txCount);
         Serial.print(":");
@@ -27,6 +27,10 @@ public:
         // txSuccess = 0;
         // rxCount = 0;
         // rxSuccess = 0;
+    }
+    long ps()
+    {
+        return rxCount / (millis() / 1000);
     }
 };
 

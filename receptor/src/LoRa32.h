@@ -211,15 +211,17 @@ public:
         isHeltec = true;
         autoTuner = LoRaAutoTuner(LORA_SF, LORA_BW, LORA_CR, LORA_PW, true); // Valores iniciais para Heltec
 
-        Heltec.begin(false, false, false);
+        Heltec.begin(true, false, true);
         delay(100);
 
         if (LoRa.begin(band, true))
         { // PABOOST ativado
             connected = true;
+            Serial.println("LoRa OK");
         }
         else
         {
+            Serial.println("LoRa nao conectou");
             return false;
         }
 #else
@@ -237,6 +239,7 @@ public:
 
 #ifdef HELTEC
         LoRa.setTxPower(autoTuner.getCurrentPower(), RF_PACONFIG_PASELECT_PABOOST);
+        LoRa.setTxPowerMax(20);
 #else
         LoRa.setTxPower(autoTuner.getCurrentPower());
 #endif
