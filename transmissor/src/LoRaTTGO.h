@@ -8,6 +8,7 @@
 #include <LoRa.h>
 #include "queue_message.h"
 #include "logger.h"
+#include "stats.h"
 
 class LoRaAutoTuner
 {
@@ -156,7 +157,7 @@ public:
 
     void modeTx() override
     {
-        LoRa.idle();
+        // LoRa.idle();
     }
 
     void modeRx() override
@@ -194,11 +195,12 @@ public:
 
     bool sendMessage(MessageRec &rec) override
     {
+        stats.txCount++;
         char message[Config::MESSAGE_MAX_LEN] = {0};
         snprintf(message, sizeof(message), "{%s|%s}", rec.event, rec.value);
         uint8_t len = strlen(message);
 
-        LoRa.idle();
+        // LoRa.idle();
         LoRa.beginPacket();
 
         LoRa.write(rec.to);
@@ -209,7 +211,10 @@ public:
 
         int snd = LoRa.print(message);
         bool rt = LoRa.endPacket(true) > 0;
-
+        if (rt)
+        {
+            stats.txSuccess++;
+        }
         Logger::log(LogLevel::SEND, "(%d)[%d→%d:%d] L: %d B: %s",
                     terminalId, rec.from, rec.to, rec.id, len, message);
 
@@ -222,9 +227,8 @@ public:
 
     bool receiveMessage() override
     {
-        if (!LoRa.available())
-            return false;
 
+        stats.rxCount++;
         int packetSize = LoRa.parsePacket();
         if (packetSize < 5)
         {
@@ -268,7 +272,7 @@ public:
 
         MessageRec rec;
         bool parsed = parseRecv(buffer, len, rec);
-
+        stats.rxSuccess++;
         Logger::log(parsed ? LogLevel::RECEIVE : LogLevel::ERROR, "(%d)[%d→%d:%d](%d) L: %d B: %s",
                     headerSender, headerFrom, headerTo, headerId, headerHope,
                     len, buffer);

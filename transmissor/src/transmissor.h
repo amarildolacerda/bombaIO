@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include "prefers.h"
-
+#include "stats.h"
 #ifdef ESP32
 #include <WiFi.h>
 #include <time.h>
@@ -227,7 +227,7 @@ public:
 
     void logLivre()
     {
-        if (millis() - ultimoReceived > 60000)
+        if (millis() - ultimoReceived > 59000)
         {
             // initLora();
             ultimoReceived = millis();
@@ -235,6 +235,8 @@ public:
 #ifdef ESP32
             Logger::debug("Memória livre: %d bytes", ESP.getFreeHeap());
 #endif
+            Logger::info("Rxs: %d ps", stats.ps());
+            stats.print();
         }
     }
     // ========== Main Loop ==========
