@@ -223,6 +223,20 @@ public:
         }
     }
 
+    long ultimoReceived = 0;
+
+    void logLivre()
+    {
+        if (millis() - ultimoReceived > 60000)
+        {
+            // initLora();
+            ultimoReceived = millis();
+            Logger::info("Tempo de atividade: %lu segundos", millis() / 1000);
+#ifdef ESP32
+            Logger::debug("Memória livre: %d bytes", ESP.getFreeHeap());
+#endif
+        }
+    }
     // ========== Main Loop ==========
     void loop()
     {
@@ -234,7 +248,7 @@ public:
         }
 
         LoRaCom::handle();
-
+        logLivre();
         if ((presentationCount < 3) && (millis() - updatePressentation > 10000) && systemState.isDiscovering())
         {
             LoRaCom::sendCommand(EVT_PRESENTATION, "", 0xFF);

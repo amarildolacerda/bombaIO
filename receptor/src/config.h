@@ -68,7 +68,6 @@ class SystemState
 {
 public:
     long previousMillis = 0;
-    bool pinStateChanged : 1;
     bool lastPinState : 1;
     bool mustPresentation : 1;
     String startedISODate = "";

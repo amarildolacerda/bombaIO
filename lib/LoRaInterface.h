@@ -159,7 +159,6 @@ public:
     // Modificar o loop para tratamento específico do Heltec
     virtual void loop()
     {
-
         switch (state)
         {
         case LoRaIDLE:
@@ -171,11 +170,11 @@ public:
         case LoRaRX:
             if (receiveMessage())
             {
-                // Mensagem recebida
                 lastStateChange = millis();
             }
 
-            if (txQueue.size() > 0 && millis() - lastStateChange > 100)
+            // Reduzido de 100ms para 50ms para melhorar throughput
+            if (txQueue.size() > 0 && millis() - lastStateChange > 50)
             {
                 setState(LoRaTX);
                 lastStateChange = millis();
@@ -184,12 +183,12 @@ public:
 
         case LoRaTX:
             if (sendNextMessage())
-            { // Função modificada acima
-              // Mensagem enviada
+            {
                 lastStateChange = millis();
             }
 
-            if (millis() - lastStateChange > 100)
+            // Reduzido de 100ms para 50ms
+            if (millis() - lastStateChange > 50)
             {
                 setState(LoRaRX);
             }

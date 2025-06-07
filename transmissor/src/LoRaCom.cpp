@@ -101,7 +101,7 @@ void LoRaCom::handle()
     {
         ESP.restart();
     }
-    if (millis() - lastPing > 30000 + idPing * 200)
+    if (millis() - lastPing > Config::COMMAND_TIMEOUT)
     {
         lastPing = millis();
 

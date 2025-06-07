@@ -9,6 +9,7 @@
 #include "queue_message.h"
 #include "LoRaInterface.h"
 #include "app_messages.h"
+#include "stats.h"
 
 #define ALIVE_PACKET 3
 #define MAX_MESH_DEVICES 255
@@ -144,6 +145,8 @@ private:
     }
     bool receiveMessage() override
     {
+
+        stats.rxCount++;
         // Serial.println("Check if received messages");
         if (!rf95.waitAvailableTimeout(50))
         {
@@ -157,6 +160,7 @@ private:
 
         if (rf95.recv((uint8_t *)buffer, &recvLen))
         {
+            stats.rxSuccess++;
             buffer[recvLen] = '\0';
 
             uint8_t mto = rf95.headerTo();
@@ -250,6 +254,7 @@ private:
         rec.print();
 #endif
 
+        stats.txCount++;
         // 1. Preparar mensagem
         char message[Config::MESSAGE_MAX_LEN] = {0};
         uint8_t len = snprintf(message, sizeof(message), "%s|%s", rec.event, rec.value);
@@ -283,35 +288,38 @@ private:
         bool sendResult = false;
         for (int attempt = 0; attempt < 3 && !sendResult; attempt++)
         {
-#ifdef DEBUG_ON
-            Serial.print("Tentativa ");
-            Serial.println(attempt + 1);
-#endif
-            if (attempt > 0)
-                delay(100 * attempt); // Backoff
+            // #ifdef DEBUG_ON
+            //    Serial.print("Tentativa ");
+            //    Serial.println(attempt + 1);
+            // #endif
+            //    if (attempt > 0)
+            //        delay(100 * attempt); // Backoff
 
             if (rf95.send((uint8_t *)fullMessage, len))
             {
 #ifdef DEBUG_ON
                 Serial.println("send() ok, aguardando confirmação...");
 #endif
-                if (rf95.waitPacketSent(500))
+                if (rf95.waitPacketSent(1000))
                 { // Timeout de 5 segundos
+                    stats.txSuccess++;
                     sendResult = true;
 #ifdef DEBUG_ON
                     Serial.println("Mensagem enviada com sucesso!");
 #endif
                     Logger::log(LogLevel::SEND, "(%d)[%X->%X:%X](%d) %s", terminalId, rec.from,
                                 rec.to, rec.id, rec.hope, fullMessage);
+
+                    break;
                 }
                 else
                 {
-                    Serial.println("ERRO: Timeout no waitPacketSent");
+                    Logger::error("Timeout no waitPacketSent");
                 }
             }
             else
             {
-                Serial.println("ERRO: Falha no send()");
+                Logger::error("Falha no send()");
             }
         }
 

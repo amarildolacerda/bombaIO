@@ -4,6 +4,10 @@
 #include "queue_message.h"
 #include "logger.h"
 #include "app_messages.h"
+#include "stats.h"
+#ifdef DISPLAY_ENABLED
+#include "display_mgr.h"
+#endif
 
 namespace AppProcess
 {
@@ -12,18 +16,19 @@ namespace AppProcess
         lora.send(tid, handled ? EVT_ACK : EVT_NAK, "", Config::TERMINAL_ID);
     }
 
+    static long lastStatusSend = 0;
     void setStatusChanged()
     {
         lora.send(0, EVT_STATUS, digitalRead(Config::RELAY_PIN) ? GPIO_ON : GPIO_OFF, Config::TERMINAL_ID);
+        lastStatusSend = millis();
+        stats.print();
     }
 
-    static long lastStatusSend = 0;
     bool handle()
     {
-        if (millis() - lastStatusSend > 5000)
+        if (millis() - lastStatusSend > Config::STATUS_INTERVAL)
         {
             setStatusChanged();
-            lastStatusSend = millis();
         }
         MessageRec rec;
         memset(&rec, 0, sizeof(MessageRec));
@@ -35,6 +40,12 @@ namespace AppProcess
             return false;
         }
         Logger::info("Handled from: %d: %s|%s", rec.from, rec.event, rec.value);
+
+#ifdef DISPLAY_ENABLED
+        displayManager.rssi = lora.packetRssi();
+        displayManager.snr = lora.packetSnr();
+        displayManager.showMessage("[RECV] (" + String(rec.id) + ") " + String(rec.event) + ": " + String(rec.value));
+#endif
 
         bool handled = false;
 

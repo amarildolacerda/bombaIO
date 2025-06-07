@@ -1,8 +1,12 @@
 #pragma
 
+#ifdef DISPLAY_ENABLED
+
 // #include "device_info.h"
 #include "queue_message.h"
+#ifdef WIFI
 #include <WiFi.h>
+#endif
 // #include "system_state.h"
 #ifdef DISPLAYTTGO
 #include <DisplayTtgo.h>
@@ -98,37 +102,6 @@ public:
         }
         disp.println("");
 
-        /*   if (systemState.isDiscovering())
-           {
-               disp.setPos(3, 0);
-               disp.println(F("  Modo pareamento"));
-               disp.println(F("   em andamento")); // redundante, so esta preenchendo espaço no display
-           }
-        else */
-        /*if (DeviceInfo::history.size() > 0)
-        {
-            uint8_t i = 2;
-            for (const auto &d : DeviceInfo::history)
-            {
-                disp.setPos(i, 0);
-                disp.print("                     ");
-                disp.setPos(i, 0);
-                disp.print((String)d.tid);
-                disp.setPos(i, 3);
-                disp.print(d.name.substring(0, 11));
-                disp.setPos(i++, 15);
-                disp.print(d.value);
-                // Serial.print(d.value);
-            }
-        }
-        else
-        {
-            disp.println(F("Evento: NENHUM"));
-        }*/
-        // disp.setPos(3, 0);
-        // disp.print("Evento: ");
-        // disp.print(loraRcvEvent);
-
         disp.setPos(4, 0);
         disp.print(showEvent);
 
@@ -138,3 +111,5 @@ public:
 };
 
 static DisplayManager displayManager;
+
+#endif
