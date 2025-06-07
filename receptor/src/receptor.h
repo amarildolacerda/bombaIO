@@ -67,7 +67,7 @@ public:
 
         if (!wifiManager.autoConnect(Config::TERMINAL_NAME))
         {
-            Logger::log(LogLevel::ERROR, F("Falha ao conectar WiFi - Reiniciando"));
+            Logger::log(LogLevel::ERROR, "Falha ao conectar WiFi - Reiniciando");
         }
 
         delay(500); // Estabilização após conexão
@@ -90,12 +90,12 @@ public:
     void initNTP()
     {
         configTzTime(Config::TIMEZONE, Config::NTP_SERVER);
-        Logger::log(LogLevel::INFO, F("Sincronizando com NTP..."));
+        Logger::log(LogLevel::INFO, "Sincronizando com NTP...");
 
         struct tm timeinfo;
         if (!getLocalTime(&timeinfo, 5000))
         { // Timeout de 5 segundos
-            Logger::log(LogLevel::WARNING, F("Falha ao obter tempo NTP"));
+            Logger::log(LogLevel::WARNING, "Falha ao obter tempo NTP");
             return;
         }
         else
@@ -153,7 +153,7 @@ public:
             ultimoReceived = millis();
             Logger::info("Tempo de atividade: %lu segundos", millis() / 1000);
 #ifdef ESP32
-            Logger::debug("Memória livre: %d bytes", ESP.getFreeHeap());
+            Logger::log(LogLevel::DEBUG, "Memória livre: %d bytes", ESP.getFreeHeap());
 #endif
         }
 

@@ -346,20 +346,12 @@ public:
         }
 
         // Tratamento de mensagens especiais (ping/pong)
-        if (strstr(buffer, "ping") != NULL)
+        if (strstr(buffer, EVT_PING) != NULL)
         {
             if (_headerTo != terminalId)
                 return false;
-            txQueue.push(_headerFrom, "pong", terminalName, terminalId, ALIVE_PACKET, _headerId);
+            txQueue.push(_headerFrom, EVT_PONG, terminalName, terminalId, ALIVE_PACKET, _headerId);
             return true;
-        }
-        else if (strstr(buffer, "pong") != NULL)
-        {
-            if (!isDeviceActive(_headerFrom))
-            {
-                Logger::log(LogLevel::INFO, "Pong received from: %d", _headerFrom);
-            }
-            return false;
         }
 
         bool handled = (_headerTo == 0xFF || _headerTo == terminalId);
