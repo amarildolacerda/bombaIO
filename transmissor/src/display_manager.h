@@ -4,6 +4,7 @@
 #include "queue_message.h"
 #include <WiFi.h>
 #include "system_state.h"
+#include "stats.h"
 #ifdef DISPLAYTTGO
 #include <DisplayTtgo.h>
 static DisplayTTGO disp;
@@ -13,6 +14,7 @@ class DisplayManager
 {
 private:
     unsigned long updated = 0;
+    long ps = 0;
 
 public:
     int snr = 0;
@@ -29,6 +31,7 @@ public:
     {
         if (millis() - updated > 1000)
         {
+            ps = stats.ps();
             update();
         }
     }
@@ -88,7 +91,10 @@ public:
         {
             disp.println((String)rssi);
         }
-        disp.println("");
+        disp.setPos(2, 0);
+        disp.print("Rxs: ");
+        disp.print(String(ps));
+        disp.print(" ps");
 
         /*   if (systemState.isDiscovering())
            {
@@ -115,6 +121,7 @@ public:
         }
         else
         {
+            disp.setPos(4, 0);
             disp.println(F("Evento: NENHUM"));
         }
         showFooter();

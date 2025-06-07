@@ -15,6 +15,8 @@ public:
 
     void print()
     {
+
+#ifdef DEBUG_ON
         // Logger::log(LogLevel::INFO, "Rx: %d, ok: %d, Tx: %d, ok: %d", rxCount, rxSuccess, txCount, txSuccess);
         Serial.print("RxCount: ");
         Serial.print(rxCount);
@@ -26,6 +28,7 @@ public:
         Serial.print(txCount);
         Serial.print(":");
         Serial.println(txSuccess);
+#endif
         if (millis() - resetTime > 60000)
         {
             resetTime = millis();

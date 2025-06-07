@@ -22,8 +22,7 @@ enum LoRaConfig
 
 // Constantes para controle de mesh
 #define ALIVE_PACKET 3
-#define MAX_MESH_DEVICES 255
-#define MESSAGE_TIMEOUT_MS 2000
+#define MESSAGE_TIMEOUT_MS 100
 
 class LoRaInterface
 {
@@ -38,46 +37,18 @@ protected:
     uint8_t headerSender = 0;
     bool _promiscuos = false;
 
-    // Controle de dispositivos ativos na mesh
-    uint8_t noMesh[(MAX_MESH_DEVICES + 7) / 8] = {0};
-
     const char bEOF = '}';
     const char bBOF = '{';
     const char bSEP = '|';
     LoRaStates state = LoRaRX;
 
-    // Funções para controle de dispositivos ativos
-    void setDeviceActive(uint8_t deviceId)
-    {
-        if (deviceId <= MAX_MESH_DEVICES)
-        {
-            noMesh[deviceId / 8] |= (1 << (deviceId % 8));
-        }
-    }
-
-    bool isDeviceActive(uint8_t deviceId)
-    {
-        if (deviceId > MAX_MESH_DEVICES)
-            return false;
-        return (noMesh[deviceId / 8] & (1 << (deviceId % 8))) != 0;
-    }
-
-    void clearDeviceActive(uint8_t deviceId)
-    {
-        if (deviceId <= MAX_MESH_DEVICES)
-        {
-            noMesh[deviceId / 8] &= ~(1 << (deviceId % 8));
-        }
-    }
-
+public:
+    LoRaConfig config = LORA_MED;
     bool isValidMessage(const char *msg, uint8_t len)
     {
         return (len >= 4) && (msg[0] == '{') && (msg[len - 1] == '}');
     }
-
-public:
     bool connected = false;
-    LoRaConfig config = LORA_MED;
     virtual void modeRx() = 0;
     virtual void modeTx() = 0;
     virtual bool begin(const uint8_t terminal_Id, long band, bool promisc = true) = 0;
@@ -110,6 +81,7 @@ public:
     virtual bool send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId)
     {
         MessageRec rec;
+        memset(&rec, 0, sizeof(MessageRec));
         rec.to = tid;
         rec.from = terminalId;
         snprintf(rec.event, sizeof(rec.event), event);
@@ -120,9 +92,7 @@ public:
     }
     virtual bool processIncoming(MessageRec &rec)
     {
-        bool result = false;
-        result = rxQueue.popItem(rec);
-        return result;
+        return rxQueue.popItem(rec);
     }
     virtual void setState(LoRaStates st)
     {
@@ -169,12 +139,10 @@ public:
             break;
         case LoRaRX:
             if (receiveMessage())
-            {
                 lastStateChange = millis();
-            }
 
             // Reduzido de 100ms para 50ms para melhorar throughput
-            if (txQueue.size() > 0 && millis() - lastStateChange > 50)
+            if (txQueue.size() > 0 && millis() - lastStateChange > MESSAGE_TIMEOUT_MS)
             {
                 setState(LoRaTX);
                 lastStateChange = millis();
@@ -188,10 +156,9 @@ public:
             }
 
             // Reduzido de 100ms para 50ms
-            if (millis() - lastStateChange > 50)
-            {
+            if (millis() - lastStateChange > MESSAGE_TIMEOUT_MS)
                 setState(LoRaRX);
-            }
+
             break;
         }
     }

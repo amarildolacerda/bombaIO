@@ -21,7 +21,7 @@ static portMUX_TYPE queueMutex = portMUX_INITIALIZER_UNLOCKED;
 #define MAX_EVENT_LEN 8
 #define MAX_VALUE_LEN 24
 #ifdef ESP32
-#define MAX_ITEMS 3
+#define MAX_ITEMS 5
 #else
 #define MAX_ITEMS 2
 #endif
@@ -34,11 +34,12 @@ struct MessageRec
     uint8_t hope;
     char event[MAX_EVENT_LEN];
     char value[MAX_VALUE_LEN];
-
+#ifndef __AVR__
     int dv() const
     {
         return id + to + from + sizeof(event);
     }
+#endif
 
 #ifdef DEBUG_ON
     void print()
@@ -87,6 +88,9 @@ public:
 
     bool contains(const MessageRec &item) const
     {
+#ifdef __AVR__
+        return false;
+#else
         bool result = false;
         CRITICAL_SECTION
         {
@@ -101,6 +105,7 @@ public:
             }
         }
         return result;
+#endif
     }
 
     bool popItem(MessageRec &item)

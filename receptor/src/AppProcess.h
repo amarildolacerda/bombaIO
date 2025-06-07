@@ -1,5 +1,6 @@
 
-#pragma
+#ifndef APPPROCESS_H
+#define APPPROCESS_H
 #ifdef HELTEC
 #include "LoRa32.h"
 #elif TTGO
@@ -35,6 +36,14 @@ namespace AppProcess
         if (millis() - lastStatusSend > Config::STATUS_INTERVAL)
         {
             setStatusChanged();
+        }
+        static long statiscs = 0;
+        if (millis() - statiscs > Config::STATUS_INTERVAL - 100)
+        {
+            char value[5] = {0};
+            snprintf(value, 4, "%d", lora.packetRssi());
+            lora.send(0, "rssi", value, Config::TERMINAL_ID);
+            statiscs = millis();
         }
         MessageRec rec;
         memset(&rec, 0, sizeof(MessageRec));
@@ -105,3 +114,5 @@ namespace AppProcess
     }
 
 }
+
+#endif

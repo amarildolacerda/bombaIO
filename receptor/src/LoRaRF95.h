@@ -11,10 +11,6 @@
 #include "app_messages.h"
 #include "stats.h"
 
-#define ALIVE_PACKET 3
-#define MAX_MESH_DEVICES 255
-#define MESSAGE_TIMEOUT_MS 2000
-
 #include <SoftwareSerial.h>
 SoftwareSerial SSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
 #define COMSerial SSerial
@@ -33,7 +29,6 @@ public:
         _promiscuos = promisc;
         rf95.setPromiscuous(true);
         rf95.setFrequency(band);
-        // rf95.setHeaderFlags(0, RH_FLAGS_NONE);
 
         switch (config)
         {
@@ -147,7 +142,6 @@ private:
     {
 
         stats.rxCount++;
-        // Serial.println("Check if received messages");
         if (!rf95.waitAvailableTimeout(50))
         {
             return false;
@@ -187,6 +181,7 @@ private:
                 printHex(buffer + 1);
                 return false; // bloqueia caracteres invalidos
             }
+
             if (strstr(buffer, EVT_PING) != NULL)
             {
                 if (mto != terminalId)
@@ -194,26 +189,11 @@ private:
                 txQueue.push(mfrom, EVT_PONG, terminalName, terminalId, ALIVE_PACKET, nHeaderId++);
                 return true;
             }
-            else if (strstr(buffer, EVT_PONG) != NULL)
-            {
-                if (!isDeviceActive(mfrom))
-                {
-                    Logger::log(LogLevel::INFO, "Pong received from: %d", mfrom);
-                    // setDeviceActive(mfrom);
-                }
-                return false;
-            }
-            else if (strstr(buffer, EVT_TIME) != NULL)
-            {
-                return false;
-            }
 
             if ((mto == terminalId) || (mto == 0xFF))
             {
-                //                Logger::log(LogLevel::DEBUG, "Direct message [%d->%d]: %s", mfrom, mto, buffer);
                 Logger::log(LogLevel::RECEIVE, "(%d)[%X->%X:%X](%d) %s|%s", terminalId, mfrom, mto, rf95.headerId(), rf95.headerFlags(), rec.event, rec.value);
-                if (parsed)
-                    rxQueue.push(rec.to, rec.event, rec.value, rec.from, rec.hope, rec.id);
+                rxQueue.push(rec.to, rec.event, rec.value, rec.from, rec.hope, rec.id);
                 if (mto == terminalId)
                     return true;
             }
@@ -222,21 +202,11 @@ private:
             uint8_t salto = rf95.headerFlags();
             if (salto > 0 && salto <= ALIVE_PACKET)
             {
-                if (mto != terminalId && !isDeviceActive(mfrom))
+                if (mto != terminalId)
                 {
                     salto--;
-
-                    if (parsed)
-                    {
-                        rec.hope = salto;
-                        //                        txQueue.pushItem(rec);
-                        txQueue.push(rec.to, rec.event, rec.value, rec.from, rec.hope, rec.id);
-
-#ifdef DEBUG_ON
-                        Serial.print(F("MESH From: "));
-                        Serial.println(rf95.headerFrom());
-#endif
-                    }
+                    rec.hope = salto;
+                    txQueue.push(rec.to, rec.event, rec.value, rec.from, rec.hope, rec.id);
                 }
                 return mto == 0xFF;
             }
@@ -248,22 +218,12 @@ private:
 
     bool sendMessage(MessageRec &rec) override
     {
-#ifdef DEBUG_ON
-        Serial.println("\n--- Iniciando sendMessage ---");
-        Serial.print("Conteudo: ");
-        rec.print();
-#endif
-
         stats.txCount++;
-        // 1. Preparar mensagem
         char message[Config::MESSAGE_MAX_LEN] = {0};
-        uint8_t len = snprintf(message, sizeof(message), "%s|%s", rec.event, rec.value);
+        uint8_t len = snprintf(message, sizeof(message), "%c{%s|%s}", terminalId, rec.event, rec.value);
 
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
         {
-#ifdef DEBUG_ON
-            Serial.println("ERRO: Tamanho de mensagem invalido");
-#endif
             return false;
         }
 
@@ -275,40 +235,18 @@ private:
         rf95.setHeaderId(rec.id);
         rf95.setHeaderFlags(rec.hope, 0xFF);
 
-        // 3. Formatar mensagem final
-        char fullMessage[Config::MESSAGE_MAX_LEN];
-        snprintf(fullMessage, sizeof(fullMessage), "%c{%s}", terminalId, message);
-        len += 3; // Adiciona tamanho dos delimitadores
-
-#ifdef DEBUG_ON
-        Serial.print("Enviando: ");
-        Serial.println(fullMessage);
-#endif
         // 4. Tentar enviar
         bool sendResult = false;
         for (int attempt = 0; attempt < 3 && !sendResult; attempt++)
         {
-            // #ifdef DEBUG_ON
-            //    Serial.print("Tentativa ");
-            //    Serial.println(attempt + 1);
-            // #endif
-            //    if (attempt > 0)
-            //        delay(100 * attempt); // Backoff
-
-            if (rf95.send((uint8_t *)fullMessage, len))
+            if (rf95.send((uint8_t *)message, len))
             {
-#ifdef DEBUG_ON
-                Serial.println("send() ok, aguardando confirmação...");
-#endif
                 if (rf95.waitPacketSent(1000))
                 { // Timeout de 5 segundos
                     stats.txSuccess++;
                     sendResult = true;
-#ifdef DEBUG_ON
-                    Serial.println("Mensagem enviada com sucesso!");
-#endif
                     Logger::log(LogLevel::SEND, "(%d)[%X->%X:%X](%d) %s", terminalId, rec.from,
-                                rec.to, rec.id, rec.hope, fullMessage);
+                                rec.to, rec.id, rec.hope, message + 1);
 
                     break;
                 }
@@ -322,10 +260,6 @@ private:
                 Logger::error("Falha no send()");
             }
         }
-
-#ifdef DEBUG_ON
-        Serial.println("--- Finalizando sendMessage ---");
-#endif
         return sendResult;
     }
     void ackIf(bool ack = false)

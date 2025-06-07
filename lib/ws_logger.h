@@ -1,5 +1,6 @@
 
-#pragma
+#ifndef WSLOGGER_H
+#define WSLOGGER_H
 
 #include "Arduino.h"
 #include "logger.h"
@@ -113,3 +114,5 @@ namespace WSLogger
 #endif
 
 }
+
+#endif

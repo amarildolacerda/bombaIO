@@ -22,8 +22,6 @@
 #endif
 
 #define ALIVE_PACKET 3
-#define MAX_MESH_DEVICES 255
-#define MESSAGE_TIMEOUT_MS 2000
 
 class LoRaAutoTuner
 {

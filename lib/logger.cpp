@@ -1,15 +1,6 @@
 #include "logger.h"
 
-#ifdef __AVR__
-
-LogCallback Logger::logCallback = nullptr;
-
-void Logger::setLogCallback(LogCallback callback)
-{
-    logCallback = callback;
-}
-
-#else
+#ifdef WIFI
 // Definição da variável estática
 std::function<void(const String &)> Logger::logCallback = nullptr;
 
@@ -36,22 +27,6 @@ void Logger::error(const char *msg, ...)
     va_end(args);
 }
 
-void Logger::debug(const char *msg, ...)
-{
-    va_list args;
-    va_start(args, msg);
-    vlog(LogLevel::DEBUG, msg, args);
-    va_end(args);
-}
-
-void Logger::warning(const char *msg, ...)
-{
-    va_list args;
-    va_start(args, msg);
-    vlog(LogLevel::WARNING, msg, args);
-    va_end(args);
-}
-
 bool Logger::log(const LogLevel level, const char *format, ...)
 {
     va_list args;
@@ -61,15 +36,6 @@ bool Logger::log(const LogLevel level, const char *format, ...)
     return result;
 }
 
-bool Logger::log(LogLevel level, const __FlashStringHelper *message)
-{
-    if (message == nullptr)
-        return false;
-
-    char eventBuffer[32];
-    strncpy_P(eventBuffer, reinterpret_cast<const char *>(message), sizeof(eventBuffer));
-    return Logger::log(level, eventBuffer);
-}
 // Implemente todos os outros métodos aqui...
 bool Logger::vlog(const LogLevel level, const char *format, va_list args)
 {
@@ -107,6 +73,7 @@ bool Logger::vlog(const LogLevel level, const char *format, va_list args)
     Serial.println(formattedMsg);
     Serial.print(F("\033[0m"));
 
+#ifdef WIFI
     if (logCallback)
     {
         char msg[100] = {0};
@@ -114,6 +81,7 @@ bool Logger::vlog(const LogLevel level, const char *format, va_list args)
         sprintf(msg, "%s %s", levelBuffer, formattedMsg);
         logCallback(msg);
     }
+#endif
 
     return true;
 }
