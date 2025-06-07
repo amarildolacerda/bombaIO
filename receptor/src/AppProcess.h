@@ -2,6 +2,8 @@
 #pragma
 #ifdef HELTEC
 #include "LoRa32.h"
+#elif TTGO
+#include "LoRa32.h"
 #else
 #include "LoRaRF95.h"
 #endif

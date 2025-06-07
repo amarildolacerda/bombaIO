@@ -23,8 +23,14 @@ AsyncWebServer server(Config::WEBSERVER_PORT);
 #include "display_mgr.h"
 #endif
 
-#elif ESP32
+#elif TTGO
 #include "LoRa32.h"
+#ifdef WIFI
+#include "WiFIManager.h"
+#include <ESPAsyncWebServer.h>
+AsyncWebServer server(Config::WEBSERVER_PORT);
+#include "ws_logger.h"
+#endif
 #endif
 
 #include "logger.h"

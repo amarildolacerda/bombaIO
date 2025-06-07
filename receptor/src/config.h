@@ -10,7 +10,7 @@ namespace Config
     constexpr int MIN_RSSI_THRESHOLD = -120; // ajuste conforme necessário
     constexpr float MIN_SNR_THRESHOLD = -20.0;
 
-    constexpr const char TERMINAL_NAME[] = "bemtevi"; // VTERMINAL_NAME;
+    constexpr const char TERMINAL_NAME[] = VTERMINAL_NAME;
 
     constexpr const bool PROMISCUOS = LORA_PROMISCUOS;
     constexpr const int TERMINAL_ID = VTERMINAL_ID;
@@ -18,13 +18,20 @@ namespace Config
 
 #if defined(TTGO) || defined(HELTEC)
     constexpr uint32_t LORA_BAND = 868E6; // usado esp32 TTGO LoRa32 v1
+
 #elif RF95
     constexpr uint32_t LORA_BAND = 868.0; // usado RF95
 #endif
 #ifdef HELTEC
-#define LORA_SF 7
+#define LORA_SF 9
 #define LORA_BW 125E3
 #define LORA_PW 20
+#define LORA_CR 5
+#define LORA_AUTO false
+#elif TTGO
+#define LORA_SF 8
+#define LORA_BW 125E3
+#define LORA_PW 14
 #define LORA_CR 5
 #define LORA_AUTO false
 #endif

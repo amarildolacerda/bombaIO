@@ -4,6 +4,9 @@
 
 class Stats
 {
+private:
+    long resetTime = 0;
+
 public:
     int rxCount = 0;
     int txCount = 0;
@@ -23,14 +26,18 @@ public:
         Serial.print(txCount);
         Serial.print(":");
         Serial.println(txSuccess);
-        // txCount = 0;
-        // txSuccess = 0;
-        // rxCount = 0;
-        // rxSuccess = 0;
+        if (millis() - resetTime > 60000)
+        {
+            resetTime = millis();
+            txCount = 0;
+            txSuccess = 0;
+            rxCount = 0;
+            rxSuccess = 0;
+        }
     }
     long ps()
     {
-        return rxCount / (millis() / 1000);
+        return rxCount / ((millis() - resetTime) / 1000);
     }
 };
 

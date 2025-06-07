@@ -9,7 +9,7 @@
 #include "stats.h"
 
 #ifdef ESP32
-
+#include "SPI.h"
 #if defined(HELTEC)
 #include "heltec.h"
 #ifdef Heltec_LoRa
@@ -68,7 +68,11 @@ public:
             if (avgRSSI > -60 && currentPower > 10)
             {
                 currentPower -= 2;
+#if HELTEC
                 LoRa.setTxPower(currentPower, RF_PACONFIG_PASELECT_PABOOST);
+#else
+                LoRa.setTxPower(currentPower);
+#endif
                 Logger::log(LogLevel::INFO, "[Heltec] Reduzindo potência para %d dBm", currentPower);
             }
             else if (avgRSSI < -90 || avgSNR < 0)
@@ -82,7 +86,11 @@ public:
                 else if (currentPower < 20)
                 {
                     currentPower += 2;
+#ifdef HELTEC
                     LoRa.setTxPower(currentPower, RF_PACONFIG_PASELECT_PABOOST);
+#else
+                    LoRa.setTxPower(currentPower);
+#endif
                     Logger::log(LogLevel::INFO, "[Heltec] Aumentando potência para %d dBm", currentPower);
                 }
             }
@@ -199,7 +207,7 @@ private:
 public:
     LoRa32() : isHeltec(false), autoTuner(LORA_SF, LORA_BW, LORA_CR, LORA_PW, false) {}
 
-    void modeTx() override { LoRa.idle(); }
+    void modeTx() override {}
     void modeRx() override { LoRa.receive(); }
 
     bool begin(const uint8_t terminal_Id, long band, bool promisc = true) override
@@ -259,7 +267,7 @@ public:
         char message[Config::MESSAGE_MAX_LEN] = {0};
         uint8_t len = snprintf(message, sizeof(message), "{%s|%s}", rec.event, rec.value);
 
-        LoRa.idle();
+        // LoRa.idle();
         LoRa.beginPacket();
 
         LoRa.write(rec.to);
@@ -293,8 +301,6 @@ public:
     bool receiveMessage() override
     {
         stats.rxCount++;
-        if (!LoRa.available())
-            return false;
 
         uint8_t packetSize = LoRa.parsePacket();
         if (packetSize < 5)
@@ -436,7 +442,10 @@ public:
 
     void setPins(const uint8_t cs, const uint8_t reset, const uint8_t irq) override
     {
+
         LoRa.setPins(cs, reset, irq);
+        if (isHeltec)
+            SPI.begin(5, 19, 27, 18); // SCK, MISO, MOSI, SS
     }
 
     int packetRssi() override

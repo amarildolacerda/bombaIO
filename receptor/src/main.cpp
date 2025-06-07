@@ -1,177 +1,144 @@
-
 #ifndef TEST
 #include "receptor.h"
-// #include "repeater.h"
-void setup()
-{
-    app.setup();
+
+void setup(){
+  app.setup();  
 }
 
-void loop()
-{
+void loop(){
     app.loop();
 }
+
+
+
 #else
+/*
+  LoRa Simple Gateway/Node Exemple
 
-#ifdef TEST2
+  This code uses InvertIQ function to create a simple Gateway/Node logic.
 
-#include "LoRaRF95.h"
-#include "config.h"
-#include "queue_message.h"
-#include "app_messages.h"
+  Gateway - Sends messages with enableInvertIQ()
+          - Receives messages with disableInvertIQ()
+
+  Node    - Sends messages with disableInvertIQ()
+          - Receives messages with enableInvertIQ()
+
+  With this arrangement a Gateway never receive messages from another Gateway
+  and a Node never receive message from another Node.
+  Only Gateway to Node and vice versa.
+
+  This code receives messages and sends a message every second.
+
+  InvertIQ function basically invert the LoRa I and Q signals.
+
+  See the Semtech datasheet, http://www.semtech.com/images/datasheet/sx1276.pdf
+  for more on InvertIQ register 0x33.
+
+  created 05 August 2018
+  by Luiz H. Cassettari
+*/
+
+#include <SPI.h> // include libraries
+#include <LoRa.h>
+
+const long frequency = 868E6; // LoRa Frequency
+
+const int csPin = 18;    // LoRa radio chip select
+const int resetPin = 14; // LoRa radio reset
+const int irqPin = 26;   // change for your board; must be a hardware interrupt pin
+
+void LoRa_rxMode()
+{
+    LoRa.disableInvertIQ(); // normal mode
+    LoRa.receive();         // set receive mode
+}
+
+void LoRa_txMode()
+{
+    LoRa.idle();           // set standby mode
+    LoRa.enableInvertIQ(); // active invert I and Q signals
+}
+
+void LoRa_sendMessage(String message)
+{
+    LoRa_txMode();        // set tx mode
+    LoRa.beginPacket();   // start packet
+    LoRa.print(message);  // add payload
+    LoRa.endPacket(true); // finish packet and send it
+}
+
+void onReceive(int packetSize)
+{
+    String message = "";
+
+    while (LoRa.available())
+    {
+        message += (char)LoRa.read();
+    }
+
+    Serial.print("Gateway Receive: ");
+    Serial.println(message);
+}
+
+void onTxDone()
+{
+    Serial.println("TxDone");
+    LoRa_rxMode();
+}
+
+boolean runEvery(unsigned long interval)
+{
+    static unsigned long previousMillis = 0;
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= interval)
+    {
+        previousMillis = currentMillis;
+        return true;
+    }
+    return false;
+}
 
 void setup()
 {
-    Serial.begin(115200);
-    pinMode(Config::RELAY_PIN, OUTPUT);
-    if (!lora.begin(Config::TERMINAL_ID, Config::LORA_BAND, false))
+    Serial.begin(115200); // initialize serial
+    while (!Serial)
+        ;
+
+    LoRa.setPins(csPin, resetPin, irqPin);
+
+    if (!LoRa.begin(frequency))
     {
-        Serial.print("nao inicializou o LoRa");
-    }
-    Serial.println("Pronto");
-}
-
-long ultimo = 0;
-void loop()
-{
-    lora.loop();
-    MessageRec rec;
-    if (lora.processIncoming(rec))
-    {
-        rec.print();
-    }
-    if (millis() - ultimo > 1000)
-    {
-        lora.send(0, EVT_STATUS, digitalRead(Config::RELAY_PIN) ? "on" : "off", Config::TERMINAL_ID);
-    }
-}
-
-#else
-
-// rf95_client.pde
-// -*- mode: C++ -*-
-// Example sketch showing how to create a simple messageing client
-// with the RH_RF95 class. RH_RF95 class does not provide for addressing or
-// reliability, so you should only use RH_RF95 if you do not need the higher
-// level messaging abilities.
-// It is designed to work with the other example rf95_server
-// Tested with Anarduino MiniWirelessLoRa
-
-#include <RH_RF95.h>
-#include "config.h"
-
-#ifdef __AVR__
-#include <SoftwareSerial.h>
-SoftwareSerial SSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
-#define COMSerial SSerial
-#define ShowSerial Serial
-
-RH_RF95<SoftwareSerial> rf95(COMSerial);
-#endif
-
-#if defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_RP2350) || defined(ARDUINO_XIAO_RA4M1)
-#include <SoftwareSerial.h>
-SoftwareSerial SSerial(D7, D6); // RX, TX
-#define COMSerial SSerial
-#define ShowSerial Serial
-
-RH_RF95<SoftwareSerial> rf95(COMSerial);
-#endif
-
-#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32S3)
-#define COMSerial Serial1
-#define ShowSerial Serial
-
-RH_RF95<HardwareSerial> rf95(COMSerial);
-#endif
-
-#ifdef SEEED_XIAO_M0
-#define COMSerial Serial1
-#define ShowSerial Serial
-
-RH_RF95<Uart> rf95(COMSerial);
-#elif defined(ARDUINO_SAMD_VARIANT_COMPLIANCE)
-#define COMSerial Serial1
-#define ShowSerial SerialUSB
-
-RH_RF95<Uart> rf95(COMSerial);
-#endif
-
-#ifdef ARDUINO_ARCH_STM32F4
-#define COMSerial Serial
-#define ShowSerial SerialUSB
-
-RH_RF95<HardwareSerial> rf95(COMSerial);
-#endif
-
-#if defined(NRF52840_XXAA)
-#define COMSerial Serial1
-#define ShowSerial Serial
-
-RH_RF95<Uart> rf95(COMSerial);
-#endif
-
-void setup()
-{
-    ShowSerial.begin(Config::SERIAL_SPEED);
-    ShowSerial.println("RF95 client test.");
-
-    if (!rf95.init())
-    {
-        ShowSerial.println("init failed");
-        while (1)
-            ;
+        Serial.println("LoRa init failed. Check your connections.");
+        while (true)
+            ; // if failed, do nothing
     }
 
-    // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
+    Serial.println("LoRa init succeeded.");
+    Serial.println();
+    Serial.println("LoRa Simple Gateway");
+    Serial.println("Only receive messages from nodes");
+    Serial.println("Tx: invertIQ enable");
+    Serial.println("Rx: invertIQ disable");
+    Serial.println();
 
-    // The default transmitter power is 13dBm, using PA_BOOST.
-    // If you are using RFM95/96/97/98 modules which uses the PA_BOOST transmitter pin, then
-    // you can set transmitter powers from 5 to 23 dBm:
-    // rf95.setTxPower(13, false);
-
-    rf95.setFrequency(Config::LORA_BAND);
+    LoRa.onReceive(onReceive);
+    LoRa.onTxDone(onTxDone);
+    LoRa_rxMode();
 }
 
 void loop()
 {
-    ShowSerial.println("Sending to rf95_server");
-    // Send a message to rf95_server
-    char data[Config::MESSAGE_MAX_LEN] = {0};
-    sprintf(data, "%c{presentation|LoRaSenseBender}", 1);
-    rf95.setModeTx();
-    rf95.setHeaderFrom(1);
-    rf95.setHeaderTo(0);
-    rf95.setHeaderFlags(sizeof(data), 0xFF);
-    rf95.send((uint8_t *)data, sizeof(data));
+    if (runEvery(5000))
+    { // repeat every 5000 millis
 
-    rf95.waitPacketSent(300);
+        String message = "HeLoRa World! ";
+        message += "I'm a Gateway! ";
+        message += millis();
 
-    rf95.setModeRx();
-    // Now wait for a reply
-    uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
-    uint8_t len = sizeof(buf);
+        LoRa_sendMessage(message); // send a message
 
-    if (rf95.waitAvailableTimeout(3000))
-    {
-        // Should be a reply message for us now
-        if (rf95.recv(buf, &len))
-        {
-            ShowSerial.print("got reply: ");
-            ShowSerial.println((char *)buf);
-        }
-        else
-        {
-            ShowSerial.println("recv failed");
-        }
+        Serial.print("Send Message! RSSI: ");
+        Serial.println(LoRa.packetRssi());
     }
-    else
-    {
-        ShowSerial.println("No reply, is rf95_server running?");
-    }
-
-    delay(1000);
 }
-#endif
-
 #endif
