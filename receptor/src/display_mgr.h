@@ -62,9 +62,9 @@ public:
         disp.setPos(6, 0);
         disp.print("Id: ");
         disp.print((String)Config::TERMINAL_ID);
-        disp.print(" ");
+        disp.print(" [");
         disp.print(String(ps));
-        disp.print("ps");
+        disp.print("ps]");
 
         disp.setPos(6, 13);
         disp.print(ISOTime); // Mostra apenas HH:MM:SS
