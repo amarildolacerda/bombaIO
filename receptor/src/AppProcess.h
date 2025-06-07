@@ -41,7 +41,7 @@ namespace AppProcess
         if (millis() - statiscs > Config::STATUS_INTERVAL - 100)
         {
             char value[5] = {0};
-            snprintf(value, 4, "%d", lora.packetRssi());
+            snprintf(value, 5, "%d", lora.packetRssi());
             lora.send(0, "rssi", value, Config::TERMINAL_ID);
             statiscs = millis();
         }

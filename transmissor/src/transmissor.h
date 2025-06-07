@@ -152,7 +152,7 @@ private:
     {
         Logger::log(LogLevel::INFO, F("Reinício seguro iniciado"));
         delay(1000);
-        ESP.restart();
+        // ESP.restart();
     }
 
 public:

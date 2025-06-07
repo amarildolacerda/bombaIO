@@ -54,13 +54,21 @@ public:
     String ISOTime = "";
     void showFooter()
     {
+        // disp.setColor(BLACK);
+        disp.fillRect(0, 6 * disp.rowHeight, 128, 64);
+        // disp.setColor(WHITE);
+
+        disp.setTextColor(BLACK);
         disp.setPos(6, 0);
         disp.print("Id: ");
         disp.print((String)Config::TERMINAL_ID);
-        disp.print("  ");
-        disp.print(systemState.startedISODate.substring(0, 5));
-        disp.setPos(6, 11);
+        disp.print(" ");
+        disp.print(String(ps));
+        disp.print("ps");
+
+        disp.setPos(6, 13);
         disp.print(ISOTime); // Mostra apenas HH:MM:SS
+        disp.setTextColor(WHITE);
     }
     bool loraConnected = false;
     String loraRcvEvent;
@@ -84,21 +92,18 @@ public:
         disp.setPos(1, 0);
         disp.print("Radio: ");
         disp.print(loraConnected ? (baixo) ? "Baixo" : "OK" : "FALHA");
-        disp.print(" ");
+        disp.print("  ");
         if (!baixo)
         {
-            disp.setPos(1, 13);
-            disp.println(systemState.lastUpdateTime);
+            disp.setPos(1, 11);
+            disp.print(systemState.lastUpdateTime);
         }
         else
         {
-            disp.println((String)rssi);
+            disp.print((String)rssi);
+            disp.print("  ");
+            disp.print(systemState.startedISODate.substring(0, 5));
         }
-
-        disp.setPos(2, 0);
-        disp.print("Rx:  ");
-        disp.print(String(ps));
-        disp.print("ps");
 
         disp.setPos(4, 0);
         disp.print(showEvent);

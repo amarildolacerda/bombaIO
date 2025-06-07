@@ -21,179 +21,10 @@
 #include "LoRa.h"
 #endif
 
-#define ALIVE_PACKET 3
-
-class LoRaAutoTuner
-{
-private:
-    uint8_t currentSF;
-    long currentBW;
-    uint8_t currentCR;
-    uint8_t currentPower;
-    bool isHeltec;
-
-    // Métricas
-    float rssiSamples[5] = {0};
-    float snrSamples[5] = {0};
-    uint8_t sampleIndex = 0;
-    uint16_t lostPackets = 0;
-
-public:
-    uint16_t totalPackets = 0;
-    LoRaAutoTuner(uint8_t sf, long bw, uint8_t cr, uint8_t power, bool heltec)
-        : currentSF(sf), currentBW(bw), currentCR(cr), currentPower(power), isHeltec(heltec) {}
-
-    void updateMetrics(float rssi, float snr, bool packetLost)
-    {
-        rssiSamples[sampleIndex] = rssi;
-        snrSamples[sampleIndex] = snr;
-        sampleIndex = (sampleIndex + 1) % 5;
-
-        totalPackets++;
-        if (packetLost)
-            lostPackets++;
-    }
-
-    void adjustParameters()
-    {
-        float avgRSSI = getAverageRSSI();
-        float avgSNR = getAverageSNR();
-        float lossRate = getPacketLossRate();
-
-        // Ajuste para Heltec (com PABOOST)
-        if (isHeltec)
-        {
-            if (avgRSSI > -60 && currentPower > 10)
-            {
-                currentPower -= 2;
-#if HELTEC
-                LoRa.setTxPower(currentPower, RF_PACONFIG_PASELECT_PABOOST);
-#else
-                LoRa.setTxPower(currentPower);
-#endif
-                Logger::log(LogLevel::INFO, "[Heltec] Reduzindo potência para %d dBm", currentPower);
-            }
-            else if (avgRSSI < -90 || avgSNR < 0)
-            {
-                if (currentSF < 12 && lossRate > 10)
-                {
-                    currentSF++;
-                    LoRa.setSpreadingFactor(currentSF);
-                    Logger::log(LogLevel::INFO, "[Heltec] Aumentando SF para %d", currentSF);
-                }
-                else if (currentPower < 20)
-                {
-                    currentPower += 2;
-#ifdef HELTEC
-                    LoRa.setTxPower(currentPower, RF_PACONFIG_PASELECT_PABOOST);
-#else
-                    LoRa.setTxPower(currentPower);
-#endif
-                    Logger::log(LogLevel::INFO, "[Heltec] Aumentando potência para %d dBm", currentPower);
-                }
-            }
-        }
-        // Ajuste para TTGO comum
-        else
-        {
-            if (avgRSSI > -60 && currentPower > 10)
-            {
-                currentPower -= 2;
-                LoRa.setTxPower(currentPower
-#ifdef HELTEC
-                                ,
-                                RF_PACONFIG_PASELECT_PABOOST
-#endif
-                );
-                Logger::log(LogLevel::INFO, "[TTGO] Reduzindo potência para %d dBm", currentPower);
-            }
-            else if (avgRSSI < -90 || avgSNR < 0)
-            {
-                if (currentSF < 12 && lossRate > 10)
-                {
-                    currentSF++;
-                    LoRa.setSpreadingFactor(currentSF);
-                    Logger::log(LogLevel::INFO, "[TTGO] Aumentando SF para %d", currentSF);
-                }
-                else if (currentPower < 14)
-                { // TTGO geralmente tem limite menor
-                    currentPower += 2;
-                    LoRa.setTxPower(currentPower
-#ifdef HELTEC
-                                    ,
-                                    RF_PACONFIG_PASELECT_PABOOST
-#endif
-                    );
-                    Logger::log(LogLevel::INFO, "[TTGO] Aumentando potência para %d dBm", currentPower);
-                }
-            }
-        }
-
-        // Ajustes comuns a ambos
-        if (lossRate > 5 && currentBW < 250E3)
-        {
-            currentBW = (currentBW == 125E3) ? 250E3 : 500E3;
-            LoRa.setSignalBandwidth(currentBW);
-            Logger::log(LogLevel::INFO, "Aumentando BW para %ld Hz", currentBW);
-        }
-        else if (avgRSSI > -80 && avgSNR > 7 && lossRate < 2)
-        {
-            if (currentSF > 7)
-            {
-                currentSF--;
-                LoRa.setSpreadingFactor(currentSF);
-                Logger::log(LogLevel::INFO, "Reduzindo SF para %d para melhorar throughput", currentSF);
-            }
-            else if (currentBW == 125E3 && currentSF <= 9)
-            {
-                currentBW = 250E3;
-                LoRa.setSignalBandwidth(currentBW);
-                Logger::log(LogLevel::INFO, "Aumentando BW para %ld Hz para melhorar throughput", currentBW);
-            }
-        }
-    }
-
-    float getAverageRSSI()
-    {
-        float sum = 0;
-        for (int i = 0; i < 5; i++)
-            sum += rssiSamples[i];
-        return sum / 5;
-    }
-
-    float getAverageSNR()
-    {
-        float sum = 0;
-        for (int i = 0; i < 5; i++)
-            sum += snrSamples[i];
-        return sum / 5;
-    }
-
-    float getPacketLossRate()
-    {
-        if (totalPackets == 0)
-            return 0.0;
-        return (lostPackets * 100.0) / totalPackets;
-    }
-
-    void resetCounters()
-    {
-        totalPackets = 0;
-        lostPackets = 0;
-    }
-
-    uint8_t getCurrentSF() const { return currentSF; }
-    long getCurrentBW() const { return currentBW; }
-    uint8_t getCurrentCR() const { return currentCR; }
-    uint8_t getCurrentPower() const { return currentPower; }
-};
-
 class LoRa32 : public LoRaInterface
 {
 private:
     bool isHeltec;
-    LoRaAutoTuner autoTuner;
-    bool lastPacketLost = false;
 
     uint8_t _headerTo;
     uint8_t _headerFrom;
@@ -203,7 +34,7 @@ private:
     long lastRcvMesssage;
 
 public:
-    LoRa32() : isHeltec(false), autoTuner(LORA_SF, LORA_BW, LORA_CR, LORA_PW, false) {}
+    LoRa32() : isHeltec(false) {}
 
     void modeTx() override {}
     void modeRx() override { LoRa.receive(); }
@@ -215,9 +46,10 @@ public:
 
 #ifdef HELTEC
         isHeltec = true;
-        autoTuner = LoRaAutoTuner(LORA_SF, LORA_BW, LORA_CR, LORA_PW, true); // Valores iniciais para Heltec
 
         Heltec.begin(true, false, true);
+        delay(100);
+        LoRa.end();
         delay(100);
 
         if (LoRa.begin(band, true))
@@ -230,29 +62,30 @@ public:
             Serial.println("LoRa nao conectou");
             return false;
         }
+        LoRa.setSpreadingFactor(9);
+        LoRa.setSignalBandwidth(125E3);
+        LoRa.setTxPower(20, RF_PACONFIG_PASELECT_PABOOST);
+        LoRa.setTxPowerMax(20);
+        LoRa.setPreambleLength(8);
+        LoRa.enableCrc();
+
 #else
         isHeltec = false;
+        LoRa.end();
+        delay(100);
         if (!LoRa.begin(band))
         {
             return false;
         }
+        LoRa.setSpreadingFactor(8);
+        LoRa.setSignalBandwidth(125E3);
+        LoRa.setTxPower(14);
+        LoRa.setPreambleLength(8);
 #endif
 
         // Aplica configurações iniciais do autoTuner
-        LoRa.setSpreadingFactor(autoTuner.getCurrentSF());
-        LoRa.setSignalBandwidth(autoTuner.getCurrentBW());
-        LoRa.setCodingRate4(autoTuner.getCurrentCR());
-
-#ifdef HELTEC
-        LoRa.setTxPower(autoTuner.getCurrentPower(), RF_PACONFIG_PASELECT_PABOOST);
-        LoRa.setTxPowerMax(20);
-#else
-        LoRa.setTxPower(autoTuner.getCurrentPower());
-#endif
 
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
-        LoRa.setPreambleLength(8);
-        LoRa.enableCrc();
 
         setState(LoRaRX);
         Logger::log(LogLevel::INFO, "LoRa32 iniciado (Heltec: %d)", isHeltec);
@@ -285,12 +118,6 @@ public:
                         terminalId, rec.from, rec.to, rec.id, rec.hope, message);
 
             // Atualiza métricas (assume sucesso no envio)
-            autoTuner.updateMetrics(LoRa.packetRssi(), LoRa.packetSnr(), false);
-            checkAutoTune();
-        }
-        else
-        {
-            lastPacketLost = true;
         }
 
         return result;
@@ -301,11 +128,11 @@ public:
         stats.rxCount++;
 
         uint8_t packetSize = LoRa.parsePacket();
-        if (packetSize < 5)
+        if (packetSize == 0)
         {
-            lastPacketLost = true;
             return false;
         }
+        delay(10);
 
         _headerTo = LoRa.read();
         _headerFrom = LoRa.read();
@@ -322,7 +149,6 @@ public:
         {
             if (!LoRa.available() && (millis() - waitingRcv > 100))
             {
-                lastPacketLost = true;
                 break;
             }
             uint8_t r = LoRa.read();
@@ -335,13 +161,11 @@ public:
         MessageRec rec;
         if (!parseRecv(buffer, len, rec))
         {
-            lastPacketLost = true;
             return false;
         }
 
         if (len == 0 || _headerFrom == terminalId || _headerSender == terminalId)
         {
-            lastPacketLost = true;
             return false;
         }
 
@@ -356,11 +180,6 @@ public:
 
         bool handled = (_headerTo == 0xFF || _headerTo == terminalId);
 
-        // Atualiza métricas
-        autoTuner.updateMetrics(LoRa.packetRssi(), LoRa.packetSnr(), lastPacketLost);
-        checkAutoTune();
-        lastPacketLost = false;
-
         if (handled)
         {
             if (!rxQueue.pushItem(rec))
@@ -374,25 +193,6 @@ public:
         }
 
         return handled;
-    }
-
-    void checkAutoTune()
-    {
-
-        static uint32_t lastCheck = 0;
-        if (millis() - lastCheck > 30000 || autoTuner.totalPackets >= 50)
-        {
-            if (LORA_AUTO)
-                autoTuner.adjustParameters();
-            Logger::log(LogLevel::INFO, "Config: SF%d BW%ld CR%d PWR%d",
-                        autoTuner.getCurrentSF(), autoTuner.getCurrentBW(),
-                        autoTuner.getCurrentCR(), autoTuner.getCurrentPower());
-            Logger::log(LogLevel::INFO, "Qualidade: RSSI %.1f SNR %.1f Perda %.1f%%",
-                        autoTuner.getAverageRSSI(), autoTuner.getAverageSNR(),
-                        autoTuner.getPacketLossRate());
-            autoTuner.resetCounters();
-            lastCheck = millis();
-        }
     }
 
     bool parseRecv(char *buf, uint8_t len, MessageRec &rec)

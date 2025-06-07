@@ -159,6 +159,7 @@ public:
 
 #ifdef DISPLAY_ENABLED
         displayManager.ISOTime = systemState.getISOTime("%H:%M:%S");
+        displayManager.rssi = lora.packetRssi();
         displayManager.handle();
 #endif
     }

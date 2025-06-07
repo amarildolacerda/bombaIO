@@ -17,11 +17,11 @@ private:
     SSD1306Wire display;
     uint16_t currentX = 0;
     uint16_t currentY = 0;
-    const uint8_t rowHeight = 8;
-    const uint8_t colWidth = 7;
     uint8_t textSize = 1;
 
 public:
+    const float rowHeight = 8.5;
+    float colWidth = 7;
     DisplayHeltec() : display(OLED_ADDRESS, 400000, OLED_SDA, OLED_SCL, GEOMETRY_128_64, OLED_RST) {}
 
     bool initialize() override
@@ -44,13 +44,14 @@ public:
         setTextSize(1); // Tamanho padrão
         display.setTextAlignment(TEXT_ALIGN_LEFT);
         display.clear();
+        colWidth = 128 / 20;
         display.display();
         return true;
     }
 
     void setPos(uint8_t linha, uint8_t coluna) override
     {
-        currentX = coluna * colWidth * textSize;
+        currentX = (coluna * colWidth * textSize) + 2;
         currentY = linha * rowHeight * textSize;
     }
     void print(const String msg) override
@@ -91,7 +92,14 @@ public:
     {
         display.setColor(color == WHITE ? WHITE : BLACK);
     }
-
+    void setColor(uint8_t color) override
+    {
+        display.setColor(color == WHITE ? WHITE : BLACK);
+    }
+    void fillRect(int x1, int y1, int x2, int y2) override
+    {
+        display.fillRect(x1, y1, x2, y2);
+    }
     void setTextSize(uint8_t size) override
     {
         textSize = size;

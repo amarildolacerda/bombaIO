@@ -99,7 +99,7 @@ void LoRaCom::handle()
 
     if (millis() - lastReceive > 60000 * 5)
     {
-        ESP.restart();
+        //ESP.restart();
     }
     if (millis() - lastPing > Config::COMMAND_TIMEOUT)
     {
