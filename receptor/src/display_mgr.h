@@ -55,18 +55,18 @@ public:
         disp.fillRect(0, 6 * disp.rowHeight, 128, 64);
         // disp.setColor(WHITE);
 
-        disp.setTextColor(BLACK);
+        disp.setTextColor(BLACK, WHITE);
         disp.setPos(6, 0);
-        disp.print("Id: ");
+        disp.print("Id:");
         disp.print((String)Config::TERMINAL_ID);
-        disp.print(" | ");
+        disp.print("|");
         disp.print(String(ps));
-        disp.print("ps |");
+        disp.print("ps| ");
 #ifdef WIFI
         disp.setPos(6, 13);
         disp.print(ISOTime); // Mostra apenas HH:MM:SS
 #endif
-        disp.setTextColor(WHITE);
+        disp.setTextColor(WHITE, BLACK);
     }
     bool loraConnected = false;
     String loraRcvEvent;

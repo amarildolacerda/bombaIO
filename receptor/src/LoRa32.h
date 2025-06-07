@@ -81,10 +81,10 @@ public:
 
 #else
         isHeltec = false;
-        connected = LoRa.begin(band, false);
+        connected = LoRa.begin(band);
         configParams();
 #endif
-        Logger::log(LogLevel::INFO, "LoRa32 iniciado (Heltec: %d)", isHeltec);
+        Logger::log(LogLevel::INFO, "LoRa32 iniciado ");
         return true;
     }
     uint32_t lastCheck = 0;
@@ -147,9 +147,6 @@ public:
     bool receiveMessage() override
     {
         stats.rxCount++;
-#ifdef DEBUG_ON
-        Serial.println("receiveMessage");
-#endif
         uint8_t packetSize = LoRa.parsePacket();
         if (packetSize == 0)
         {

@@ -9,15 +9,14 @@
 #define OLED_RST 16 // Pino de reset (para TTGO)
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_GFX.h>
-static Adafruit_SSD1306 display(Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT, &Wire, -1);
+static Adafruit_SSD1306 display(128, 64, &Wire, -1);
 
 class DisplayTTGO : public DisplayInterface
 {
 private:
+public:
     const long rowHeight = 9.30; // Config::SCREEN_HEIGHT / 7;
     const long colWidth = 6.95;  // Config::SCREEN_WIDTH / 21;
-
-public:
     void setPos(const uint8_t linha, const uint8_t coluna) override
     {
         display.setCursor((coluna * (colWidth)) + 1, (linha * rowHeight) + (linha < 6 ? 1 : 2));
@@ -29,7 +28,7 @@ public:
         if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
         {
 
-            display.begin(SSD1306_SWITCHCAPVCC, Config::OLED_ADDRESS);
+            display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
             display.clearDisplay();
             display.setTextSize(1);
             display.setTextColor(SSD1306_WHITE);
@@ -66,6 +65,10 @@ public:
     void show() override
     {
         display.display();
+    }
+    void fillRect(int x1, int y1, int x2, int y2) override
+    {
+        display.fillRect(x1, y1, x2, y2, WHITE);
     }
 };
 
