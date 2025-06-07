@@ -36,64 +36,85 @@ private:
 public:
     LoRa32() : isHeltec(false) {}
 
-    void modeTx() override {}
-    void modeRx() override { LoRa.receive(); }
-
-    bool begin(const uint8_t terminal_Id, long band, bool promisc = true) override
+    void modeTx() override
     {
-        _promiscuos = promisc;
-        terminalId = terminal_Id;
-
+    }
+    void modeRx() override
+    {
+        LoRa.receive();
+        checkConnectionHealth();
+    }
+    long currentFrequency = Config::LORA_BAND;
+    void configParams()
+    {
 #ifdef HELTEC
-        isHeltec = true;
-
-        Heltec.begin(true, false, true);
-        delay(100);
-        LoRa.end();
-        delay(100);
-
-        if (LoRa.begin(band, true))
-        { // PABOOST ativado
-            connected = true;
-            Serial.println("LoRa OK");
-        }
-        else
-        {
-            Serial.println("LoRa nao conectou");
-            return false;
-        }
         LoRa.setSpreadingFactor(9);
         LoRa.setSignalBandwidth(125E3);
         LoRa.setTxPower(20, RF_PACONFIG_PASELECT_PABOOST);
         LoRa.setTxPowerMax(20);
         LoRa.setPreambleLength(8);
         LoRa.enableCrc();
-
+        LoRa.setSyncWord(Config::LORA_SYNC_WORD);
 #else
-        isHeltec = false;
-        LoRa.end();
-        delay(100);
-        if (!LoRa.begin(band))
-        {
-            return false;
-        }
         LoRa.setSpreadingFactor(8);
         LoRa.setSignalBandwidth(125E3);
         LoRa.setTxPower(14);
         LoRa.setPreambleLength(8);
-#endif
-
-        // Aplica configurações iniciais do autoTuner
-
         LoRa.setSyncWord(Config::LORA_SYNC_WORD);
 
+#endif
         setState(LoRaRX);
+    }
+    bool begin(const uint8_t terminal_Id, long band, bool promisc = true) override
+    {
+        currentFrequency = band;
+        _promiscuos = promisc;
+        terminalId = terminal_Id;
+
+#ifdef HELTEC
+        isHeltec = true;
+        Heltec.begin(false, false, false);
+        delay(100);
+        // checkConnectionHealth();
+        connected = LoRa.begin(band, false);
+        configParams();
+
+#else
+        isHeltec = false;
+        connected = LoRa.begin(band, false);
+        configParams();
+#endif
         Logger::log(LogLevel::INFO, "LoRa32 iniciado (Heltec: %d)", isHeltec);
         return true;
+    }
+    uint32_t lastCheck = 0;
+    void checkConnectionHealth()
+    {
+        return;
+        static int rssi = -157;
+        if (millis() - lastCheck > 30000)
+        { // A cada 1 minuto
+            rssi = LoRa.packetRssi();
+            if (rssi <= -157)
+            {
+                LoRa.sleep();
+                delay(100);
+                Logger::log(LogLevel::WARNING, "Tentando recuperar conexão LoRa...");
+                connected = begin(terminalId, currentFrequency, _promiscuos);
+                if (!connected)
+                {
+                    Serial.println("nao conectou LoRa");
+                }
+                configParams();
+            }
+            lastCheck = millis();
+        }
     }
 
     bool sendMessage(MessageRec &rec) override
     {
+        if (!connected)
+            return false;
         stats.txCount++;
         char message[Config::MESSAGE_MAX_LEN] = {0};
         uint8_t len = snprintf(message, sizeof(message), "{%s|%s}", rec.event, rec.value);
@@ -119,14 +140,16 @@ public:
 
             // Atualiza métricas (assume sucesso no envio)
         }
-
+        setState(LoRaIDLE);
         return result;
     }
 
     bool receiveMessage() override
     {
         stats.rxCount++;
-
+#ifdef DEBUG_ON
+        Serial.println("receiveMessage");
+#endif
         uint8_t packetSize = LoRa.parsePacket();
         if (packetSize == 0)
         {
@@ -232,10 +255,11 @@ public:
 
     void setPins(const uint8_t cs, const uint8_t reset, const uint8_t irq) override
     {
-
+#ifndef HELTEC
         LoRa.setPins(cs, reset, irq);
-        if (isHeltec)
-            SPI.begin(5, 19, 27, 18); // SCK, MISO, MOSI, SS
+        //  if (isHeltec)
+        //      SPI.begin(5, 19, 27, 18); // SCK, MISO, MOSI, SS
+#endif
     }
 
     int packetRssi() override

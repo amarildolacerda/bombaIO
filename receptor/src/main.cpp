@@ -1,15 +1,15 @@
 #ifndef TEST
 #include "receptor.h"
 
-void setup(){
-  app.setup();  
+void setup()
+{
+    app.setup();
 }
 
-void loop(){
+void loop()
+{
     app.loop();
 }
-
-
 
 #else
 /*

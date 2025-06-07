@@ -10,8 +10,9 @@
 #endif
 
 #ifdef HELTEC
-#include "heltec.h"
-#include "LoRa32.h"
+// #include "heltec.h"
+#include "LoRaHeltec.h"
+// #include "LoRa32.h"
 #ifdef WIFI
 #include "WiFIManager.h"
 #include <ESPAsyncWebServer.h>
@@ -21,6 +22,10 @@ AsyncWebServer server(Config::WEBSERVER_PORT);
 
 #ifdef DISPLAY_ENABLED
 #include "display_mgr.h"
+#endif
+
+#ifdef ESP32
+#include "esp_task_wdt.h"
 #endif
 
 #elif TTGO
@@ -51,6 +56,10 @@ void initCallback();
 
 #endif
 
+#ifdef WIFI
+WiFiManager wifiManager;
+#endif
+
 class App
 {
 private:
@@ -60,7 +69,6 @@ public:
     {
 
         WiFi.mode(WIFI_STA);
-        WiFiManager wifiManager;
         // wifiManager.resetSettings();
         wifiManager.setConnectTimeout(360);
         wifiManager.setConfigPortalTimeout(360);
@@ -103,20 +111,39 @@ public:
             systemState.startedISODate = systemState.getISOTime().substring(11, 18);
         }
     }
+
+    void checkWiFiHealth()
+    {
+        static long checkingWiFi = 0;
+        if (checkingWiFi == 0 || millis() - checkingWiFi > 30000)
+        {
+            if (!WiFi.isConnected())
+            {
+                initWiFi();
+                initNTP();
+                WSLogger::initWs(server);
+            }
+            checkingWiFi = millis();
+        }
+    }
 #endif
 
     long sendUpdated = 0;
 
     void setup()
     {
+        Serial.end();
         Serial.begin(Config::SERIAL_SPEED);
-        while (!Serial)
+        while (!Serial && millis() < 5000)
             ;
+#ifdef ESP32
+        esp_task_wdt_delete(NULL);  // Remove o WDT da tarefa atual
+        esp_task_wdt_init(5, true); // Define o tempo limite para 5 segundos
+#endif
 
 #ifdef WIFI
-        initWiFi();
-        initNTP();
-        WSLogger::initWs(server);
+        checkWiFiHealth();
+
 #endif
 
         lora.config = LORA_MED;
@@ -142,6 +169,13 @@ public:
 
     void loop()
     {
+#ifdef WIFI
+        checkWiFiHealth();
+#endif
+#ifdef ESP32
+        esp_task_wdt_reset();
+#endif
+        // Serial.println("ENTER_LOOP");
         lora.loop();
         if (AppProcess::handle())
         {
@@ -158,10 +192,19 @@ public:
         }
 
 #ifdef DISPLAY_ENABLED
-        displayManager.ISOTime = systemState.getISOTime("%H:%M:%S");
+#ifdef WIFI
+        static long isoUpdated = 0;
+        if (millis() - isoUpdated > 1000)
+        {
+            displayManager.ISOTime = systemState.getISOTime("%H:%M:%S");
+            isoUpdated = millis();
+        }
+#endif
         displayManager.rssi = lora.packetRssi();
         displayManager.handle();
 #endif
+
+        //  Serial.println("--------------------------------------Saida LOOP");
     }
 
     void sendEvent(uint8_t tid, const char *event, const char *value)

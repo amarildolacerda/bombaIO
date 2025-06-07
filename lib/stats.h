@@ -40,7 +40,7 @@ public:
     }
     long ps()
     {
-        return rxCount / ((millis() - resetTime) / 1000);
+        return (rxCount / ((((millis() - resetTime)) / 1000) + 1)); // +1 para garantir >0
     }
 };
 

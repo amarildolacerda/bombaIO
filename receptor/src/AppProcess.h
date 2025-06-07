@@ -2,7 +2,8 @@
 #ifndef APPPROCESS_H
 #define APPPROCESS_H
 #ifdef HELTEC
-#include "LoRa32.h"
+// #include "LoRa32.h"
+#include "LoRaHeltec.h"
 #elif TTGO
 #include "LoRa32.h"
 #else
@@ -33,9 +34,16 @@ namespace AppProcess
 
     bool handle()
     {
+
         if (millis() - lastStatusSend > Config::STATUS_INTERVAL)
         {
             setStatusChanged();
+#ifdef DISPLAY_ENABLED
+            displayManager.rssi = lora.packetRssi();
+            displayManager.snr = lora.packetSnr();
+            displayManager.ps = stats.ps();
+            Serial.println(displayManager.ps);
+#endif
         }
         static long statiscs = 0;
         if (millis() - statiscs > Config::STATUS_INTERVAL - 100)
@@ -47,7 +55,7 @@ namespace AppProcess
         }
         MessageRec rec;
         memset(&rec, 0, sizeof(MessageRec));
-
+        lora.loop();
         bool hasMessage = lora.processIncoming(rec);
 
         if (!hasMessage)
@@ -57,8 +65,6 @@ namespace AppProcess
         Logger::info("Handled from: %d: %s|%s", rec.from, rec.event, rec.value);
 
 #ifdef DISPLAY_ENABLED
-        displayManager.rssi = lora.packetRssi();
-        displayManager.snr = lora.packetSnr();
         displayManager.showMessage("[RECV] (" + String(rec.id) + ") " + String(rec.event) + ": " + String(rec.value));
 #endif
 

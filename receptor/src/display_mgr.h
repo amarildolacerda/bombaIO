@@ -18,16 +18,14 @@ static DisplayTTGO disp;
 static DisplayHeltec disp;
 #endif
 
-#include "stats.h"
-
 class DisplayManager
 {
 private:
     unsigned long updated = 0;
     String showEvent = "";
-    long ps = 0;
 
 public:
+    long ps = 0;
     int snr = 0;
     int rssi = 0;
     void setVersion(const String ver)
@@ -41,7 +39,6 @@ public:
     {
         if (millis() - updated > 1000)
         {
-            ps = stats.ps();
             update();
             updated = millis();
         }
@@ -65,9 +62,10 @@ public:
         disp.print(" | ");
         disp.print(String(ps));
         disp.print("ps |");
-
+#ifdef WIFI
         disp.setPos(6, 13);
         disp.print(ISOTime); // Mostra apenas HH:MM:SS
+#endif
         disp.setTextColor(WHITE);
     }
     bool loraConnected = false;
@@ -78,9 +76,10 @@ public:
         disp.clearDisplay();
         disp.setPos(0, 0);
 
+#ifdef WIFI
         disp.print("WiFi: ");
         disp.println(WiFi.isConnected() ? WiFi.localIP().toString() : "DESCONECTADO");
-
+#endif
         static bool baixo = false;
         static uint32_t ultimoBaixo = 0;
         if (millis() - ultimoBaixo > 10000)
@@ -102,6 +101,7 @@ public:
         {
             disp.print((String)rssi);
             disp.print("  ");
+
             disp.print(systemState.startedISODate.substring(0, 5));
         }
 

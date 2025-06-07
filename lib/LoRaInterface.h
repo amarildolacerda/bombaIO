@@ -49,9 +49,6 @@ public:
         return (len >= 4) && (msg[0] == '{') && (msg[len - 1] == '}');
     }
     bool connected = false;
-    virtual void modeRx() = 0;
-    virtual void modeTx() = 0;
-    virtual bool begin(const uint8_t terminal_Id, long band, bool promisc = true) = 0;
     virtual void setTerminalName(const char name[10])
     {
         snprintf(terminalName, sizeof(terminalName), name);
@@ -132,6 +129,7 @@ public:
         switch (state)
         {
         case LoRaIDLE:
+            lastStateChange = millis();
             setState(LoRaRX);
             break;
         case LoRaWAITING:
@@ -157,13 +155,19 @@ public:
 
             // Reduzido de 100ms para 50ms
             if (millis() - lastStateChange > MESSAGE_TIMEOUT_MS)
+            {
                 setState(LoRaRX);
+                //                lastStateChange = millis();
+            }
 
             break;
         }
     }
     virtual bool sendMessage(MessageRec &rec) = 0;
     virtual bool receiveMessage() = 0;
+    virtual void modeRx() = 0;
+    virtual void modeTx() = 0;
+    virtual bool begin(const uint8_t terminal_Id, long band, bool promisc = true) = 0;
 };
 
 #endif // LORA_INTERFACE_H
