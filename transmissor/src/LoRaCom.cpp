@@ -47,7 +47,7 @@ bool LoRaCom::initialize()
     );
     if (!loraConnected)
     {
-        Logger::log(LogLevel::ERROR, F("Falha ao iniciar LoRa"));
+        Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");
         return false;
     }
     loraInstance->setTerminalId(Config::TERMINAL_ID);
@@ -55,7 +55,7 @@ bool LoRaCom::initialize()
     displayManager.setVersion(Config::LMCU_VER);
 
     loraInstance->endSetup();
-    Logger::log(LogLevel::INFO, F("LoRa inicializado com sucesso"));
+    Logger::log(LogLevel::INFO, "LoRa inicializado com sucesso");
     systemState.setLoraStatus(true);
     return true;
 }
@@ -99,7 +99,7 @@ void LoRaCom::handle()
 
     if (millis() - lastReceive > 60000 * 5)
     {
-        //ESP.restart();
+        // ESP.restart();
     }
     if (millis() - lastPing > Config::COMMAND_TIMEOUT)
     {

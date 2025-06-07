@@ -95,7 +95,7 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
      }
              */
     alexa.enable(true);
-    Logger::log(LogLevel::INFO, F("Alexa Enable(true)"));
+    Logger::log(LogLevel::INFO, "Alexa Enable(true)");
 }
 
 void AlexaCom::loop()

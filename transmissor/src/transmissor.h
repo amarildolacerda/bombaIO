@@ -109,7 +109,7 @@ private:
 
         if (!wifiManager.autoConnect(Config::WIFI_AP_NAME))
         {
-            Logger::log(LogLevel::ERROR, F("Falha ao conectar WiFi - Reiniciando"));
+            Logger::log(LogLevel::ERROR, "Falha ao conectar WiFi - Reiniciando");
             safeRestart();
         }
 
@@ -133,12 +133,12 @@ private:
     void initNTP()
     {
         configTzTime(Config::TIMEZONE, Config::NTP_SERVER);
-        Logger::log(LogLevel::INFO, F("Sincronizando com NTP..."));
+        Logger::log(LogLevel::INFO, "Sincronizando com NTP...");
 
         struct tm timeinfo;
         if (!getLocalTime(&timeinfo, 5000))
         { // Timeout de 5 segundos
-            Logger::log(LogLevel::WARNING, F("Falha ao obter tempo NTP"));
+            Logger::log(LogLevel::WARNING, "Falha ao obter tempo NTP");
             return;
         }
         else
@@ -150,7 +150,7 @@ private:
 
     void safeRestart()
     {
-        Logger::log(LogLevel::INFO, F("Reinício seguro iniciado"));
+        Logger::log(LogLevel::INFO, "Reinício seguro iniciado");
         delay(1000);
         // ESP.restart();
     }
@@ -233,7 +233,7 @@ public:
             ultimoReceived = millis();
             Logger::info("Tempo de atividade: %lu segundos", millis() / 1000);
 #ifdef ESP32
-            Logger::debug("Memória livre: %d bytes", ESP.getFreeHeap());
+            Logger::log(LogLevel::DEBUG, "Memória livre: %d bytes", ESP.getFreeHeap());
 #endif
             Logger::info("Rxs: %d ps", stats.ps());
             stats.print();
@@ -246,7 +246,7 @@ public:
 
         if (primeiraVez)
         {
-            Logger::log(LogLevel::VERBOSE, F("Loop iniciado"));
+            Logger::log(LogLevel::VERBOSE, "Loop iniciado");
         }
 
         LoRaCom::handle();
@@ -283,7 +283,7 @@ public:
 
         if (primeiraVez)
         {
-            Logger::log(LogLevel::VERBOSE, F("Loop finalizado"));
+            Logger::log(LogLevel::VERBOSE, "Loop finalizado");
             primeiraVez = false;
         }
     }
@@ -344,7 +344,7 @@ protected:
             }
             else
             {
-                Logger::log(LogLevel::ERROR, F("Não está em modo discovery"));
+                Logger::log(LogLevel::ERROR, "Não está em modo discovery");
             }
         }
 
