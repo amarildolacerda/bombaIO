@@ -77,6 +77,8 @@ public:
     }
     static String findName(uint8_t tid)
     {
+        if (tid == 0)
+            return "";
         uint8_t x = indexOf(tid);
         if (x < 0)
             return "";

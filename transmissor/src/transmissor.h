@@ -307,8 +307,11 @@ public:
 protected:
     static void processIncoming(MessageRec *rec)
     {
+
         if (!rec->event)
+        {
             return;
+        }
 
         Logger::info("Handled from: %d, %s|%s", rec->from, rec->event, rec->value);
 
@@ -333,13 +336,17 @@ protected:
             data.event = rec->event;
             data.value = rec->value;
             data.lastSeen = millis(); // DeviceInfo::getISOTime();
+
             DeviceInfo::updateDeviceList(data.tid, data);
 
             systemState.updateState(rec->value);
 
 #ifdef ALEXA
             alexaCom.aliveOffLineAlexa();
-            alexaCom.updateStateAlexa(DeviceInfo::findName(tid), rec->value);
+            if (DeviceInfo::indexOf(tid) >= 0)
+            {
+                alexaCom.updateStateAlexa(DeviceInfo::findName(tid), rec->value);
+            }
 #endif
             handled = true;
         }
@@ -350,7 +357,9 @@ protected:
                 DeviceRegData reg;
                 reg.tid = tid;
                 reg.name = rec->value;
+
                 DeviceInfo::updateRegList(tid, reg);
+
                 Prefers::saveRegs();
 
 #ifdef ALEXA

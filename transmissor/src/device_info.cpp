@@ -1,5 +1,6 @@
 #include "device_info.h"
 #include <ArduinoJson.h>
+#include "logger.h"
 
 // Define o membro estático corretamente
 std::vector<DeviceInfoData> DeviceInfo::deviceList;
@@ -8,56 +9,69 @@ std::vector<DeviceInfoHistory> DeviceInfo::history;
 
 void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
 {
-
+    
+    // Early return check
     if ((deviceId == 0) || (deviceId == 0xFF))
+    {
         return;
+    }
+
+                  data.event.c_str(), data.value.c_str()); // Debug 3
+
     bool found = false;
+    
+    // Search for existing device
     for (auto &device : deviceList)
     {
+    
         if (device.tid == deviceId)
         {
             found = true;
-            // atualiza os dados
+
+            // Update device data
+    
             device.event = data.event;
             device.value = data.value;
             device.rssi = data.rssi;
-            device.lastSeen = millis(); // data.lastSeenISOTime;
-            // if (data.event == "status")
-            // {
-            // data.value.toUpperCase();
-            // device.status = data.value;
-            // }
+            device.lastSeen = millis();
+
             break;
         }
     }
 
-    // Se não encontrou, adiciona novo dispositivo
+    // Add new device if not found
     if (!found)
     {
-        data.tid = deviceId; // Ensure the ID is set
-        // if (data.event == "status")
-        //{
-        // data.value.toUpperCase();
-        // data.status = data.value;
-        //}
+        data.tid = deviceId;
+
         deviceList.push_back(data);
     }
 
+    // Handle history
+    
     while (history.size() >= 4)
+    {
         history.erase(history.end());
+    }
 
-    DeviceInfoHistory hist;
-    hist.tid = data.tid;
-    hist.name = DeviceInfo::findName(data.tid);
-    hist.value = data.value;
-    history.insert(history.begin(), hist);
+    if (DeviceInfo::indexOf(data.tid) >= 0)
+    {
+        DeviceInfoHistory hist;
+        hist.tid = data.tid;
+        hist.name = DeviceInfo::findName(data.tid);
+        hist.value = data.value;
+
+        history.insert(history.begin(), hist);
+    }
 }
-
 void DeviceInfo::updateRegList(u_int8_t tid, DeviceRegData data)
 {
+
     bool found = false;
+
     for (auto &reg : deviceRegList)
     {
+
         if (reg.tid == tid)
         {
             found = true;
@@ -68,11 +82,13 @@ void DeviceInfo::updateRegList(u_int8_t tid, DeviceRegData data)
 
     if (!found)
     {
-        data.tid = tid; // Ensure the ID is set
-        deviceRegList.push_back(data);
-    }
-}
+        data.tid = tid;                                                                                  // Ensure the ID is set
 
+        deviceRegList.push_back(data);
+
+    }
+
+}
 int DeviceInfo::getTimeDifferenceSeconds(const unsigned long &lastSeenISOTime)
 {
     long dif = millis() - lastSeenISOTime;
