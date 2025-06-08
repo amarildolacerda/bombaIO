@@ -27,10 +27,12 @@ public:
         disp.setPos(5, 0);
         disp.print(event);
     }
+    String isoDateTime = "";
     void handle()
     {
         if (millis() - updated > 1000)
         {
+            isoDateTime = DeviceInfo::getISOTime();
             ps = stats.ps();
             update();
         }
@@ -52,11 +54,13 @@ public:
         disp.print((String)dispCount);
         disp.print("/");
         disp.print((String)regCount);
-        disp.print(" ");
-        disp.print(systemState.startedISODate.substring(0, 5));
-        disp.print("     ");
+        disp.print("|");
+        // disp.print(systemState.startedISODate.substring(0, 5));
+        disp.print((String)ps);
+        disp.print("ps");
+        disp.print("|     ");
         disp.setPos(6, 13);
-        disp.println(DeviceInfo::getISOTime().substring(11, 19)); // Mostra apenas HH:MM:SS
+        disp.println(isoDateTime.substring(11, 19)); // Mostra apenas HH:MM:SS
         disp.setTextColor(WHITE, BLACK);
     }
     bool loraConnected = false;
@@ -91,10 +95,10 @@ public:
         {
             disp.println((String)rssi);
         }
-        disp.setPos(2, 0);
-        disp.print("Rxs: ");
-        disp.print(String(ps));
-        disp.print(" ps");
+        // disp.setPos(2, 0);
+        // disp.print("Rxs: ");
+        // disp.print(String(ps));
+        // disp.print(" ps");
 
         /*   if (systemState.isDiscovering())
            {

@@ -69,11 +69,6 @@ void LoRaCom::handle()
 {
     loraInstance->loop();
 
-    displayManager.handle();
-    displayManager.rssi = loraInstance->packetRssi();
-    displayManager.snr = loraInstance->packetSnr();
-    displayManager.loraConnected = loraConnected;
-
     MessageRec rec;
     if (loraInstance->processIncoming(rec))
     {
@@ -87,6 +82,8 @@ void LoRaCom::handle()
     {
         displayManager.rssi = loraInstance->packetRssi();
         displayManager.snr = loraInstance->packetSnr();
+        displayManager.loraConnected = loraConnected;
+        displayManager.handle();
         ultimoRssi = millis();
     }
 #endif
