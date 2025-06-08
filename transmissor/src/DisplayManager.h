@@ -5,8 +5,8 @@
 
 #ifdef DISPLAY_ENABLED
 
-#include "deviceinfo.h"
-#include "queue_message.h"
+// #include "deviceinfo.h"
+// #include "queue_message.h"
 #ifdef ESP32
 #include <WiFi.h>
 #elif ESP8266
@@ -27,9 +27,15 @@ private:
     unsigned long updated = 0;
 
 public:
+    int termAtivos = 0;
+    int termTotal = 0;
     long ps = 0;
     int rssi = 0;
+    int snr = 0;
     String isoDateTime = "";
+    String startedISODateTime = "";
+    bool isDiscovering = false;
+
     void showMessage(const String event)
     {
         disp.setPos(5, 0);
@@ -41,6 +47,7 @@ public:
         {
 
             _update();
+            updated = millis();
         }
     }
     bool initialize()
@@ -51,17 +58,14 @@ public:
 private:
     void _showFooter()
     {
-        // int dispCount = DeviceInfo::deviceList.size();
-        // uint8_t regCount = DeviceInfo::deviceRegList.size();
         disp.fillRect(0, Config::SCREEN_HEIGHT - 12, Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT);
         disp.setTextColor(BLACK, WHITE);
         disp.setPos(6, 0);
         disp.print("D:");
-        // disp.print((String)dispCount);
+        disp.print((String)termAtivos);
         disp.print("/");
-        // disp.print((String)regCount);
+        disp.print((String)termTotal);
         disp.print("|");
-        // disp.print(systemState.startedISODate.substring(0, 5));
         disp.print((String)ps);
         disp.print("ps");
         disp.print("|     ");
@@ -84,8 +88,8 @@ private:
         static uint32_t ultimoBaixo = 0;
         if (millis() - ultimoBaixo > 10000)
         {
-            // baixo = (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD);
-            // Logger::log(LogLevel::WARNING, String("Sinal LoRa baixo: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
+            baixo = (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD);
+            Logger::log(LogLevel::WARNING, String("Sinal LoRa baixo: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
             ultimoBaixo = millis();
         }
         disp.setPos(1, 0);
@@ -95,24 +99,20 @@ private:
         if (!baixo)
         {
             disp.setPos(1, 13);
-            //   disp.println(systemState.lastUpdateTime);
+            disp.println(startedISODateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
         }
         else
         {
             disp.println((String)rssi);
         }
-        // disp.setPos(2, 0);
-        // disp.print("Rxs: ");
-        // disp.print(String(ps));
-        // disp.print(" ps");
 
-        /*   if (systemState.isDiscovering())
-           {
-               disp.setPos(3, 0);
-               disp.println(F("  Modo pareamento"));
-               disp.println(F("   em andamento")); // redundante, so esta preenchendo espaço no display
-           }
-        else */
+        if (isDiscovering)
+        {
+            disp.setPos(3, 0);
+            disp.println(F("  Modo pareamento"));
+            disp.println(F("   em andamento")); // redundante, so esta preenchendo espaço no display
+        }
+        /*else */
         /*if (DeviceInfo::history.size() > 0)
         {
             uint8_t i = 2;

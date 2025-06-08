@@ -126,6 +126,13 @@ public:
 
         return connected;
     };
+    int packetRssi() override
+    {
+        return LoRa.packetRssi(); // return the packet RSSI
+    }
+    int packetSnr() override{
+        return LoRa.packetSnr();
+    }
 };
 
 #endif
