@@ -11,11 +11,7 @@
 #elif ESP8266
 #endif
 
-#ifdef ESP8266
 #include <ESPAsyncWiFiManager.h>
-#elif ESP32
-#include <WiFiManager.h>
-#endif
 
 #include "LoRaCom.h"
 #include "logger.h"

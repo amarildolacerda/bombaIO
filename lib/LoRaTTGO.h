@@ -184,7 +184,6 @@ public:
         LoRa.setPreambleLength(8);
         LoRa.enableCrc();
         _promiscuos = promiscuous;
-        setState(LoRaRX);
 
         Logger::log(LogLevel::INFO, "LoRa inicializado com SF%d BW%ld CR%d PWR%d",
                     autoTuner.getCurrentSF(), autoTuner.getCurrentBW(),
