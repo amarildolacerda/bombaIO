@@ -1,17 +1,22 @@
 #include "LoRaCom.h"
 #include "logger.h"
 
-#ifdef ESP32
+#ifndef LORA
+#include "loradummy.h"
+#else
+
+#ifdef TTGO
 #include "LoRaTTGO.h"
-// #include "LoRa32.h"
-
-#elif RF95
+#endif
+#ifdef RF95
 #include <LoRaRF95.h>
-
+#endif
 #endif
 
 #include "config.h"
+#ifdef DISPLAY_ENABLED
 #include "display_manager.h"
+#endif
 #include "system_state.h"
 #include "device_info.h"
 #include "app_messages.h"
@@ -24,13 +29,24 @@ bool LoRaCom::loraConnected = false;
 void (*LoRaCom::onReceiveCallback)(MessageRec *) = nullptr;
 
 // ========== LoRaCom Implementations ==========
+// Add this helper function to set the loraInstance pointer
+void LoRaCom::setInstance(LoRaInterface *instance)
+{
+    loraInstance = instance;
+}
+
 bool LoRaCom::initialize()
 {
+
+#ifndef LORA
+    setInstance(new LoRaDummy());
+#else
 #ifdef TTGO
     // setInstance(new LoRa32());
     setInstance(new LoRaTTGO());
 #elif RF95
-    setInstance(new LoRaRF95());
+    setInstance(new LoraRF());
+#endif
 #endif
 
     loraInstance->config = LORA_MED;
@@ -52,8 +68,10 @@ bool LoRaCom::initialize()
     }
     loraInstance->setTerminalId(Config::TERMINAL_ID);
     loraInstance->setTerminalName(Config::TERMINAL_NAME);
-    displayManager.setVersion(Config::LMCU_VER);
 
+#ifdef DISPLAY_ENABLED
+    displayManager.setVersion(Config::LMCU_VER);
+#endif
     loraInstance->endSetup();
     Logger::log(LogLevel::INFO, "LoRa inicializado com sucesso");
     systemState.setLoraStatus(true);
@@ -76,7 +94,8 @@ void LoRaCom::handle()
         onReceiveCallback(&rec);
     }
 
-#ifdef TTGO
+#ifdef DISPLAY_ENABLED
+
     static uint32_t ultimoRssi = 0;
     if (millis() - ultimoRssi > 1000)
     {
@@ -108,16 +127,17 @@ void LoRaCom::handle()
 
 void LoRaCom::formatMessage(char *message, uint8_t tid, const char *event, const char *value)
 {
-
-    memset(message, 0, sizeof(message));
-    // snprintf(message,sizeof(message), "{\"dtype\":\"%s\",\"event\":\"%s\",\"value\":\"%s\"}", name, event, value);
+    int n = sizeof(message);
+    memset(message, 0, n);
     sprintf(message, "%s|%s", event, value);
 }
 
 void LoRaCom::ack(bool ak, uint8_t tid)
 {
     loraInstance->send(tid, (char *)(ak) ? EVT_ACK : EVT_NAK, "", 0);
+#ifdef DISPLAY_ENABLED
     displayManager.showMessage((String)tid + "->" + (ak) ? EVT_ACK : EVT_NAK);
+#endif
 }
 
 int LoRaCom::packetRssi()
@@ -146,7 +166,9 @@ bool LoRaCom::waitAck()
 bool LoRaCom::sendCommand(const String event, const String value, uint8_t tid)
 {
     loraInstance->send(tid, event.c_str(), value.c_str(), 0);
+#ifdef DISPLAY_ENABLED
     displayManager.showMessage((String)(tid) + "->" + event + ": " + value);
+#endif
     return true;
 }
 

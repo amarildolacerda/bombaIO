@@ -11,12 +11,19 @@
 #include "app_messages.h"
 #include "stats.h"
 
+#ifdef ESP8266
+
+static RH_RF95<HardwareSerial> rf95(Serial);
+
+#else
+
 #include <SoftwareSerial.h>
 SoftwareSerial SSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
 #define COMSerial SSerial
 #define ShowSerial Serial
 
-RH_RF95<SoftwareSerial> rf95(COMSerial);
+static RH_RF95<SoftwareSerial> rf95(COMSerial);
+#endif
 
 class LoraRF : public LoRaInterface
 {
@@ -24,6 +31,9 @@ private:
 public:
     bool begin(const uint8_t terminal_Id, long band, bool promisc = true) override
     {
+#ifdef ESP8266
+        Serial.swap();
+#endif
         terminalId = terminal_Id;
         connected = rf95.init();
         _promiscuos = promisc;
@@ -271,7 +281,10 @@ private:
     }
 };
 
+#ifdef TRANSMISSOR
+#else
 static LoraRF lora;
+#endif
 
 #endif
 #endif

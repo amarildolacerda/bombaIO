@@ -1,10 +1,10 @@
 
-
 #include "AlexaCom.h"
 #include "fauxmoESP.h"
 #include "logger.h"
 #include "device_info.h"
 #include "system_state.h"
+#include "ESPAsyncWebServer.h"
 
 fauxmoESP alexa;
 
@@ -53,7 +53,7 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
     alexa.createServer((server == NULL) ? true : false);
     alexa.setPort(80);
 
-    for (int i = 0; i < DeviceInfo::deviceRegList.size(); i++)
+    for (size_t i = 0; i < DeviceInfo::deviceRegList.size(); i++)
     {
         DeviceRegData reg = DeviceInfo::deviceRegList[i];
         if (reg.tid == 0)
@@ -117,12 +117,13 @@ void AlexaCom::updateStateAlexa(String uniqueName, String value)
         return;
     }
 
+#ifdef ALEXA
     // Add null check for alexa instance
-    if (&alexa)
-    {
-        alexa.setState(idx, value == "on", value == "on");
-        Logger::info("Send to Alexa %d %s", idx, value);
-    }
+
+    alexa.setState(idx, value == "on", value == "on");
+    Logger::info("Send to Alexa %d %s", idx, value);
+
+#endif
 }
 
 void AlexaCom::addDevice(uint8_t tid, const char *name)

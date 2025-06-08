@@ -1,8 +1,17 @@
-#pragma
+// Compiler: The project is compiled with the ESP-IDF toolchain for ESP32/ESP8266.
+// Platform: The project is designed to run on the ESP32/ESP8266 platform.
+#ifndef DISPPLAY_MANAGER_H
+#define DISPPLAY_MANAGER_H
+
+#ifdef DISPLAY_ENABLED
 
 #include "device_info.h"
 #include "queue_message.h"
+#ifdef ESP32
 #include <WiFi.h>
+#elif ESP8266
+#include <ESP8266WiFi.h>
+#endif
 #include "system_state.h"
 #include "stats.h"
 #ifdef DISPLAYTTGO
@@ -134,3 +143,6 @@ public:
 };
 
 static DisplayManager displayManager;
+
+#endif
+#endif

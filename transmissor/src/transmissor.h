@@ -9,19 +9,20 @@
 #include <time.h>
 #include <esp_task_wdt.h>
 #elif ESP8266
-#include "ESP8266WebServer.h"
-#include "ESP8266WiFi.h"
-#include "ESP8266httpUpdate.h"
 #endif
 
-#ifndef __AVR__
+#ifdef ESP8266
+#include <ESPAsyncWiFiManager.h>
+#elif ESP32
 #include <WiFiManager.h>
 #endif
 
 #include "LoRaCom.h"
 #include "logger.h"
 #include "config.h"
+#ifdef DISPLAY_ENABLED
 #include "display_manager.h"
+#endif
 #ifdef WS
 #include "html_tserver.h"
 #endif
@@ -44,6 +45,8 @@
 #include "ws_logger.h"
 #include <ESPAsyncWebServer.h>
 AsyncWebServer server(Config::WEBSERVER_PORT);
+DNSServer dns;
+
 #endif
 
 class App
@@ -63,6 +66,7 @@ private:
 
     static void alexaOnGetCallback(const char *device_name)
     {
+#ifdef ALEXA
         for (auto &dev : alexaCom.alexaDevices)
         {
             if (strcmp(dev.uniqueName().c_str(), device_name) == 0)
@@ -70,12 +74,13 @@ private:
                 // LoRaCom::sendCommand("status", "get", dev.tid);
             }
         }
+#endif
     }
 
     static void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
     {
 #ifdef ALEXA
-        const uint8_t alexaId = (uint8_t)device_id;
+        // const uint8_t alexaId = (uint8_t)device_id;
         char logMsg[128];
         snprintf(logMsg, sizeof(logMsg), "Callback da Alexa: %s", device_name);
         Logger::log(LogLevel::DEBUG, logMsg);
@@ -97,12 +102,12 @@ private:
     }
 
     //----------------------- WiFi ----------------------
-#if defined(ESP8266) || defined(ESP32)
+#ifdef WIFI
     void initWiFi()
     {
 
         WiFi.mode(WIFI_STA);
-        WiFiManager wifiManager;
+        AsyncWiFiManager wifiManager(&server, &dns);
         // wifiManager.resetSettings();
         wifiManager.setConnectTimeout(Config::WIFI_TIMEOUT_S);
         wifiManager.setConfigPortalTimeout(Config::WIFI_TIMEOUT_S);
@@ -129,7 +134,7 @@ private:
 #endif
 
     //----------------------- NTP ----------------------
-#if defined(ESP8266) || defined(ESP32)
+#ifdef WIFI
     void initNTP()
     {
         configTzTime(Config::TIMEZONE, Config::NTP_SERVER);
@@ -160,14 +165,15 @@ public:
     void setup()
     {
         // Configurar watchdog
+#ifdef ESP32
         esp_task_wdt_init(60, true);
-
+#endif
         // Inicialização segura da Serial
         Serial.begin(Config::SERIAL_BAUD);
         uint32_t serialTimeout = millis();
         while (!Serial && (millis() - serialTimeout < 5000))
             ;
-#if defined(ESP32) || defined(ESP8266)
+#ifdef WIFI
         initWiFi();
 
         initNTP();
@@ -175,21 +181,26 @@ public:
 
 #ifdef DEBUG_ON
         Serial.println("\n\nStarting with debug...");
-        // Enable detailed crash reports
+// Enable detailed crash reports
+#ifdef ESP32
         esp_log_level_set("*", ESP_LOG_VERBOSE);
+#endif
 #endif
         Serial.println(F("Iniciando sistema..."));
 
+#ifdef ESP32
         try
         {
+#endif
             Prefers::restoreRegs();
 
             if (!LoRaCom::initialize())
             {
-                throw std::runtime_error("Falha na inicialização do LoRa");
+                Logger::log(LogLevel::ERROR, "Falha na inicialização do LoRa");
             }
+#ifdef DISPLAY_ENABLED
             displayManager.initialize();
-
+#endif
             LoRaCom::setReceiveCallback(processIncoming);
 
 #ifdef WS
@@ -213,14 +224,18 @@ public:
             sinricCom.setup();
 #endif
 
+#ifdef DISPLAY_ENABLED
             displayManager.update();
+#endif
             systemState.setDiscovery(true);
+#ifdef ESP32
         }
         catch (const std::exception &e)
         {
             Logger::log(LogLevel::WARNING, e.what());
             safeRestart();
         }
+#endif
     }
 
     long ultimoReceived = 0;
@@ -242,8 +257,9 @@ public:
     // ========== Main Loop ==========
     void loop()
     {
+#ifdef ESP32
         esp_task_wdt_reset(); // Reset do watchdog
-
+#endif
         if (primeiraVez)
         {
             Logger::log(LogLevel::VERBOSE, "Loop iniciado");
@@ -347,11 +363,12 @@ protected:
                 Logger::log(LogLevel::ERROR, "Não está em modo discovery");
             }
         }
-
+#ifdef DISPLAY_ENABLED
         if (handled)
         {
             displayManager.showMessage(rec->event); // showEvent(tid, rec->event, rec->value);
         }
+#endif
         LoRaCom::ack(handled, tid);
     }
 };

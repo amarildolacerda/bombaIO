@@ -1,8 +1,9 @@
 
 #ifndef PREFERS_H
 #define PREFERS_H
-
+#ifndef ESP8266
 #include "Preferences.h"
+#endif
 #include "device_info.h"
 
 class Prefers
@@ -30,15 +31,18 @@ public:
                 continue;
             // Serial.print("  ");
             // Serial.println(data.toString());
+#ifndef ESP8266
             Preferences prefs;
             prefs.begin("devices", false);
             prefs.putString(("reg" + String(i)).c_str(), data.toString().c_str());
             prefs.end();
+#endif
         }
     }
 
     static void restoreRegs()
     {
+#ifndef ESP8266
         DeviceInfo::deviceRegList.clear();
         Preferences prefs;
         prefs.begin("devices", true);
@@ -58,6 +62,7 @@ public:
             }
         }
         prefs.end();
+#endif
     }
 };
 

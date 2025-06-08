@@ -17,13 +17,10 @@ protected:
 
 public:
     static void setReceiveCallback(void (*callback)(MessageRec *));
-    //{
-    //    onReceiveCallback = callback;
-    // }
-    static void setInstance(LoRaInterface *instance)
-    {
-        loraInstance = instance;
-    }
+//{
+//    onReceiveCallback = callback;
+// }
+    static void setInstance(LoRaInterface *instance);
     static bool initialize();
     static bool sendCommand(const String event, const String value, uint8_t tid = 0xFF);
     static void handle();

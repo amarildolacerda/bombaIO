@@ -3,7 +3,9 @@
 #include "logger.h"
 #include <Arduino.h>
 #include "config.h"
+#ifdef DISPLAY_ENABLED
 #include "display_manager.h"
+#endif
 #include "system_state.h"
 #include "device_info.h"
 #include "LoRaCom.h"
@@ -378,7 +380,9 @@ namespace HtmlServer
             DeviceInfo::deviceRegList.clear(); 
             DeviceInfo::deviceList.clear();
             Prefers::saveRegs();
+#ifdef DISPLAY_ENABLED
             displayManager.showMessage("Reset no dispositivos");
+#endif
 //            request->send(200, "text/plain", "OK"); 
             request->redirect("/");
             delay(100);

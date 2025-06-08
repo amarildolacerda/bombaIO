@@ -15,7 +15,7 @@ static portMUX_TYPE queueMutex = portMUX_INITIALIZER_UNLOCKED;
     portENTER_CRITICAL(&queueMutex); \
     portEXIT_CRITICAL(&queueMutex);
 #else
-#error "Plataforma não suportada"
+#define CRITICAL_SECTION 
 #endif
 
 #define MAX_EVENT_LEN 8
