@@ -80,7 +80,7 @@ namespace WSLogger
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Heltec WebSocket</title>
+    <title>Gateway WebSocket</title>
     <script>
         var ws = new WebSocket('ws://' + window.location.hostname + '/ws');
         ws.onopen = function() {
@@ -103,7 +103,7 @@ namespace WSLogger
     </script>
 </head>
 <body>
-    <h1>Controle Heltec</h1>
+    <h1>Logs Gateway</h1>
     <textarea id="logs" rows="10" cols="50" readonly></textarea><br>
     <input type="text" id="message" placeholder="Digite um comando">
     <button onclick="sendMessage()">Enviar</button>
