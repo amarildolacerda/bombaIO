@@ -27,7 +27,8 @@ namespace AppProcess
     static long lastStatusSend = 0;
     void setStatusChanged()
     {
-        lora.send(0, EVT_STATUS, digitalRead(Config::RELAY_PIN) ? GPIO_ON : GPIO_OFF, Config::TERMINAL_ID);
+        systemState.relayState = digitalRead(Config::RELAY_PIN) == HIGH;
+        lora.send(0, EVT_STATUS, systemState.relayState ? GPIO_ON : GPIO_OFF, Config::TERMINAL_ID);
         lastStatusSend = millis();
         stats.print();
     }

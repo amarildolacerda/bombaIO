@@ -62,11 +62,12 @@ namespace Config
 class SystemState
 {
 public:
-    long previousMillis = 0;
-    bool lastPinState : 1;
-    bool mustPresentation : 1;
-    String startedISODate = "";
-    String lastUpdateTime = "";
+    // long previousMillis = 0;
+    //  bool lastPinState : 1; // usado para armazenar o estado do pino do relé
+    bool mustPresentation : 1;  // usado para indicar se é necessário enviar a apresentação
+    String startedISODate = ""; // usado para armazenar a data de início do sistema
+    String lastUpdateTime = ""; // usado para armazenar o horário da última atualização
+    bool relayState = false;    // usado para armazenar o estado do relé
 
 #ifdef ESP32
     String getISOTime(String frmt = "%Y-%m-%dT%H:%M:%SZ")

@@ -105,6 +105,10 @@ public:
             disp.print(systemState.startedISODate.substring(0, 5));
         }
 
+        disp.setPos(3, 0);
+        disp.print("Estado: ");
+        disp.print(systemState.relayState ? "ON" : "OFF");
+
         disp.setPos(4, 0);
         disp.print(showEvent);
 
