@@ -11,6 +11,9 @@
 #ifdef RF95
 #include <LoRaRF95.h>
 #endif
+#ifdef HELTEC
+#include <LoRa32.h>
+#endif
 #endif
 
 #include "config.h"
@@ -47,20 +50,15 @@ bool LoRaCom::initialize()
 #elif RF95
     setInstance(new LoraRF());
 #endif
+#ifdef HELTEC
+    setInstance(new LoRa32());
+#endif
 #endif
 
     loraInstance->config = LORA_MED;
 
-#ifdef TTGO
     loraInstance->setPins(Config::LORA_CS_PIN, Config::LORA_RESET_PIN, Config::LORA_IRQ_PIN);
-#endif
-    loraConnected = loraInstance->begin(0, Config::LORA_BAND,
-#ifdef TTGO
-                                        false
-#else
-                                        true
-#endif
-    );
+    loraConnected = loraInstance->begin(0, Config::LORA_BAND, true);
     if (!loraConnected)
     {
         Logger::log(LogLevel::ERROR, "Falha ao iniciar LoRa");

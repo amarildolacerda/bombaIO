@@ -152,10 +152,10 @@ public:
             break;
         }
     }
+    virtual void modeRx() {};
+    virtual void modeTx() {};
     virtual bool sendMessage(MessageRec &rec) = 0;
     virtual bool receiveMessage() = 0;
-    virtual void modeRx() = 0;
-    virtual void modeTx() = 0;
     virtual bool begin(const uint8_t terminal_Id, long band, bool promisc = true) = 0;
 };
 

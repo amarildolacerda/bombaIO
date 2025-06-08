@@ -39,7 +39,7 @@ public:
     {
         if (millis() - updated > 1000)
         {
-            update();
+            _update();
             updated = millis();
         }
     }
@@ -49,7 +49,7 @@ public:
     }
 
     String ISOTime = "";
-    void showFooter()
+    void _showFooter()
     {
         // disp.setColor(BLACK);
         disp.fillRect(0, 6 * disp.rowHeight, 128, 64);
@@ -70,7 +70,7 @@ public:
     }
     bool loraConnected = false;
     String loraRcvEvent;
-    void update()
+    void _update()
 
     {
         disp.clearDisplay();
@@ -112,7 +112,7 @@ public:
         disp.setPos(4, 0);
         disp.print(showEvent);
 
-        showFooter();
+        _showFooter();
         disp.show();
     }
 };

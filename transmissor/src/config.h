@@ -27,30 +27,11 @@ namespace Config
     constexpr const uint8_t LORA_CS_PIN = 18;    // GPIO18 - Chip Select
     constexpr const uint8_t LORA_RESET_PIN = 14; // GPIO14 - Reset
     constexpr const uint8_t LORA_IRQ_PIN = 26;   // GPIO26 - Interrupção
-
-#define LORA_SF 8
-#define LORA_BW 125E3
-#define LORA_PW 14
-#define LORA_CR 5
-#define LORA_AUTO false
-
 #endif
-
 #ifdef HELTEC
-#define LORA_SF 8
-#define LORA_BW 125E3
-#define LORA_PW 14
-#define LORA_CR 5
-#define LORA_AUTO false
     constexpr const uint8_t LORA_CS_PIN = 18;    // GPIO18 - Chip Select
     constexpr const uint8_t LORA_RESET_PIN = 14; // GPIO14 - Reset
     constexpr const uint8_t LORA_IRQ_PIN = 26;   // GPIO26 - Interrupção
-#define LORA_SF 9
-#define LORA_BW 125E3
-#define LORA_PW 20
-#define LORA_CR 5
-#define LORA_AUTO false
-
 #endif
 
 #if defined(TTGO) || defined(HELTEC)
@@ -80,7 +61,7 @@ namespace Config
 
     // Sistema
     constexpr const uint32_t SERIAL_BAUD = 115200;
-    constexpr const uint32_t STATE_TIMEOUT_MS = 300000 / 5; // 5 minutos (status automático)
+    constexpr const uint32_t PING_TIMEOUT_MS = 10000;
     constexpr const uint32_t STATE_CHECK_INTERVAL = 30000;
     constexpr const uint32_t PRESENTATION_INTERVAL = 60000;
     constexpr const uint32_t COMMAND_TIMEOUT = 3000;

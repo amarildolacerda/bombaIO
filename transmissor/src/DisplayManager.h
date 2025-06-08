@@ -5,64 +5,61 @@
 
 #ifdef DISPLAY_ENABLED
 
-#include "device_info.h"
+#include "deviceinfo.h"
 #include "queue_message.h"
 #ifdef ESP32
 #include <WiFi.h>
 #elif ESP8266
 #include <ESP8266WiFi.h>
 #endif
-#include "system_state.h"
-#include "stats.h"
 #ifdef DISPLAYTTGO
 #include <DisplayTtgo.h>
 static DisplayTTGO disp;
+#endif
+#ifdef DISPLAYHELTEC
+#include <DisplayHeltec.h>
+static DisplayHeltec disp;
 #endif
 
 class DisplayManager
 {
 private:
     unsigned long updated = 0;
-    long ps = 0;
 
 public:
-    int snr = 0;
+    long ps = 0;
     int rssi = 0;
-    void setVersion(const String ver)
-    {
-    }
+    String isoDateTime = "";
     void showMessage(const String event)
     {
         disp.setPos(5, 0);
         disp.print(event);
     }
-    String isoDateTime = "";
     void handle()
     {
         if (millis() - updated > 1000)
         {
-            isoDateTime = DeviceInfo::getISOTime();
-            ps = stats.ps();
-            update();
+
+            _update();
         }
     }
     bool initialize()
     {
         return disp.initialize();
     }
-    void showFooter()
+
+private:
+    void _showFooter()
     {
-        int dispCount = DeviceInfo::deviceList.size();
-        uint8_t regCount = DeviceInfo::deviceRegList.size();
-        disp.setTextColor(WHITE, BLACK);
-        // disp.fillRect(0, Config::SCREEN_HEIGHT - 9, Config::SCREEN_WIDTH,
-        //               9, SSD1306_WHITE);
+        // int dispCount = DeviceInfo::deviceList.size();
+        // uint8_t regCount = DeviceInfo::deviceRegList.size();
+        disp.fillRect(0, Config::SCREEN_HEIGHT - 12, Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT);
         disp.setTextColor(BLACK, WHITE);
         disp.setPos(6, 0);
         disp.print("D:");
-        disp.print((String)dispCount);
+        // disp.print((String)dispCount);
         disp.print("/");
-        disp.print((String)regCount);
+        // disp.print((String)regCount);
         disp.print("|");
         // disp.print(systemState.startedISODate.substring(0, 5));
         disp.print((String)ps);
@@ -74,7 +71,7 @@ public:
     }
     bool loraConnected = false;
     String loraRcvEvent;
-    void update()
+    void _update()
 
     {
         disp.clearDisplay();
@@ -87,7 +84,7 @@ public:
         static uint32_t ultimoBaixo = 0;
         if (millis() - ultimoBaixo > 10000)
         {
-            baixo = (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD);
+            // baixo = (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD);
             // Logger::log(LogLevel::WARNING, String("Sinal LoRa baixo: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
             ultimoBaixo = millis();
         }
@@ -98,7 +95,7 @@ public:
         if (!baixo)
         {
             disp.setPos(1, 13);
-            disp.println(systemState.lastUpdateTime);
+            //   disp.println(systemState.lastUpdateTime);
         }
         else
         {
@@ -116,7 +113,7 @@ public:
                disp.println(F("   em andamento")); // redundante, so esta preenchendo espaço no display
            }
         else */
-        if (DeviceInfo::history.size() > 0)
+        /*if (DeviceInfo::history.size() > 0)
         {
             uint8_t i = 2;
             for (const auto &d : DeviceInfo::history)
@@ -132,12 +129,12 @@ public:
                 // Serial.print(d.value);
             }
         }
-        else
+        else*/
         {
             disp.setPos(4, 0);
             disp.println(F("Evento: NENHUM"));
         }
-        showFooter();
+        _showFooter();
         disp.show();
     }
 };
