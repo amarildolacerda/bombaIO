@@ -11,7 +11,8 @@ public:
     bool sendMessage(MessageRec &rec)
     {
         stats.txCount++;
-        Serial.println("LoRa Dummy");
+        Logger::log(LogLevel::SEND, "Envio: %s", rec.event);
+
 #ifdef DEBUG_ON
         rec.print();
 #endif
@@ -20,34 +21,6 @@ public:
     bool receiveMessage()
     {
         stats.rxCount++;
-        return true;
-    };
-    void modeRx() {};
-    void modeTx()
-    {
-        setState(LoRaRX);
-    };
-    bool begin(const uint8_t terminal_Id, long band, bool promisc = true)
-    {
-        connected = true;
-        return true;
-    };
-    void loop() override
-    {
-        LoRaInterface::loop();
-        static long lastReceive = 0;
-        if (millis() - lastReceive > 10000)
-        {
-            lastReceive = millis();
-            MessageRec rec;
-            rec.from = terminalId;
-            rec.to = 0xFF; // Broadcast
-            rec.hope = ALIVE_PACKET;
-            rec.id = ++nHeaderId;
-            snprintf(rec.event, sizeof(rec.event), EVT_PING);
-            snprintf(rec.value, sizeof(rec.value), "dummy");
-            txQueue.pushItem(rec);
-        }
         // simula um terminal enviando um status
         static long simulaStatus = 0;
         if (millis() - simulaStatus > 5000)
@@ -66,6 +39,35 @@ public:
                 snprintf(rec.value, sizeof(rec.value), "off");
             Logger::log(LogLevel::RECEIVE, "Simulando status: %s", rec.value);
             rxQueue.pushItem(rec);
+        }
+        return !rxQueue.isEmpty();
+    };
+    void modeRx() {};
+    void modeTx() {
+
+    };
+    bool begin(const uint8_t terminal_Id, long band, bool promisc = true)
+    {
+        connected = true;
+        return true;
+    };
+    void loop() override
+    {
+        LoRaInterface::loop();
+        static long lastReceive = 0;
+        if (millis() - lastReceive > 1000)
+        {
+            lastReceive = millis();
+            MessageRec rec;
+            rec.from = terminalId;
+            rec.to = 0xFF; // Broadcast
+            rec.hope = ALIVE_PACKET;
+            rec.id = ++nHeaderId;
+            snprintf(rec.event, sizeof(rec.event), EVT_PING);
+            snprintf(rec.value, sizeof(rec.value), "dummy");
+            txQueue.pushItem(rec);
+            // Serial.print(txQueue.size());
+            // Serial.println(" ------------------------------TX");
         }
     }
 };

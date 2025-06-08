@@ -7,10 +7,8 @@
 //[stable]
 enum LoRaStates
 {
-    LoRaTX,
     LoRaRX,
-    LoRaWAITING,
-    LoRaIDLE,
+    LoRaTX
 };
 
 enum LoRaConfig
@@ -40,7 +38,26 @@ protected:
     const char bEOF = '}';
     const char bBOF = '{';
     const char bSEP = '|';
+
+private:
     LoRaStates state = LoRaRX;
+    void setState(LoRaStates st)
+    {
+        state = st;
+        switch (state)
+        {
+        case LoRaRX:
+            modeRx();
+            /* code */
+            break;
+        case LoRaTX:
+            modeTx();
+            break;
+        default:
+
+            break;
+        }
+    }
 
 public:
     LoRaConfig config = LORA_MED;
@@ -91,35 +108,14 @@ public:
     {
         return rxQueue.popItem(rec);
     }
-    virtual void setState(LoRaStates st)
-    {
-        state = st;
-        switch (state)
-        {
-        case LoRaRX:
-            modeRx();
-#ifdef DEBUG_ON
-            Serial.println("ModeRx");
-#endif
-            /* code */
-            break;
-        case LoRaTX:
-            modeTx();
-#ifdef DEBUG_ON
-            Serial.println("ModeTx");
-#endif
-            break;
-        default:
-            modeRx();
-            state = LoRaRX;
-            break;
-        }
-    }
     bool sendNextMessage()
     {
         MessageRec rec;
         if (!txQueue.popItem(rec))
+        {
+            // Serial.println("No message to send");
             return false;
+        }
         return sendMessage(rec);
     }
 
@@ -128,13 +124,6 @@ public:
     {
         switch (state)
         {
-        case LoRaIDLE:
-            lastStateChange = millis();
-            setState(LoRaRX);
-            break;
-        case LoRaWAITING:
-            setState(LoRaRX);
-            break;
         case LoRaRX:
             if (receiveMessage())
                 lastStateChange = millis();
@@ -157,7 +146,7 @@ public:
             if (millis() - lastStateChange > MESSAGE_TIMEOUT_MS)
             {
                 setState(LoRaRX);
-                //                lastStateChange = millis();
+                lastStateChange = millis();
             }
 
             break;
