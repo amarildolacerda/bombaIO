@@ -9,27 +9,27 @@ std::vector<DeviceInfoHistory> DeviceInfo::history;
 
 void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
 {
-    
+
     // Early return check
     if ((deviceId == 0) || (deviceId == 0xFF))
     {
         return;
     }
 
-                  data.event.c_str(), data.value.c_str()); // Debug 3
+    // Debug 3
 
     bool found = false;
-    
+
     // Search for existing device
     for (auto &device : deviceList)
     {
-    
+
         if (device.tid == deviceId)
         {
             found = true;
 
             // Update device data
-    
+
             device.event = data.event;
             device.value = data.value;
             device.rssi = data.rssi;
@@ -48,7 +48,7 @@ void DeviceInfo::updateDeviceList(uint8_t deviceId, DeviceInfoData data)
     }
 
     // Handle history
-    
+
     while (history.size() >= 4)
     {
         history.erase(history.end());
@@ -82,12 +82,10 @@ void DeviceInfo::updateRegList(u_int8_t tid, DeviceRegData data)
 
     if (!found)
     {
-        data.tid = tid;                                                                                  // Ensure the ID is set
+        data.tid = tid; // Ensure the ID is set
 
         deviceRegList.push_back(data);
-
     }
-
 }
 int DeviceInfo::getTimeDifferenceSeconds(const unsigned long &lastSeenISOTime)
 {
