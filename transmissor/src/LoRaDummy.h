@@ -2,6 +2,7 @@
 #define LORA_DUMMY_H
 #include "lorainterface.h"
 #include "stats.h"
+#include "app_messages.h"
 
 class LoRaDummy : public LoRaInterface
 {
@@ -31,5 +32,41 @@ public:
         connected = true;
         return true;
     };
+    void loop() override
+    {
+        LoRaInterface::loop();
+        static long lastReceive = 0;
+        if (millis() - lastReceive > 10000)
+        {
+            lastReceive = millis();
+            MessageRec rec;
+            rec.from = terminalId;
+            rec.to = 0xFF; // Broadcast
+            rec.hope = ALIVE_PACKET;
+            rec.id = ++nHeaderId;
+            snprintf(rec.event, sizeof(rec.event), EVT_PING);
+            snprintf(rec.value, sizeof(rec.value), "dummy");
+            txQueue.pushItem(rec);
+        }
+        // simula um terminal enviando um status
+        static long simulaStatus = 0;
+        if (millis() - simulaStatus > 5000)
+        {
+            simulaStatus = millis();
+
+            MessageRec rec;
+            rec.from = 200;
+            rec.to = 0; // Broadcast
+            rec.hope = ALIVE_PACKET;
+            rec.id = ++nHeaderId;
+            snprintf(rec.event, sizeof(rec.event), EVT_STATUS);
+            if (nHeaderId % 2 == 0)
+                snprintf(rec.value, sizeof(rec.value), "on");
+            else
+                snprintf(rec.value, sizeof(rec.value), "off");
+            Logger::log(LogLevel::RECEIVE, "Simulando status: %s", rec.value);
+            rxQueue.pushItem(rec);
+        }
+    }
 };
 #endif
