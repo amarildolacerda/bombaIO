@@ -28,6 +28,7 @@ public:
 #endif
     static void info(const char *msg, ...);
     static void error(const char *msg, ...);
+    static void debug(const char *msg, ...);
     static bool log(LogLevel level, const char *format, ...);
 
 private:

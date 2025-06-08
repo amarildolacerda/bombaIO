@@ -26,6 +26,13 @@ void Logger::error(const char *msg, ...)
     vlog(LogLevel::ERROR, msg, args);
     va_end(args);
 }
+void Logger::debug(const char *msg, ...)
+{
+    va_list args;
+    va_start(args, msg);
+    vlog(LogLevel::DEBUG, msg, args);
+    va_end(args);
+}
 
 bool Logger::log(const LogLevel level, const char *format, ...)
 {
@@ -76,7 +83,7 @@ bool Logger::vlog(const LogLevel level, const char *format, va_list args)
 #ifdef WIFI
     if (logCallback)
     {
-        char msg[100] = {0};
+        char msg[255] = {0};
 
         sprintf(msg, "%s %s", levelBuffer, formattedMsg);
         logCallback(msg);
