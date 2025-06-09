@@ -138,7 +138,7 @@ namespace HtmlServer
 
         html += "<script>";
         html += "async function updateStatus(id) {";
-        html += "  const res = await fetch(`/ctlDevice?tid=${id}&action=status`, { method: 'POST' });";
+        html += "  const res = await fetch(`/ctlDevice?tid=${id}&action=" + String(EVT_STATUS) + "`, { method: 'POST' });";
         html += "  const statusElement = document.getElementById(`device-status-${id}`);";
         html += "  if (res.ok) {";
         html += "    const json = await res.json();";
@@ -214,7 +214,7 @@ namespace HtmlServer
 
             html += "<script>";
             html += "async function updateStatus() {";
-            html += "  const res = await fetch(`/ctlDevice?tid=" + String(rdata.tid) + "&action=status`, { method: 'POST' });";
+            html += "  const res = await fetch(`/ctlDevice?tid=" + String(rdata.tid) + "&action=" + EVT_STATUS + "`, { method: 'POST' });";
             html += "  if (res.ok) {";
             html += "    const json = await res.json();";
             html += "    document.getElementById('device-status').innerText = 'Estado: ' + json.status;";
@@ -328,7 +328,11 @@ namespace HtmlServer
 
         const int16_t x = deviceInfo.indexOf(tid);
 
-        LoRaCom::send(tid, "gpio", action);
+        if (action != EVT_STATUS)
+        {
+            LoRaCom::send(tid, EVT_GPIO, action);
+            Logger::info("WS %d %s", tid, action);
+        }
 
         String status = "Aguardando";
         if (x >= 0)
@@ -338,7 +342,7 @@ namespace HtmlServer
             // LoRaCom::sendCommand("status", "get", tid); // muitas chamadas redundandtes.
             int timeDiff = deviceInfo.diffSeconds(data.lastSeen);
             bool isOffline = (timeDiff == -1) || (timeDiff > 60 * 5);
-            status = isOffline ? "Não Responde" : (data.state ? "on" : "off");
+            status = isOffline ? "Não Responde" : (data.state ? "Ligado" : "Desligado");
         }
         respStatus(request, tid, status);
     }

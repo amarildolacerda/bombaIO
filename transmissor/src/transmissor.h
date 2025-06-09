@@ -224,6 +224,10 @@ public:
         }
         else if (strcmp(rec.event, EVT_ACK) == 0)
         {
+            if (strlen(rec.value) > 0)
+            {
+                deviceInfo.updateDeviceName(rec.from, rec.value);
+            }
             // Nada a fazer
         }
         else if (strcmp(rec.event, EVT_NAK) == 0)
@@ -233,6 +237,11 @@ public:
         else if (strcmp(rec.event, EVT_PONG) == 0)
         {
             ackNak(rec.from, true);
+            if (strlen(rec.value) > 0)
+            {
+                deviceInfo.updateDeviceName(rec.from, rec.value);
+            }
+            // Na
         }
         else if (strcmp(rec.event, EVT_STATUS) == 0)
         {
@@ -242,6 +251,7 @@ public:
         else if (strcmp(rec.event, EVT_PRESENTATION) == 0)
         {
             ackNak(rec.from, true);
+
 #ifdef GATEWAY
             deviceInfo.updateDevice(rec.from, rec.value, false, lora.packetRssi());
             if (rec.from != 0xFF)

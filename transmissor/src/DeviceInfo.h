@@ -144,6 +144,14 @@ public:
         }
         return -1; // Return -1 if not found
     }
+    void updateDeviceName(const uint8_t tid, String name)
+    {
+        int x = indexOf(tid);
+        if (x >= 0)
+        {
+            list[x].name = name;
+        }
+    }
 };
 
 extern DeviceInfo deviceInfo;
