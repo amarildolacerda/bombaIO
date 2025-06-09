@@ -202,10 +202,10 @@ public:
         }
 #endif
     }
+
+    //------------------------------------------------
     void handleReceived(MessageRec &rec)
     {
-        Logger::info("Handled from: %d event: %s|%s", rec.from, rec.event, rec.value);
-
 #ifdef DISPLAY_ENABLED
         displayManager.showEvent(String(rec.from) + " " + String(rec.event) + "  " + String(rec.value));
 #endif
@@ -227,22 +227,22 @@ public:
             }
             else
             {
-                {
-                    Logger::error("GPIO command not recognized: %s", rec.value);
-                }
                 return;
             }
         }
 #endif
+
         if (strcmp(rec.event, EVT_PING) == 0)
         {
             lora.send(rec.from, EVT_PONG, Config::TERMINAL_NAME, systemState.terminalId);
         }
-        else if (strcmp(rec.event, EVT_ACK))
+        else if (strcmp(rec.event, EVT_ACK) == 0)
         {
+            // Nada a fazer
         }
         else if (strcmp(rec.event, EVT_NAK) == 0)
         {
+            // Nada a fazer
         }
         else if (strcmp(rec.event, EVT_PONG) == 0)
         {
@@ -261,10 +261,6 @@ public:
             if (rec.from != 0xFF)
                 alexaCom.addDevice(rec.from, String(rec.from).c_str());
 #endif
-        }
-        else
-        {
-            Logger::info("Received message from: %d event: %s|%s", rec.from, rec.event, rec.value);
         }
     }
 };

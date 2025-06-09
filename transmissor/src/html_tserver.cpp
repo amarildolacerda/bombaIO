@@ -118,19 +118,19 @@ namespace HtmlServer
         for (auto &data : deviceInfo.getDevices())
         {
             data.name.toUpperCase();
-            if (data.tid > 0)
-            {
-                html += "    <div class='device-card'>";
-                html += "      <h3>";
-                html += "      <div style='cursor:pointer;' onclick=\"window.location='/device?tid=" + String(data.tid) + "'\">" + String(data.name) + "</div></h3>";
-                html += "      <hr/>";
-                html += "      <p id='device-status-" + String(data.tid) + "'>...</p>";
-                html += "      <div class='device-actions'>";
-                html += "        <button onclick=\"controlDevice(" + String(data.tid) + ", 'on')\" class='btn-success'>Ligar</button>";
-                html += "        <button onclick=\"controlDevice(" + String(data.tid) + ", 'off')\" class='btn-danger'>Desligar</button>";
-                html += "      </div>";
-                html += "    </div>";
-            }
+            // if (data.tid > 0)
+            //{
+            html += "    <div class='device-card'>";
+            html += "      <h3>";
+            html += "      <div style='cursor:pointer;' onclick=\"window.location='/device?tid=" + String(data.tid) + "'\">" + String(data.name) + "</div></h3>";
+            html += "      <hr/>";
+            html += "      <p id='device-status-" + String(data.tid) + "'>...</p>";
+            html += "      <div class='device-actions'>";
+            html += "        <button onclick=\"controlDevice(" + String(data.tid) + ", 'on')\" class='btn-success'>Ligar</button>";
+            html += "        <button onclick=\"controlDevice(" + String(data.tid) + ", 'off')\" class='btn-danger'>Desligar</button>";
+            html += "      </div>";
+            html += "    </div>";
+            // }
         }
 
         html += "  </div>";

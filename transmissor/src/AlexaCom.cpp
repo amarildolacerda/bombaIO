@@ -1,7 +1,6 @@
 
 #ifdef ALEXA
 #include "AlexaCom.h"
-#include "logger.h"
 #include "deviceinfo.h"
 #include "systemstate.h"
 #include "ESPAsyncWebServer.h"
@@ -37,10 +36,14 @@ void AlexaCom::aliveOffLineAlexa()
         }
     }
 }
+
 void AlexaCom::DoCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
 {
+    int idx = findBYAlexaId(device_id);
+    if (idx < 0)
+        return;
     if (alexaDeviceCallback)
-        alexaDeviceCallback(device_id, device_name, state, value);
+        alexaDeviceCallback(alexaDevices[idx].tid, device_name, state, value);
 }
 void AlexaCom::DoGetCallback(unsigned char device_id, const char *device_name)
 {
@@ -144,6 +147,7 @@ void AlexaCom::addDevice(uint8_t tid, const char *name)
         map.alexaId = alexa.getDeviceId(aname.c_str());
         alexaDevices.push_back(map);
     }
+    Logger::info("Adicionou Alexa: %s", aname);
 #endif
 }
 #endif

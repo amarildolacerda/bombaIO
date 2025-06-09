@@ -4,6 +4,7 @@
 
 #ifdef ALEXA
 #include <ESPAsyncWebServer.h>
+#include "logger.h"
 
 struct AlexaDeviceMap
 {
@@ -19,7 +20,7 @@ struct AlexaDeviceMap
     }
 };
 
-typedef std::function<void(unsigned char, const char *, bool, unsigned char)> AlexaCallbackType;
+typedef std::function<void(uint8_t tid, const char *, bool, unsigned char)> AlexaCallbackType;
 typedef std::function<void(const char *)> AlexaOnGetCallback;
 
 class AlexaCom
@@ -51,7 +52,17 @@ public:
             if (alexaDevices[i].tid == tid)
                 return i;
         }
-        Serial.println("Nao achei o terminal Alexa");
+        Logger::error("Alexa, nao achei o terminal  %d", tid);
+        return -1;
+    }
+    int findBYAlexaId(unsigned char device_id)
+    {
+        for (size_t i = 0; i < alexaDevices.size(); i++)
+        {
+            if (alexaDevices[i].alexaId == device_id)
+                return i;
+        }
+        Logger::error("Alexa, nao registrou o terminal %d", device_id);
         return -1;
     }
 };
