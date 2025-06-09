@@ -65,6 +65,7 @@ namespace Config
     constexpr const uint32_t STATE_CHECK_INTERVAL = 30000;
     constexpr const uint32_t PRESENTATION_INTERVAL = 60000;
     constexpr const uint32_t COMMAND_TIMEOUT = 3000;
+    constexpr const uint32_t RELAY_PIN = 5; // Atualização a cada 1 minuto
 
     // Tuya IoT
     constexpr const char *LPID = "sshilmfl"; // Substituir pelo PID real

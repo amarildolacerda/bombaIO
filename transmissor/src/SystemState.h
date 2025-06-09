@@ -1,11 +1,15 @@
 
 #pragma once
+
 class SystemState
 {
 private:
     long discoveryUpdate = 0;
 
 public:
+    uint8_t terminalId = 0;   // ID do terminal, 0 para gateway
+    String terminalName = ""; // Nome do terminal, usado para identificação
+    bool isGateway = true;
     long previousMillis = 0;
     String startedISODateTime = ""; // used to store the system start date
     bool isRunning = false;

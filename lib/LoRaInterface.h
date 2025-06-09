@@ -130,7 +130,15 @@ public:
     }
 
     virtual ~LoRaInterface() {}
-    virtual bool send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId)
+    virtual bool receive(MessageRec &rec)
+    {
+        if (rec.id == 0)
+            rec.id = ++nHeaderId;
+        return rxQueue.pushItem(rec);
+    }
+
+    virtual bool
+    send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId)
     {
         MessageRec rec;
         memset(&rec, 0, sizeof(MessageRec));

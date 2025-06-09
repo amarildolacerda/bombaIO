@@ -7,6 +7,7 @@
 #include <config.h>
 #include <app_messages.h>
 #include "logger.h"
+#include "stats.h"
 const int csPin = 18;    // LoRa radio chip select
 const int resetPin = 14; // LoRa radio reset
 const int irqPin = 26;   // change for your board; must be a hardware interrupt pin
@@ -16,8 +17,8 @@ class LoRa32 : public LoRaInterface
 public:
     bool sendMessage(MessageRec &rec) override
     {
+        stats.txCount++;
         String outgoing = "{" + String(rec.event) + "|" + String(rec.value) + "}";
-        static uint8_t msgCount = 0;
         LoRa.beginPacket();                // start packet
         LoRa.write(rec.to);                // add destination address
         LoRa.write(rec.from);              // add sender address
@@ -25,14 +26,19 @@ public:
         LoRa.write(outgoing.length() + 1); // add payload length
         LoRa.write(rec.hope);
         LoRa.print(outgoing); // add payload
-        LoRa.endPacket();     // finish packet and send it
-        msgCount++;           // increment message ID
+        if (LoRa.endPacket() > 0)
+        {
+            stats.txSuccess++;
+        }; // finish packet and send it
+
         Logger::log(LogLevel::SEND, "[%d-%d:%d](%d) %s|%s", rec.from, rec.to, rec.id, rec.hope, rec.event, rec.value);
         return true;
     };
 
     bool receiveMessage() override
     {
+        stats.rxCount++;
+
         int packetSize = LoRa.parsePacket();
         if (packetSize == 0)
             return false; // if there's no packet, return
@@ -82,7 +88,7 @@ public:
 
         rxQueue.pushItem(rec); // add to rx queue
         Logger::log(LogLevel::RECEIVE, "[%d-%d:%d](%d) %s|%s", rec.from, rec.to, rec.id, rec.hope, rec.event, rec.value);
-
+        stats.rxSuccess++;
         return true;
     };
     void configParams()

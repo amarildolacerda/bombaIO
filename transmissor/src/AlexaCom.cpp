@@ -1,57 +1,59 @@
 
 #include "AlexaCom.h"
-#include "fauxmoESP.h"
 #include "logger.h"
 #include "deviceinfo.h"
 #include "systemstate.h"
 #include "ESPAsyncWebServer.h"
 
+#ifdef ALEXA
+#include "fauxmoESP.h"
 fauxmoESP alexa;
+#endif
 
 AlexaCom alexaCom;
 
 void AlexaCom::aliveOffLineAlexa()
 {
-    /*    DeviceInfoData data;
-        for (auto &dev : alexaDevices)
+    DeviceData data;
+    for (auto &dev : alexaDevices)
+    {
+        int idx = deviceInfo.indexOf(dev.tid);
+        int secs = 60;
+        if (idx >= 0)
         {
-            int idx = DeviceInfo::dataOf(dev.tid);
-            int secs = 60;
-            if (idx >= 0)
+            data = deviceInfo.getDevices()[idx];
+            secs = deviceInfo.diffSeconds(data.lastSeen);
+#ifdef ALEXA
+            if (secs >= 60 * 5)
             {
-                data = DeviceInfo::deviceList[idx];
-                secs = DeviceInfo::getTimeDifferenceSeconds(data.lastSeen);
-                if (secs >= 60 * 5)
-                {
-                    alexa.setState(dev.uniqueName().c_str(), false, 0);
-                }
-                else
-                {
-                    alexa.setState(dev.uniqueName().c_str(), data.value == "on", 100);
-                }
+                alexa.setState(dev.uniqueName().c_str(), false, 0);
             }
+            else
+            {
+                alexa.setState(dev.uniqueName().c_str(), data.state, 100);
+            }
+#endif
         }
-            */
+    }
 }
 void AlexaCom::DoCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
 {
-    /* if (alexaDeviceCallback)
-         alexaDeviceCallback(device_id, device_name, state, value);
-         */
+    if (alexaDeviceCallback)
+        alexaDeviceCallback(device_id, device_name, state, value);
 }
 void AlexaCom::DoGetCallback(unsigned char device_id, const char *device_name)
 {
-    /*
+
     if (onGetCallbackFn)
     {
         onGetCallbackFn(device_name);
     }
-        */
 }
 
 void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
 {
     alexaDeviceCallback = callback;
+#ifdef ALEXA
     Logger::info("Alexa Init");
 
     alexa.createServer((server == NULL) ? true : false);
@@ -63,7 +65,11 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
         if (reg.tid == 0)
             continue;
 
-        addDevice(reg.tid, reg.terminalName().c_str());
+        AlexaDeviceMap map;
+        map.tid = reg.tid;
+        map.name = reg.name;
+
+        addDevice(reg.tid, map.uniqueName().c_str());
     }
 
     alexa.onSetState([](unsigned char device_id, const char *device_name, bool state, unsigned char value)
@@ -100,33 +106,27 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
              */
     alexa.enable(true);
     Logger::log(LogLevel::INFO, "Alexa Enable(true)");
+#endif
 }
 
 void AlexaCom::loop()
 
 {
+#ifdef ALEXA
     alexa.handle();
+#endif
 }
 
-void AlexaCom::updateStateAlexa(String uniqueName, String value)
+void AlexaCom::updateStateAlexa(const uint8_t tid, const bool value)
 {
-    if (uniqueName.length() == 0)
-        return; // Add validation
-
-    uniqueName.toLowerCase();
-    int idx = alexa.getDeviceId(uniqueName.c_str());
-    if (idx < 0)
-    {
-        Logger::error(String("Nao achei alexa device: " + String(uniqueName)).c_str());
-        return;
-    }
+    uint8_t id = indexOf(tid);
+    if (id < 0)
+        return; // Device not found
+    uint8_t alexaId = alexaDevices[id].alexaId;
 
 #ifdef ALEXA
-    // Add null check for alexa instance
-
-    alexa.setState(idx, value == "on", value == "on");
-    Logger::info("Send to Alexa %d %s", idx, value);
-
+    alexa.setState(alexaId, value, value);
+    Logger::info("Send to Alexa %d %s", alexaId, value ? "on" : "off");
 #endif
 }
 
@@ -136,10 +136,12 @@ void AlexaCom::addDevice(uint8_t tid, const char *name)
     map.tid = tid;
     map.name = name;
     String aname = map.uniqueName();
+#ifdef ALEXA
     if (alexa.getDeviceId(aname.c_str()) < 0)
     {
         alexa.addDevice(aname.c_str());
         map.alexaId = alexa.getDeviceId(aname.c_str());
         alexaDevices.push_back(map);
     }
+#endif
 }

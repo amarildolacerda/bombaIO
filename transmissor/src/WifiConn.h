@@ -44,7 +44,7 @@ private:
     void initNTP()
     {
         waitForSync();
-        myTZ.setLocation();
+        myTZ.setLocation("GeoIP");
 
         systemState.startedISODateTime = getISOTime();
     }

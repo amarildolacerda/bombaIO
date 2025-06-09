@@ -328,21 +328,7 @@ namespace HtmlServer
 
         const int16_t x = deviceInfo.indexOf(tid);
 
-        if (action == "toggle")
-        { // o tid é o handle do dispositivo, nao depende de procura
-            // pode ser que o terminal nao esta respondendo, mas mesh o alcance
-            LoRaCom::send("gpio", "toggle", tid);
-        }
-        if (action == "on")
-        { // o tid é o handle do dispositivo, nao depende de procura
-            // pode ser que o terminal nao esta respondendo, mas mesh o alcance
-            LoRaCom::send("gpio", "on", tid);
-        }
-        if (action == "off")
-        { // o tid é o handle do dispositivo, nao depende de procura
-            // pode ser que o terminal nao esta respondendo, mas mesh o alcance
-            LoRaCom::send("gpio", "off", tid);
-        }
+        LoRaCom::send(tid, "gpio", action);
 
         String status = "Aguardando";
         if (x >= 0)

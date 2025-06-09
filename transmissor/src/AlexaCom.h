@@ -11,7 +11,7 @@ struct AlexaDeviceMap
     String name;     // Nome do dispositivo
     String uniqueName()
     {
-        return name;
+        return "TERM" + String(tid);
         // String a = name + "." + String(tid);
         // a.toLowerCase();
         // return a;
@@ -40,9 +40,19 @@ public:
 
     void loop();
     void aliveOffLineAlexa();
-    void updateStateAlexa(String uniqueName, String value);
+    void updateStateAlexa(const uint8_t tid, const bool value);
 
     void addDevice(uint8_t tid, const char *name);
+    int indexOf(const uint8_t tid)
+    {
+        for (size_t i = 0; i < alexaDevices.size(); i++)
+        {
+            if (alexaDevices[i].tid == tid)
+                return i;
+        }
+        Serial.println("Nao achei o terminal Alexa");
+        return -1;
+    }
 };
 
 extern AlexaCom alexaCom;
