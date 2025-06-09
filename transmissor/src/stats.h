@@ -39,10 +39,10 @@ public:
 */    }
 long ps()
 {
-    // return (rxCount / ((((millis() - resetTime)) / 1000) + 1)); // +1 para garantir >0
-    return rxSuccess;
+    return (rxCount / ((((millis() - resetTime)) / 1000) + 1)); // +1 para garantir >0
+    // return rxSuccess;
 }
 };
 
-static Stats stats;
+extern Stats stats;
 #endif
