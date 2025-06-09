@@ -11,6 +11,7 @@
 #include "DeviceInfo.h"
 #include "AlexaCom.h"
 #include "ws_logger.h"
+#include "html_tserver.h"
 #ifdef WIFI
 #include "ws_logger.h"
 #include <ESPAsyncWebServer.h>
@@ -71,6 +72,10 @@ public:
         initAlexa();
         delay(500); // Estabilização após conexão
 
+#ifdef WS
+        HtmlServer::initWebServer(&server);
+        HtmlServer::begin();
+#endif
         WSLogger::initWs(server);
 
         return systemState.isConnected;
@@ -89,6 +94,7 @@ public:
     void loop()
     {
         alexaCom.loop();
+        HtmlServer::process();
     }
     String getISOTime(String format = "")
     {
