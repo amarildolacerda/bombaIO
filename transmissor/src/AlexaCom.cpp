@@ -1,4 +1,5 @@
 
+#ifdef ALEXA
 #include "AlexaCom.h"
 #include "logger.h"
 #include "deviceinfo.h"
@@ -145,3 +146,4 @@ void AlexaCom::addDevice(uint8_t tid, const char *name)
     }
 #endif
 }
+#endif

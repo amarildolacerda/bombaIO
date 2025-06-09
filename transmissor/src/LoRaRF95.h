@@ -74,6 +74,7 @@ public:
     }
 
 private:
+    uint8_t _headerHope = 0;
     void modeRx() override
     {
         rf95.setModeRx();
@@ -93,7 +94,7 @@ private:
         rec.to = rf95.headerTo();
         rec.from = rf95.headerFrom();
         rec.id = rf95.headerId();
-        rec.hope = rf95.headerFlags();
+        rec.hope = _headerHope;
 
         if (buf == NULL || buf[0] != '{' || buf[len - 1] != '}')
         {
@@ -169,7 +170,7 @@ private:
 
             uint8_t mto = rf95.headerTo();
             uint8_t mfrom = rf95.headerFrom();
-            headerSender = (uint8_t)buffer[0];
+            _headerHope = (uint8_t)buffer[0];
 
             if (/*headerSender == terminalId ||*/ mfrom == terminalId)
             {
@@ -202,25 +203,14 @@ private:
 
             if ((mto == terminalId) || (mto == 0xFF))
             {
-                Logger::log(LogLevel::RECEIVE, "(%d)[%X->%X:%X](%d) %s|%s", terminalId, mfrom, mto, rf95.headerId(), rf95.headerFlags(), rec.event, rec.value);
+                Logger::log(LogLevel::RECEIVE, "[%X->%X:%X](%d) %s|%s", mfrom, mto, rf95.headerId(), rf95.headerFlags(), rec.event, rec.value);
                 rxQueue.push(rec.to, rec.event, rec.value, rec.from, rec.hope, rec.id);
                 if (mto == terminalId)
                     return true;
             }
 
-            // #ifdef MESH
-            uint8_t salto = rf95.headerFlags();
-            if (salto > 0 && salto <= ALIVE_PACKET)
-            {
-                if (mto != terminalId)
-                {
-                    salto--;
-                    rec.hope = salto;
-                    txQueue.push(rec.to, rec.event, rec.value, rec.from, rec.hope, rec.id);
-                }
-                return mto == 0xFF;
-            }
-            // #endif
+            meshMessage(rec);
+
             return _promiscuos || (mto == 0xFF);
         }
         return false;
@@ -230,7 +220,7 @@ private:
     {
         stats.txCount++;
         char message[Config::MESSAGE_MAX_LEN] = {0};
-        uint8_t len = snprintf(message, sizeof(message), "%c{%s|%s}", terminalId, rec.event, rec.value);
+        uint8_t len = snprintf(message, sizeof(message), "%c{%s|%s}", rec.hope, rec.event, rec.value);
 
         if (len == 0 || len > Config::MESSAGE_MAX_LEN)
         {
@@ -243,7 +233,7 @@ private:
         rf95.setHeaderFrom(rec.from);
         rf95.setHeaderTo(rec.to);
         rf95.setHeaderId(rec.id);
-        rf95.setHeaderFlags(rec.hope, 0xFF);
+        rf95.setHeaderFlags(len, 0xFF);
 
         // 4. Tentar enviar
         bool sendResult = false;
@@ -255,7 +245,7 @@ private:
                 { // Timeout de 5 segundos
                     stats.txSuccess++;
                     sendResult = true;
-                    Logger::log(LogLevel::SEND, "(%d)[%X->%X:%X](%d) %s", terminalId, rec.from,
+                    Logger::log(LogLevel::SEND, String((rec.hope < 3 ? "MESH " : "") + String("[%X->%X:%X](%d) %s")).c_str(), rec.from,
                                 rec.to, rec.id, rec.hope, message + 1);
 
                     break;
@@ -281,7 +271,7 @@ private:
     }
 };
 
-#ifdef TRANSMISSOR
+#if defined(GATEWAY) || defined(TERMINAL)
 #else
 static LoraRF lora;
 #endif

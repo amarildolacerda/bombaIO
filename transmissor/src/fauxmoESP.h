@@ -1,3 +1,4 @@
+#ifdef ALEXA
 /*
 
 FAUXMO ESP
@@ -159,3 +160,4 @@ private:
     byte *_hs2rgb(uint16_t hue, uint8_t sat);
     byte *_ct2rgb(uint16_t ct);
 };
+#endif

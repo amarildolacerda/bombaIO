@@ -1,5 +1,7 @@
 #pragma once
 
+#if defined(ESP32)
+
 #include "Arduino.h"
 #include <vector>
 
@@ -46,7 +48,8 @@ public:
     {
         return list.size();
     }
-    void clear(){
+    void clear()
+    {
         list.clear();
     }
     void addDevice(const DeviceData &device)
@@ -144,3 +147,4 @@ public:
 };
 
 static DeviceInfo deviceInfo;
+#endif

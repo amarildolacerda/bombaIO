@@ -2,6 +2,7 @@
 #ifndef ALEXACOM_H
 #define ALEXACOM_H
 
+#ifdef ALEXA
 #include <ESPAsyncWebServer.h>
 
 struct AlexaDeviceMap
@@ -57,4 +58,5 @@ public:
 
 extern AlexaCom alexaCom;
 
+#endif
 #endif

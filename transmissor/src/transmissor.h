@@ -17,6 +17,7 @@
 #endif
 
 #include "loraCom.h"
+#include "SystemState.h"
 
 /// LoRa -------------------------------------------------------------------------
 
@@ -233,17 +234,17 @@ public:
             }
         }
 #endif
-        if (rec.event == EVT_PING)
+        if (strcmp(rec.event, EVT_PING) == 0)
         {
             lora.send(rec.from, EVT_PONG, Config::TERMINAL_NAME, systemState.terminalId);
         }
-        else if (rec.event == EVT_ACK)
+        else if (strcmp(rec.event, EVT_ACK))
         {
         }
-        else if (rec.event == EVT_NAK)
+        else if (strcmp(rec.event, EVT_NAK) == 0)
         {
         }
-        else if (rec.event == EVT_PONG)
+        else if (strcmp(rec.event, EVT_PONG) == 0)
         {
             ackNak(rec.from, true);
         }

@@ -95,7 +95,7 @@ private:
         disp.setPos(0, 0);
 
         disp.print("WiFi: ");
-        disp.println(WiFi.isConnected() ? WiFi.localIP().toString() : "DESCONECTADO");
+        disp.println(systemState.isConnected ? WiFi.localIP().toString() : "DESCONECTADO");
 
         static bool baixo = false;
         static uint32_t ultimoBaixo = 0;

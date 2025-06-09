@@ -1,3 +1,5 @@
+
+#ifdef ALEXA
 /*
 
 FAUXMO ESP
@@ -738,3 +740,4 @@ void fauxmoESP::enable(bool enable)
 		DEBUG_MSG_FAUXMO("[FAUXMO] UDP server started\n");
 	}
 }
+#endif

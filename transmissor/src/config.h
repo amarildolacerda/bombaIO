@@ -39,6 +39,17 @@ namespace Config
 #elif RF95
     constexpr const uint32_t LORA_BAND = 868.0; // usado RF95
 #endif
+#ifndef MIRX_PIN
+    constexpr int RX_PIN = 6;
+#else
+    constexpr int RX_PIN = MIRX_PIN;
+#endif
+#ifndef MOTX_PIN
+    constexpr int TX_PIN = 7;
+#else
+    constexpr int TX_PIN = MOTX_PIN;
+#endif
+
     constexpr const uint16_t LORA_SYNC_WORD = 0x12;
 
     constexpr int MIN_RSSI_THRESHOLD = -120; // ajuste conforme necessário
