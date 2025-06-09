@@ -146,5 +146,5 @@ public:
     }
 };
 
-static DeviceInfo deviceInfo;
+extern DeviceInfo deviceInfo;
 #endif

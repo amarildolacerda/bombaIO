@@ -271,10 +271,5 @@ private:
     }
 };
 
-#if defined(GATEWAY) || defined(TERMINAL)
-#else
-static LoraRF lora;
-#endif
-
 #endif
 #endif

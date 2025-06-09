@@ -7,7 +7,7 @@
 #endif
 
 #ifdef WIFI
-#include "wificonn.h"
+#include "WiFiConn.h"
 #endif
 
 #include "stats.h"
@@ -16,33 +16,19 @@
 #include "alexaCom.h"
 #endif
 
-#include "loraCom.h"
+#include "LoRaCom.h"
 #include "SystemState.h"
+
+#ifdef GATEWAY
+#include "DeviceInfo.h"
+#endif
 
 /// LoRa -------------------------------------------------------------------------
 
-static void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
+static void alexaDeviceCallback(uint8_t tid, const char *device_name, bool state, unsigned char value)
 {
 #ifdef ALEXA
-    // const uint8_t alexaId = (uint8_t)device_id;
-    char logMsg[128];
-    snprintf(logMsg, sizeof(logMsg), "Callback da Alexa: %s", device_name);
-    Logger::log(LogLevel::DEBUG, logMsg);
-
-    for (auto &dev : alexaCom.alexaDevices)
-    {
-        if (dev.uniqueName().equals(device_name))
-        {
-            snprintf(logMsg, sizeof(logMsg), "Alexa(%d): %s command: %s",
-                     dev.alexaId, dev.uniqueName().c_str(), state ? "ON" : "OFF");
-            Logger::info(logMsg);
-
-            // LoRaCom::sendCommand(EVT_GPIO, state ? GPIO_ON : GPIO_OFF, dev.tid);
-            LoRaCom::send(dev.tid, EVT_GPIO, state ? GPIO_ON : GPIO_OFF);
-
-            break;
-        }
-    }
+    LoRaCom::send(tid, EVT_GPIO, state ? GPIO_ON : GPIO_OFF);
 #endif
 }
 

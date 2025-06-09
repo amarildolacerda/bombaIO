@@ -80,12 +80,12 @@ private:
         disp.print("Term: ");
         disp.print((String)systemState.terminalId);
 #endif
-        disp.print(" |");
+        disp.print(" | ");
         disp.print((String)ps);
         disp.print("ps");
-        disp.print("|     ");
-        disp.setPos(6, 13);
-        disp.println(isoDateTime.substring(11, 19)); // Mostra apenas HH:MM:SS
+        disp.print(" | ");
+        disp.setPos(6, 16);
+        disp.println(isoDateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
         disp.setTextColor(WHITE, BLACK);
     }
     void _update()
@@ -154,7 +154,7 @@ private:
     }
 };
 
-static DisplayManager displayManager;
+extern DisplayManager displayManager;
 
 #endif
 #endif

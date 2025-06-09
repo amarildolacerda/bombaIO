@@ -20,7 +20,7 @@ struct AlexaDeviceMap
     }
 };
 
-typedef std::function<void(uint8_t tid, const char *, bool, unsigned char)> AlexaCallbackType;
+typedef std::function<void(const uint8_t tid, const char *, bool, unsigned char)> AlexaCallbackType;
 typedef std::function<void(const char *)> AlexaOnGetCallback;
 
 class AlexaCom

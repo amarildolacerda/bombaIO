@@ -1,6 +1,6 @@
 
 #pragma once
-
+#include "logger.h"
 class SystemState
 {
 private:
@@ -34,4 +34,4 @@ public:
     }
 };
 
-static SystemState systemState;
+extern SystemState systemState;

@@ -1,14 +1,10 @@
-
-#ifndef WSLOGGER_H
-#define WSLOGGER_H
-
-#include "Arduino.h"
-#include "logger.h"
-#include "config.h"
-#include <ArduinoJson.h>
-
+#include "ws_logger.h"
 #include <ESPAsyncWebServer.h>
-AsyncWebSocket ws("/ws");
+#include <AsyncTCP.h>
+
+// Definições das variáveis
+AsyncWebSocket wsService("/ws");
+AsyncWebServer *WSLogger::wserver = nullptr;
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
 {
@@ -20,47 +16,31 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
         DynamicJsonDocument doc(256);
         deserializeJson(doc, data);
 
-        // Processa comando
         const char *cmd = doc["cmd"];
         if (strcmp(cmd, "display") == 0)
         {
-            // const char *text = doc["text"];
-            // Heltec.display->clear();
-            // Heltec.display->drawString(0, 0, text);
-            // Heltec.display->display();
-
-            // Envia confirmação
-            // JsonDocument resp;
-            // resp["status"] = "ok";
-            // resp["cmd"] = "display";
-            // String output;
-            // serializeJson(resp, output);
-            // ws.textAll(output);
+            // Processamento do comando display
         }
     }
 }
 
 void logCallbackFn(const String &message)
 {
-    if (ws.count())
+    if (wsService.count())
     {
-        ws.textAll(message);
+        wsService.textAll(message);
     }
 }
 
-namespace WSLogger
-{
-    AsyncWebServer *wserver = nullptr;
 #ifdef WIFI
-    static void initWs(AsyncWebServer &server)
-    {
-        wserver = &server;
-        Logger::setLogCallback(logCallbackFn);
+void WSLogger::initWs(AsyncWebServer &server)
+{
+    wserver = &server;
+    Logger::setLogCallback(logCallbackFn);
 
-        // Configura WebSocket
-        ws.onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type,
-                      void *arg, uint8_t *data, size_t len)
-                   {
+    wsService.onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type,
+                         void *arg, uint8_t *data, size_t len)
+                      {
         if (type == WS_EVT_CONNECT) {
             Logger::info("Cliente WebSocket #%u conectado", client->id());
         } else if (type == WS_EVT_DISCONNECT) {
@@ -69,14 +49,13 @@ namespace WSLogger
             handleWebSocketMessage(arg, data, len);
         } });
 
-        wserver->addHandler(&ws);
-        // Adicione esta rota para testar o WebSocket
-        wserver->on("/test", HTTP_GET, [](AsyncWebServerRequest *request)
-                    { request->send(200, "text/plain", "Servidor Web ativo"); });
+    wserver->addHandler(&wsService);
 
-        // Rota para página web
-        wserver->on("/ws", HTTP_GET, [](AsyncWebServerRequest *request)
-                    { request->send(200, "text/html", R"rawliteral(
+    wserver->on("/test", HTTP_GET, [](AsyncWebServerRequest *request)
+                { request->send(200, "text/plain", "Servidor Web ativo"); });
+
+    wserver->on("/ws", HTTP_GET, [](AsyncWebServerRequest *request)
+                { request->send(200, "text/html", R"rawliteral(
 <!DOCTYPE html>
 <html>
 <head>
@@ -110,9 +89,5 @@ namespace WSLogger
 </body>
 </html>
 )rawliteral"); });
-    }
-#endif
-
 }
-
 #endif
