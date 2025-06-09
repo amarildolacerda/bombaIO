@@ -1,17 +1,30 @@
 #pragma once
 
-#include "ESPAsyncWiFiManager.h"
-#include "ESPAsyncWebServer.h"
+#ifdef WIFI
+
 #include "Arduino.h"
-#include "WiFi.h"
-#include <ezTime.h>
 
 #include "config.h"
 #include "SystemState.h"
+
+#ifdef GATEWAY
 #include "DeviceInfo.h"
+#endif
+
+#ifdef ALEXA
 #include "AlexaCom.h"
+#endif
+
 #include "ws_logger.h"
+
+#ifdef WIFI
+#include "ESPAsyncWiFiManager.h"
+#include "ESPAsyncWebServer.h"
+#include "WiFi.h"
+#include <ezTime.h>
 #include "html_tserver.h"
+#endif
+
 #ifdef WIFI
 #include "ws_logger.h"
 #include <ESPAsyncWebServer.h>
@@ -22,7 +35,9 @@ AsyncWiFiManager wifiManager(&server, &dns);
 
 #endif
 
+#ifdef ALEXA
 AlexaCallbackType alexaCallbackFn;
+#endif
 
 class WiFiConn
 {
@@ -52,9 +67,16 @@ private:
     }
 
 public:
+#ifdef ALEXA
     bool setup(AlexaCallbackType alexaCallback)
+#else
+    bool setup()
+#endif
     {
+
+#ifdef ALEXA
         alexaCallbackFn = alexaCallback;
+#endif
         initWiFi();
         if (systemState.isConnected)
         {
@@ -84,6 +106,7 @@ public:
     }
     void initAlexa()
     {
+#ifdef ALEXA
         alexaCom.setup(&server, [](unsigned char device_id, const char *device_name, bool state, unsigned char value)
                        {
                            if (alexaCallbackFn)
@@ -92,10 +115,13 @@ public:
                            }
                            // Handle Alexa device callback
                            Logger::log(LogLevel::INFO, "Alexa Device Callback: ID: %d, Name: %s, State: %d, Value: %d", device_id, device_name, state, value); });
+#endif
     }
     void loop()
     {
+#ifdef ALEXA
         alexaCom.loop();
+#endif
         HtmlServer::process();
     }
     String getISOTime(String format = "")
@@ -118,3 +144,4 @@ public:
 };
 
 static WiFiConn wifiConn;
+#endif

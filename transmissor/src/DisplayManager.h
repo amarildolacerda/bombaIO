@@ -78,7 +78,7 @@ private:
         disp.print((String)termTotal);
 #else
         disp.print("Term: ");
-        disp.print((String)systemState.terminalId);  );
+        disp.print((String)systemState.terminalId);
 #endif
         disp.print(" |");
         disp.print((String)ps);
@@ -125,8 +125,8 @@ private:
             disp.setPos(4, 0);
             if (loraRcvEvent.length() > 0)
             {
-                disp.println("Evento: " + loraRcvEvent);
-                loraRcvEvent = ""; // Limpa o evento após exibir
+                disp.println("Term: " + loraRcvEvent);
+                // loraRcvEvent = ""; // Limpa o evento após exibir
             }
         }
 #endif

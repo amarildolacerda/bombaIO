@@ -30,8 +30,9 @@ public:
         {
             stats.txSuccess++;
         }; // finish packet and send it
+        String fmt = String(rec.hope < 3 ? "MESH " : "") + "[%d-%d:%d](%d) %s|%s";
 
-        Logger::log(LogLevel::SEND, "[%d-%d:%d](%d) %s|%s", rec.from, rec.to, rec.id, rec.hope, rec.event, rec.value);
+        Logger::log(LogLevel::SEND, fmt.c_str(), rec.from, rec.to, rec.id, rec.hope, rec.event, rec.value);
         return true;
     };
 
