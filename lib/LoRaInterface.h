@@ -66,6 +66,43 @@ public:
         return (len >= 4) && (msg[0] == '{') && (msg[len - 1] == '}');
     }
     bool connected = false;
+
+    void meshMessage(MessageRec &rec)
+    {
+        if (rec.to != terminalId && terminalId > 0) // avaliar mesh
+        {                                           // o gateway nao retransmite, para o caso de ser um terminal
+            uint8_t hope = rec.hope;
+            if (hope > 0)
+            {
+                rec.hope--;
+                txQueue.pushItem(rec); // re-enviar a mensagem para o gateway
+            }
+        }
+    }
+    bool parseRcv(MessageRec &rec, const String msg)
+    {
+
+        if (!msg.startsWith("{") || !msg.endsWith("}"))
+        {
+            Logger::error("Mensagem mal formatada: %s", msg);
+            return false;
+        }
+
+        String content = msg.substring(1, msg.length() - 1); // remove { and }
+        int sepIndex = content.indexOf('|');
+        sprintf(rec.event, "%s", content.substring(0, sepIndex).c_str());
+        if (sepIndex != -1)
+        {
+            sprintf(rec.value, "%s", content.substring(sepIndex + 1).c_str());
+        }
+        else
+        {
+            rec.value[0] = '\0'; // no value provided
+        }
+
+        return true;
+    }
+
     virtual void setTerminalName(const char name[10])
     {
         snprintf(terminalName, sizeof(terminalName), name);

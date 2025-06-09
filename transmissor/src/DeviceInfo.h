@@ -1,17 +1,124 @@
 #pragma once
 
 #include "Arduino.h"
+#include <vector>
+
+struct DeviceData
+{
+    uint8_t tid;
+    String name = "";
+    bool state = 0;
+    unsigned long lastSeen = 0;
+    int rssi = 0;
+    bool isEmpty()
+    {
+        return name.length() == 0;
+    }
+};
 
 class DeviceInfo
 {
+private:
+    std::vector<DeviceData> list;
+    int diffSeconds(const unsigned long &lastSeenISOTime)
+    {
+        return (millis() - lastSeenISOTime) / 1000; // Convert milliseconds to seconds
+    }
+
 public:
     uint8_t running()
     {
-        return 0;
+        uint8_t n = 0;
+        for (const auto &device : list)
+        {
+            if (diffSeconds(device.lastSeen) < 60 * 5)
+            {
+                n++;
+            }
+        }
+        return n;
     }
     uint8_t count()
     {
-        return 0;
+        return list.size();
+    }
+    void addDevice(const DeviceData &device)
+    {
+        for (auto &d : list)
+        {
+            if (d.tid == device.tid)
+            {
+                d.name = device.name;
+                d.state = device.state;
+                d.lastSeen = millis();
+                d.rssi = 0;
+                return;
+            }
+        }
+        list.push_back(device);
+    }
+    void updateState(uint8_t tid, bool state)
+    {
+        for (auto &device : list)
+        {
+            if (device.tid == tid)
+            {
+                device.state = state;
+                device.lastSeen = millis();
+                return;
+            }
+        }
+        DeviceData newDevice; // = {tid, "", state, millis(), 0};
+        newDevice.tid = tid;
+        newDevice.state = state;
+        newDevice.lastSeen = millis();
+        newDevice.rssi = 0;                    // Default RSSI value
+        newDevice.name = "Novo" + String(tid); // Default name
+        list.push_back(newDevice);
+    }
+
+    void updateDevice(uint8_t tid, const String &name, bool state, int rssi)
+    {
+        for (auto &device : list)
+        {
+            if (device.tid == tid)
+            {
+                device.name = name;
+                device.state = state;
+                device.lastSeen = millis();
+                device.rssi = rssi;
+                return;
+            }
+        }
+        DeviceData newDevice; // = {tid, name, state, millis(), rssi};
+        newDevice.tid = tid;
+        newDevice.name = name;
+        newDevice.state = state;
+        newDevice.lastSeen = millis();
+        newDevice.rssi = rssi;
+        list.push_back(newDevice);
+    }
+    DeviceData getDevice(uint8_t tid)
+    {
+        for (const auto &device : list)
+        {
+            if (device.tid == tid)
+            {
+                return device;
+            }
+        }
+        return DeviceData(); // Return an empty DeviceData if not found
+    }
+    std::vector<DeviceData> getDevices()
+    {
+        return list;
+    }
+    void deleteDevice(uint8_t tid)
+    {
+        list.erase(std::remove_if(list.begin(), list.end(),
+                                  [tid](const DeviceData &device)
+                                  { return device.tid == tid; }),
+                   list.end());
     }
 };
 

@@ -109,9 +109,15 @@ private:
         if (isDiscovering)
         {
             disp.setPos(3, 0);
-            disp.println(F("  Modo pareamento"));
-            disp.println(F("   em andamento")); // redundante, so esta preenchendo espaço no display
+            disp.println("  Modo pareamento");
+            disp.println("   em andamento"); // redundante, so esta preenchendo espaço no display
         }
+        else
+        {
+            disp.setPos(4, 0);
+            disp.println(F("Evento: NENHUM"));
+        }
+
         /*else */
         /*if (DeviceInfo::history.size() > 0)
         {
@@ -128,12 +134,8 @@ private:
                 disp.print(d.value);
                 // Serial.print(d.value);
             }
-        }
-        else*/
-        {
-            disp.setPos(4, 0);
-            disp.println(F("Evento: NENHUM"));
-        }
+        }*/
+
         _showFooter();
         disp.show();
     }

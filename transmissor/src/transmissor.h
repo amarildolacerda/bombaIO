@@ -52,10 +52,15 @@ public:
 
         systemState.isInitialized = true;
         Serial.println("LoRa init succeeded.");
+
+        systemState.setDiscovering(true);
     }
 
+    long discoveryUpdate = 0;
     void loop()
     {
+        systemState.handle();
+
         systemState.isRunning = true;
         systemState.previousMillis = millis();
 #ifdef WIFI
@@ -78,6 +83,16 @@ public:
         if (lora.processIncoming(rec))
         {
             handleReceived(rec);
+        }
+
+        if (systemState.isDiscovering)
+        {
+            static long discUpdate = 0;
+            if (millis() - discUpdate > 10000)
+            {
+                lora.send(0xFF, EVT_PRESENTATION, Config::TERMINAL_NAME, terminalId);
+                discUpdate = millis();
+            }
         }
         updateDisplay();
     }

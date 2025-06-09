@@ -31,29 +31,6 @@ public:
         return true;
     };
 
-    bool parseRcv(MessageRec &rec, const String msg)
-    {
-
-        if (!msg.startsWith("{") || !msg.endsWith("}"))
-        {
-            Logger::error("Mensagem mal formatada: %s", msg);
-            return false;
-        }
-
-        String content = msg.substring(1, msg.length() - 1); // remove { and }
-        int sepIndex = content.indexOf('|');
-        sprintf(rec.event, "%s", content.substring(0, sepIndex).c_str());
-        if (sepIndex != -1)
-        {
-            sprintf(rec.value, "%s", content.substring(sepIndex + 1).c_str());
-        }
-        else
-        {
-            rec.value[0] = '\0'; // no value provided
-        }
-
-        return true;
-    }
     bool receiveMessage() override
     {
         int packetSize = LoRa.parsePacket();
@@ -89,6 +66,13 @@ public:
 
         if (!parseRcv(rec, incoming))
             return false;
+
+        if (rec.from == terminalId)
+        {
+            return false; // skip messages from myself
+        }
+
+        meshMessage(rec);
 
         if (rec.to != terminalId && rec.to != 0xFF)
         {
@@ -130,7 +114,8 @@ public:
     {
         return LoRa.packetRssi(); // return the packet RSSI
     }
-    int packetSnr() override{
+    int packetSnr() override
+    {
         return LoRa.packetSnr();
     }
 };

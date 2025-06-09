@@ -4,6 +4,8 @@
 #include "ESPAsyncWebServer.h"
 #include "Arduino.h"
 #include "WiFi.h"
+#include <ezTime.h>
+
 #include "config.h"
 #include "SystemState.h"
 #include "DeviceInfo.h"
@@ -21,31 +23,29 @@ AsyncWiFiManager wifiManager(&server, &dns);
 class WiFiConn
 {
 private:
+    Timezone myTZ;
+
     void initWiFi()
     {
         wifiManager.setConfigPortalTimeout(120);
         wifiManager.setConnectTimeout(30);
         wifiManager.setDebugOutput(true);
         wifiManager.setAPStaticIPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
-        systemState.isConnected = wifiManager.autoConnect(Config::TERMINAL_NAME);
+        wifiManager.autoConnect(Config::TERMINAL_NAME);
+
+        systemState.isConnected = WiFi.isConnected();
 
         if (systemState.isConnected)
+        {
             WSLogger::initWs(server);
+        }
     }
     void initNTP()
     {
-        configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+        waitForSync();
+        myTZ.setLocation();
 
-        struct tm timeinfo;
-        if (!getLocalTime(&timeinfo, 5000))
-        {
-            Logger::log(LogLevel::WARNING, "Falha ao obter tempo NTP");
-            return;
-        }
-        else
-        {
-            systemState.startedISODateTime = getISOTime();
-        }
+        systemState.startedISODateTime = getISOTime();
     }
 
 public:
@@ -72,20 +72,16 @@ public:
     void loop()
     {
     }
-    String getISOTime()
+    String getISOTime(String format = "")
     {
 #define baseTime "1970-01-01T00:00:00Z"
         if (WiFi.isConnected())
         {
-            struct tm timeinfo;
-            if (!getLocalTime(&timeinfo))
+            if (format.isEmpty())
             {
-                return baseTime;
+                return UTC.dateTime(ISO8601); // Use default format if none provided
             }
-
-            char timeStr[25];
-            strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
-            return String(timeStr);
+            return myTZ.dateTime(format);
         }
 
         else
