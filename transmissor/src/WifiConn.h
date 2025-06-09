@@ -21,7 +21,10 @@
 #include "ESPAsyncWebServer.h"
 #include "WiFi.h"
 #include <ezTime.h>
+
+#ifdef WS
 #include "html_tserver.h"
+#endif
 
 class WiFiConn
 {
@@ -110,8 +113,10 @@ public:
         delay(500); // Stabilization after connection
 
 #ifdef WS
-        HtmlServer::initWebServer(server);
-        HtmlServer::begin();
+        htmlServer.initWebServer(server);
+        htmlServer.begin();
+#else
+        server->begin();
 #endif
 
         WSLogger::initWs(*server);
@@ -132,7 +137,10 @@ public:
 #ifdef ALEXA
         alexaCom.loop();
 #endif
-        HtmlServer::process();
+
+#ifdef WS
+        htmlServer.process();
+#endif
     }
 
     String getISOTime(String format = "")

@@ -15,7 +15,7 @@ static portMUX_TYPE queueMutex = portMUX_INITIALIZER_UNLOCKED;
     portENTER_CRITICAL(&queueMutex); \
     portEXIT_CRITICAL(&queueMutex);
 #else
-#define CRITICAL_SECTION 
+#define CRITICAL_SECTION
 #endif
 
 #define MAX_EVENT_LEN 8
@@ -54,13 +54,26 @@ struct MessageRec
 class FifoList
 {
 private:
-    MessageRec items[MAX_ITEMS];
+    MessageRec *items; // Ponteiro para o array dinâmico
     volatile int head = 0;
     volatile int tail = 0;
     volatile int count = 0;
+    volatile int maxItems; // Tamanho máximo da fila
 
 public:
     bool checkDup = false;
+
+    // Construtor que recebe o tamanho da fila
+    FifoList(int size = MAX_ITEMS) : maxItems(size)
+    {
+        items = new MessageRec[maxItems];
+    }
+
+    // Destrutor para liberar memória
+    ~FifoList()
+    {
+        delete[] items;
+    }
 
     bool pushItem(const MessageRec &item)
     {
@@ -71,10 +84,10 @@ public:
 
         CRITICAL_SECTION
         {
-            if (count < MAX_ITEMS)
+            if (count < maxItems)
             {
                 items[tail] = item;
-                tail = (tail + 1) % MAX_ITEMS;
+                tail = (tail + 1) % maxItems;
                 count++;
                 result = true;
 #ifdef DEBUG_ON
@@ -96,7 +109,7 @@ public:
         {
             for (int i = 0; i < count; i++)
             {
-                int index = (head + i) % MAX_ITEMS;
+                int index = (head + i) % maxItems;
                 if (items[index].dv() == item.dv())
                 {
                     result = true;
@@ -116,7 +129,7 @@ public:
             if (count > 0)
             {
                 item = items[head];
-                head = (head + 1) % MAX_ITEMS;
+                head = (head + 1) % maxItems;
                 count--;
                 result = true;
 #ifdef DEBUG_ON
@@ -157,7 +170,7 @@ public:
         bool result;
         CRITICAL_SECTION
         {
-            result = (count == MAX_ITEMS);
+            result = (count == maxItems);
         }
         return result;
     }

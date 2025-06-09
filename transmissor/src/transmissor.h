@@ -124,6 +124,8 @@ public:
             }
         }
         updateDisplay();
+        LoRaCom::loop();
+
         systemState.isRunning = false;
     }
 

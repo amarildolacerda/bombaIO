@@ -21,7 +21,7 @@ enum LoRaConfig
 
 // Constantes para controle de mesh
 #define ALIVE_PACKET 3
-#define MESSAGE_TIMEOUT_MS 100
+#define MESSAGE_TIMEOUT_MS 10
 
 class LoRaInterface
 {

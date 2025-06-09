@@ -30,6 +30,7 @@ public:
     static void error(const char *msg, ...);
     static void debug(const char *msg, ...);
     static bool log(LogLevel level, const char *format, ...);
+    static void warn(const char *msg, ...);
 
 private:
     static bool vlog(const LogLevel level, const char *format, va_list args);

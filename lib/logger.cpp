@@ -33,7 +33,13 @@ void Logger::debug(const char *msg, ...)
     vlog(LogLevel::DEBUG, msg, args);
     va_end(args);
 }
-
+void Logger::warn(const char *msg, ...)
+{
+    va_list args;
+    va_start(args, msg);
+    vlog(LogLevel::WARNING, msg, args);
+    va_end(args);
+}
 bool Logger::log(const LogLevel level, const char *format, ...)
 {
     va_list args;

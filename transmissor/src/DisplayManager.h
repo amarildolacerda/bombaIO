@@ -107,7 +107,7 @@ private:
         }
         disp.setPos(1, 0);
         disp.print("Radio: ");
-        disp.print(loraConnected ? (baixo) ? "Baixo" : "OK" : "FALHA");
+        disp.print(loraConnected ? (baixo) ? "Baixo" : "OK" : "Ups");
         disp.print(" ");
         disp.println((String)rssi);
         disp.setPos(1, 16);

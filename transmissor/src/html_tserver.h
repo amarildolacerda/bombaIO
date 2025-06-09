@@ -2,27 +2,39 @@
 #ifndef HTML_SERVER_H
 #define HTML_SERVER_H
 
-// #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include "queue_message.h"
 
-namespace HtmlServer
+class HtmlServer
 {
+private:
+    static AsyncWebServer *espServer;
 
-    // ========== Web Server Implementations ==========
-    void waitTimeout(const bool ateQueDiferente, const int timeout = 3000);
+    // Métodos privados
+    static String getCommonStyles();
+    static String generateMenu();
+    static void generateHomePage(AsyncWebServerRequest *request);
+    static void generateDeviceDetailsPage(AsyncWebServerRequest *request, uint8_t tid);
+    static void generateOTAPage(AsyncWebServerRequest *request);
+    static void handleRootRequest(AsyncWebServerRequest *request);
+    static void handleDeviceDetailsRequest(AsyncWebServerRequest *request);
+    static void doOTAUpdate(AsyncWebServerRequest *request);
 
-    void generateHtmlPage();
-    void generateDeviceListHtmlPage();
-    void handleToggleDevice();
-    void initWebServer(AsyncWebServer *ws = nullptr);
+public:
+    MessageRec txRec;
 
-    void process();
-    bool begin();
-    void respStatus(AsyncWebServerRequest *request, uint8_t tid, String status);
-    void handleToggleDevice(AsyncWebServerRequest *request);
+    // ========== Web Server Interface ==========
+    static void waitTimeout(const bool ateQueDiferente, const int timeout = 3000);
+    static void generateHtmlPage();
+    static void generateDeviceListHtmlPage();
+    static void handleToggleDevice();
+    static void initWebServer(AsyncWebServer *ws = nullptr);
+    static void process();
+    static bool begin();
+    static void respStatus(AsyncWebServerRequest *request, uint8_t tid, String status);
+    static void handleToggleDevice(AsyncWebServerRequest *request);
+};
 
-} // namespace HtmlServer
-
+extern HtmlServer htmlServer;
 #endif
-
 #endif // HTML_SERVER_H

@@ -11,6 +11,10 @@ static LoRa32 lora;
 static LoraRF lora;
 #endif
 
+#ifdef WS
+#include "html_tserver.h"
+#endif
+
 class LoRaCom
 {
 public:
@@ -28,6 +32,16 @@ public:
         snprintf(rec.value, sizeof(rec.value), "%s", value.c_str());
         rec.hope = ALIVE_PACKET;
         lora.receive(rec);
+    }
+    static void loop()
+    {
+#ifdef WS
+        if (htmlServer.txRec.to != 0)
+        {
+            LoRaCom::send(htmlServer.txRec.to, htmlServer.txRec.event, htmlServer.txRec.value);
+            htmlServer.txRec.to = 0;
+        }
+#endif
     }
 };
 
