@@ -7,6 +7,8 @@
 
 // #include "deviceinfo.h"
 // #include "queue_message.h"
+
+#include "systemstate.h"
 #include "config.h"
 #ifdef ESP32
 #include <WiFi.h>
@@ -26,8 +28,10 @@ class DisplayManager
 {
 private:
     unsigned long updated = 0;
+    String loraRcvEvent = "";
 
 public:
+    bool loraConnected = false;
     int termAtivos = 0;
     int termTotal = 0;
     long ps = 0;
@@ -37,10 +41,15 @@ public:
     String startedISODateTime = "";
     bool isDiscovering = false;
 
+    void showEvent(String event)
+    {
+        loraRcvEvent = event;
+    }
     void showMessage(const String event)
     {
         disp.setPos(5, 0);
         disp.print(event);
+        disp.show();
     }
     void handle()
     {
@@ -62,11 +71,16 @@ private:
         disp.fillRect(0, Config::SCREEN_HEIGHT - 12, Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT);
         disp.setTextColor(BLACK, WHITE);
         disp.setPos(6, 0);
+#ifdef GATEWAY
         disp.print("D:");
         disp.print((String)termAtivos);
         disp.print("/");
         disp.print((String)termTotal);
-        disp.print("|");
+#else
+        disp.print("Term: ");
+        disp.print((String)systemState.terminalId);  );
+#endif
+        disp.print(" |");
         disp.print((String)ps);
         disp.print("ps");
         disp.print("|     ");
@@ -74,8 +88,6 @@ private:
         disp.println(isoDateTime.substring(11, 19)); // Mostra apenas HH:MM:SS
         disp.setTextColor(WHITE, BLACK);
     }
-    bool loraConnected = false;
-    String loraRcvEvent;
     void _update()
 
     {
@@ -90,23 +102,18 @@ private:
         if (millis() - ultimoBaixo > 10000)
         {
             baixo = (rssi < Config::MIN_RSSI_THRESHOLD || snr < Config::MIN_SNR_THRESHOLD);
-            Logger::log(LogLevel::WARNING, String("Sinal LoRa baixo: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
+            Logger::log(LogLevel::WARNING, String("Sinal LoRa: RSSI: " + String(rssi) + " SNR: " + String(snr)).c_str());
             ultimoBaixo = millis();
         }
         disp.setPos(1, 0);
         disp.print("Radio: ");
         disp.print(loraConnected ? (baixo) ? "Baixo" : "OK" : "FALHA");
         disp.print(" ");
-        if (!baixo)
-        {
-            disp.setPos(1, 13);
-            disp.println(startedISODateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
-        }
-        else
-        {
-            disp.println((String)rssi);
-        }
+        disp.println((String)rssi);
+        disp.setPos(1, 16);
+        disp.println(startedISODateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
 
+#ifdef GATEWAY
         if (isDiscovering)
         {
             disp.setPos(3, 0);
@@ -116,8 +123,13 @@ private:
         else
         {
             disp.setPos(4, 0);
-            disp.println(F("Evento: NENHUM"));
+            if (loraRcvEvent.length() > 0)
+            {
+                disp.println("Evento: " + loraRcvEvent);
+                loraRcvEvent = ""; // Limpa o evento após exibir
+            }
         }
+#endif
 
         /*else */
         /*if (DeviceInfo::history.size() > 0)

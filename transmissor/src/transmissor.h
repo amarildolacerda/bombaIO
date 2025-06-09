@@ -87,7 +87,7 @@ public:
 
         initNet();
 
-        systemState.isInitialized = true;
+        systemState.isInitialized = lora.connected;
         Serial.println("LoRa init succeeded.");
 
         systemState.setDiscovering(true);
@@ -150,6 +150,7 @@ public:
             displayManager.rssi = lora.packetRssi();
             displayManager.isoDateTime = wifiConn.getISOTime();
             displayManager.ps = stats.ps();
+            displayManager.loraConnected = systemState.isInitialized;
             displayManager.handle();
             displayUpdate = millis();
         }
@@ -188,6 +189,10 @@ public:
     void handleReceived(MessageRec &rec)
     {
         Logger::info("Handled from: %d event: %s|%s", rec.from, rec.event, rec.value);
+
+#ifdef DISPLAY_ENABLED
+        displayManager.showEvent(String(rec.from) + ": " + String(rec.event) + " -> " + String(rec.value));
+#endif
 
 #ifndef GATEWAY
         if (strcmp(rec.event, EVT_GPIO) == 0)

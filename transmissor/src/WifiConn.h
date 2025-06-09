@@ -44,7 +44,9 @@ private:
     void initNTP()
     {
         waitForSync();
-        myTZ.setLocation("GeoIP");
+        // myTZ.setTimezoneName("LOCAL_TIME");
+        // Serial.println(getTimezoneName());
+        myTZ.setLocation("America/Sao_Paulo");
 
         systemState.startedISODateTime = getISOTime();
     }
@@ -103,7 +105,7 @@ public:
         {
             if (format.isEmpty())
             {
-                return UTC.dateTime(ISO8601); // Use default format if none provided
+                return myTZ.dateTime(ISO8601); // UTC.dateTime(ISO8601); // Use default format if none provided
             }
             return myTZ.dateTime(format);
         }
