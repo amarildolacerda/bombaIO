@@ -2,7 +2,6 @@
 
 #include "logger.h"
 #include "logger.h"
-#include "LoRa32.h"
 #ifdef DISPLAY_ENABLED
 #include "DisplayManager.h"
 #endif
@@ -12,20 +11,48 @@
 #endif
 
 #include "stats.h"
+#include "alexaCom.h"
+
+#include "LoRa32.h"
+LoRa32 lora;
 
 /// LoRa -------------------------------------------------------------------------
+
+static void alexaDeviceCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
+{
+#ifdef ALEXA
+    // const uint8_t alexaId = (uint8_t)device_id;
+    char logMsg[128];
+    snprintf(logMsg, sizeof(logMsg), "Callback da Alexa: %s", device_name);
+    Logger::log(LogLevel::DEBUG, logMsg);
+
+    for (auto &dev : alexaCom.alexaDevices)
+    {
+        if (dev.uniqueName().equals(device_name))
+        {
+            snprintf(logMsg, sizeof(logMsg), "Alexa(%d): %s command: %s",
+                     dev.alexaId, dev.uniqueName().c_str(), state ? "ON" : "OFF");
+            Logger::info(logMsg);
+
+            // LoRaCom::sendCommand(EVT_GPIO, state ? GPIO_ON : GPIO_OFF, dev.tid);
+            lora.send(dev.tid, EVT_GPIO, state ? GPIO_ON : GPIO_OFF, Config::TERMINAL_ID);
+
+            break;
+        }
+    }
+#endif
+}
 
 class App
 {
 private:
     uint8_t terminalId;
-    LoRa32 lora;
 
 public:
     void initNet()
     {
 #ifdef WIFI
-        wifiConn.setup();
+        wifiConn.setup(&alexaDeviceCallback);
 #endif
     }
     void initPerif()
@@ -106,7 +133,7 @@ public:
         {
             displayManager.isDiscovering = systemState.isDiscovering;
             displayManager.termAtivos = deviceInfo.running();
-            displayManager.termTotal = deviceInfo.count();
+            displayManager.termTotal = deviceInfo.size();
             displayManager.snr = lora.packetSnr();
             displayManager.startedISODateTime = systemState.startedISODateTime;
             displayManager.rssi = lora.packetRssi();
@@ -135,6 +162,13 @@ public:
     {
         // gerar historico
         // notificar alexa
+
+        bool status = strcmp(rec.value, "on") == 0;
+        deviceInfo.updateState(rec.from, status);
+        if (rec.from != 0xFF)
+            alexaCom.addDevice(rec.from, String(rec.from).c_str());
+
+        alexaCom.updateStateAlexa(String(rec.from).c_str(), String(status ? "on" : "off").c_str());
     }
     void handleReceived(MessageRec &rec)
     {
@@ -158,6 +192,13 @@ public:
         {
             ackNak(rec.from, true);
             executeStatus(rec);
+        }
+        else if (strcmp(rec.event, EVT_PRESENTATION) == 0)
+        {
+            ackNak(rec.from, true);
+            deviceInfo.updateDevice(rec.from, rec.value, false, lora.packetRssi());
+            if (rec.from != 0xFF)
+                alexaCom.addDevice(rec.from, String(rec.from).c_str());
         }
         else
         {

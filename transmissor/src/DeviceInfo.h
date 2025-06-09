@@ -14,6 +14,10 @@ struct DeviceData
     {
         return name.length() == 0;
     }
+    String terminalName()
+    {
+        return String(tid);
+    }
 };
 
 class DeviceInfo
@@ -38,7 +42,7 @@ public:
         }
         return n;
     }
-    uint8_t count()
+    uint8_t size()
     {
         return list.size();
     }
@@ -83,7 +87,10 @@ public:
         {
             if (device.tid == tid)
             {
-                device.name = name;
+                if (name.length() > 0)
+                {
+                    device.name = name;
+                }
                 device.state = state;
                 device.lastSeen = millis();
                 device.rssi = rssi;
@@ -119,6 +126,17 @@ public:
                                   [tid](const DeviceData &device)
                                   { return device.tid == tid; }),
                    list.end());
+    }
+    int indexOf(uint8_t tid)
+    {
+        for (size_t i = 0; i < list.size(); i++)
+        {
+            if (list[i].tid == tid)
+            {
+                return i;
+            }
+        }
+        return -1; // Return -1 if not found
     }
 };
 

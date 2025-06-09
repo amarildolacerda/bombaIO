@@ -2,8 +2,8 @@
 #include "AlexaCom.h"
 #include "fauxmoESP.h"
 #include "logger.h"
-#include "device_info.h"
-#include "system_state.h"
+#include "deviceinfo.h"
+#include "systemstate.h"
 #include "ESPAsyncWebServer.h"
 
 fauxmoESP alexa;
@@ -12,37 +12,41 @@ AlexaCom alexaCom;
 
 void AlexaCom::aliveOffLineAlexa()
 {
-    DeviceInfoData data;
-    for (auto &dev : alexaDevices)
-    {
-        int idx = DeviceInfo::dataOf(dev.tid);
-        int secs = 60;
-        if (idx >= 0)
+    /*    DeviceInfoData data;
+        for (auto &dev : alexaDevices)
         {
-            data = DeviceInfo::deviceList[idx];
-            secs = DeviceInfo::getTimeDifferenceSeconds(data.lastSeen);
-            if (secs >= 60 * 5)
+            int idx = DeviceInfo::dataOf(dev.tid);
+            int secs = 60;
+            if (idx >= 0)
             {
-                alexa.setState(dev.uniqueName().c_str(), false, 0);
-            }
-            else
-            {
-                alexa.setState(dev.uniqueName().c_str(), data.value == "on", 100);
+                data = DeviceInfo::deviceList[idx];
+                secs = DeviceInfo::getTimeDifferenceSeconds(data.lastSeen);
+                if (secs >= 60 * 5)
+                {
+                    alexa.setState(dev.uniqueName().c_str(), false, 0);
+                }
+                else
+                {
+                    alexa.setState(dev.uniqueName().c_str(), data.value == "on", 100);
+                }
             }
         }
-    }
+            */
 }
 void AlexaCom::DoCallback(unsigned char device_id, const char *device_name, bool state, unsigned char value)
 {
-    if (alexaDeviceCallback)
-        alexaDeviceCallback(device_id, device_name, state, value);
+    /* if (alexaDeviceCallback)
+         alexaDeviceCallback(device_id, device_name, state, value);
+         */
 }
 void AlexaCom::DoGetCallback(unsigned char device_id, const char *device_name)
 {
+    /*
     if (onGetCallbackFn)
     {
         onGetCallbackFn(device_name);
     }
+        */
 }
 
 void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
@@ -53,13 +57,13 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
     alexa.createServer((server == NULL) ? true : false);
     alexa.setPort(80);
 
-    for (size_t i = 0; i < DeviceInfo::deviceRegList.size(); i++)
+    for (size_t i = 0; i < deviceInfo.size(); i++)
     {
-        DeviceRegData reg = DeviceInfo::deviceRegList[i];
+        DeviceData reg = deviceInfo.getDevices()[i];
         if (reg.tid == 0)
             continue;
 
-        addDevice(reg.tid, reg.name.c_str());
+        addDevice(reg.tid, reg.terminalName().c_str());
     }
 
     alexa.onSetState([](unsigned char device_id, const char *device_name, bool state, unsigned char value)

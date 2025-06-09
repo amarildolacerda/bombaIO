@@ -9,6 +9,7 @@
 #include "config.h"
 #include "SystemState.h"
 #include "DeviceInfo.h"
+#include "AlexaCom.h"
 #include "ws_logger.h"
 #ifdef WIFI
 #include "ws_logger.h"
@@ -19,6 +20,8 @@ DNSServer dns;
 AsyncWiFiManager wifiManager(&server, &dns);
 
 #endif
+
+AlexaCallbackType alexaCallbackFn;
 
 class WiFiConn
 {
@@ -49,8 +52,9 @@ private:
     }
 
 public:
-    bool setup()
+    bool setup(AlexaCallbackType alexaCallback)
     {
+        alexaCallbackFn = alexaCallback;
         initWiFi();
         if (systemState.isConnected)
         {
@@ -67,10 +71,24 @@ public:
             systemState.isConnected = false;
             systemState.isInitialized = false;
         }
+        initAlexa();
+
         return systemState.isConnected;
+    }
+    void initAlexa()
+    {
+        alexaCom.setup(&server, [](unsigned char device_id, const char *device_name, bool state, unsigned char value)
+                       {
+                           if (alexaCallbackFn)
+                           {
+                               alexaCallbackFn(device_id, device_name, state, value);
+                           }
+                           // Handle Alexa device callback
+                           Logger::log(LogLevel::INFO, "Alexa Device Callback: ID: %d, Name: %s, State: %d, Value: %d", device_id, device_name, state, value); });
     }
     void loop()
     {
+        alexaCom.loop();
     }
     String getISOTime(String format = "")
     {

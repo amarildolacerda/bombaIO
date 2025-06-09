@@ -7,6 +7,7 @@
 
 // #include "deviceinfo.h"
 // #include "queue_message.h"
+#include "config.h"
 #ifdef ESP32
 #include <WiFi.h>
 #elif ESP8266
