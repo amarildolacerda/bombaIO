@@ -24,12 +24,12 @@ class DeviceInfo
 {
 private:
     std::vector<DeviceData> list;
+
+public:
     int diffSeconds(const unsigned long &lastSeenISOTime)
     {
         return (millis() - lastSeenISOTime) / 1000; // Convert milliseconds to seconds
     }
-
-public:
     uint8_t running()
     {
         uint8_t n = 0;
@@ -45,6 +45,9 @@ public:
     uint8_t size()
     {
         return list.size();
+    }
+    void clear(){
+        list.clear();
     }
     void addDevice(const DeviceData &device)
     {

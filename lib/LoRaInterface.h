@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <queue_message.h>
+#include "logger.h"
 
 //[stable]
 enum LoRaStates

@@ -38,10 +38,7 @@ private:
 
         systemState.isConnected = WiFi.isConnected();
 
-        if (systemState.isConnected)
-        {
-            WSLogger::initWs(server);
-        }
+        return;
     }
     void initNTP()
     {
@@ -72,6 +69,9 @@ public:
             systemState.isInitialized = false;
         }
         initAlexa();
+        delay(500); // Estabilização após conexão
+
+        WSLogger::initWs(server);
 
         return systemState.isConnected;
     }

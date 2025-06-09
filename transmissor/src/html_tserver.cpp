@@ -4,12 +4,11 @@
 #include <Arduino.h>
 #include "config.h"
 #ifdef DISPLAY_ENABLED
-#include "display_manager.h"
+#include "displaymanager.h"
 #endif
-#include "system_state.h"
-#include "device_info.h"
-#include "LoRaCom.h"
-#include "prefers.h"
+#include "systemstate.h"
+#include "deviceinfo.h"
+#include "loracom.h"
 #ifndef __AVR__
 
 #ifdef ESP32
@@ -116,7 +115,7 @@ namespace HtmlServer
         html += "  </header>";
         html += "  <div class='device-list'>";
 
-        for (auto &data : DeviceInfo::deviceRegList)
+        for (auto &data : deviceInfo.getDevices())
         {
             data.name.toUpperCase();
             if (data.tid > 0)
@@ -154,7 +153,7 @@ namespace HtmlServer
         html += "}";
         html += "document.addEventListener('DOMContentLoaded', () => {";
         html += "  const devices = [";
-        for (const auto &data : DeviceInfo::deviceRegList)
+        for (const auto &data : deviceInfo.getDevices())
         {
             if (data.tid > 0)
             {
@@ -197,19 +196,15 @@ namespace HtmlServer
 
         html += generateMenu();
 
-        const uint8_t idx = DeviceInfo::indexOf(tid);
+        const uint8_t idx = deviceInfo.indexOf(tid);
         if (idx >= 0)
         {
-            const DeviceRegData &rdata = DeviceInfo::deviceRegList[idx];
-            const uint16_t didx = DeviceInfo::dataOf(tid);
-            DeviceInfoData data;
-            if (didx >= 0)
-                data = DeviceInfo::deviceList[didx];
+            const DeviceData &rdata = deviceInfo.getDevices()[idx];
 
             html += "  <div class='card'>";
             html += "    <h2>" + rdata.name + "</h2>";
-            html += "    <p>RSSI: " + ((didx >= 0) ? String(data.rssi) : "") + " dBm</p>";
-            html += "    <p>Última Atualização: " + ((didx >= 0) ? String(DeviceInfo::getTimeDifferenceSeconds(data.lastSeen)) : "") + "s</p>";
+            html += "    <p>RSSI: " + ((idx >= 0) ? String(rdata.rssi) : "") + " dBm</p>";
+            html += "    <p>Última Atualização: " + ((idx >= 0) ? String(deviceInfo.diffSeconds(rdata.lastSeen)) : "") + "s</p>";
             html += "    <p id='device-status'>Estado: Carregando...</p>";
             html += "    <div class='button-group'>";
             html += "      <button onclick=\"controlDevice('on')\" class='btn-success'>Ligar</button>";
@@ -307,7 +302,7 @@ namespace HtmlServer
     void handleDeviceDetailsRequest(AsyncWebServerRequest *request)
     {
         uint8_t tid = request->hasArg("tid") ? request->arg("tid").toInt() : 0xFF;
-        uint8_t idx = DeviceInfo::indexOf(tid);
+        uint8_t idx = deviceInfo.indexOf(tid);
         if (idx >= 0)
         {
             generateDeviceDetailsPage(request, tid);
@@ -331,33 +326,33 @@ namespace HtmlServer
         String action = request->hasArg("action") ? request->arg("action") : "none";
         action.toLowerCase();
 
-        const int16_t x = DeviceInfo::dataOf(tid);
+        const int16_t x = deviceInfo.indexOf(tid);
 
         if (action == "toggle")
         { // o tid é o handle do dispositivo, nao depende de procura
             // pode ser que o terminal nao esta respondendo, mas mesh o alcance
-            LoRaCom::sendCommand("gpio", "toggle", tid);
+            LoRaCom::send("gpio", "toggle", tid);
         }
         if (action == "on")
         { // o tid é o handle do dispositivo, nao depende de procura
             // pode ser que o terminal nao esta respondendo, mas mesh o alcance
-            LoRaCom::sendCommand("gpio", "on", tid);
+            LoRaCom::send("gpio", "on", tid);
         }
         if (action == "off")
         { // o tid é o handle do dispositivo, nao depende de procura
             // pode ser que o terminal nao esta respondendo, mas mesh o alcance
-            LoRaCom::sendCommand("gpio", "off", tid);
+            LoRaCom::send("gpio", "off", tid);
         }
 
         String status = "Aguardando";
         if (x >= 0)
         {
-            const DeviceInfoData &data = DeviceInfo::deviceList[x];
+            const DeviceData &data = deviceInfo.getDevices()[x];
 
             // LoRaCom::sendCommand("status", "get", tid); // muitas chamadas redundandtes.
-            int timeDiff = DeviceInfo::getTimeDifferenceSeconds(data.lastSeen);
+            int timeDiff = deviceInfo.diffSeconds(data.lastSeen);
             bool isOffline = (timeDiff == -1) || (timeDiff > 60 * 5);
-            status = isOffline ? "Não Responde" : (data.value.length() == 0 ? "???" : data.value);
+            status = isOffline ? "Não Responde" : (data.state ? "on" : "off");
         }
         respStatus(request, tid, status);
     }
@@ -377,13 +372,9 @@ namespace HtmlServer
                       { handleToggleDevice(request); });
         espServer->on("/reset", HTTP_GET, [](AsyncWebServerRequest *request)
                       {
-            DeviceInfo::deviceRegList.clear(); 
-            DeviceInfo::deviceList.clear();
-            Prefers::saveRegs();
-#ifdef DISPLAY_ENABLED
-            displayManager.showMessage("Reset no dispositivos");
-#endif
-//            request->send(200, "text/plain", "OK"); 
+            deviceInfo.clear(); 
+            
+            //Prefers::saveRegs();
             request->redirect("/");
             delay(100);
             ESP.restart(); });
@@ -397,7 +388,7 @@ namespace HtmlServer
         espServer->on("/discovery", HTTP_POST, [](AsyncWebServerRequest *request)
                       {
         if (request->hasArg("enable")) {
-            systemState.setDiscovery(request->arg("enable") == "1",60000);
+            systemState.setDiscovering(request->arg("enable") == "1");
             request->send(200, "text/plain", "OK");
         } else {
             request->send(400, "text/plain", "Bad Request");

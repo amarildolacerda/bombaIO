@@ -12,9 +12,7 @@
 
 #include "stats.h"
 #include "alexaCom.h"
-
-#include "LoRa32.h"
-LoRa32 lora;
+#include "loraCom.h"
 
 /// LoRa -------------------------------------------------------------------------
 
