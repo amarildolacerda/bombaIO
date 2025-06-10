@@ -83,6 +83,11 @@ public:
         Serial.println("LoRa init succeeded.");
 
         systemState.setDiscovering(true, 30000);
+#ifdef GATEWAY
+        LoRaCom::sendPresentation(0xFF); // pede apresentação para os terminais.
+#else
+        LoRaCom::sendPresentation(0); // se apresenta ao gateway
+#endif
     }
 
     long discoveryUpdate = 0;
