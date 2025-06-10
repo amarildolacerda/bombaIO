@@ -85,6 +85,7 @@ public:
     }
 
     long discoveryUpdate = 0;
+    bool mudouEstado = true;
     void loop()
     {
         systemState.handle();
@@ -98,7 +99,11 @@ public:
         lora.loop();
 
         static long lastSendTime = 0; // last send time
-        if (millis() - lastSendTime > Config::PING_TIMEOUT_MS)
+        int timeUpdate = Config::PING_TIMEOUT_MS;
+#ifdef TERMINAL
+        timeUpdate = 5000;
+#endif
+        if (mudouEstado || millis() - lastSendTime > timeUpdate)
         {
 #ifdef GATEWAY
             sendPing();
@@ -106,6 +111,7 @@ public:
             sendStatus();
 #endif
             lastSendTime = millis(); // timestamp the message
+            mudouEstado = false;
         }
         static long receiveUpdate = 0;
         MessageRec rec;
@@ -217,6 +223,8 @@ public:
             {
                 return;
             }
+            ackNak(rec.from, true);
+            mudouEstado = true; // antecipa a notificação de mudança
         }
 #endif
 
@@ -247,17 +255,26 @@ public:
         }
         else if (strcmp(rec.event, EVT_STATUS) == 0)
         {
-            ackNak(rec.from, true);
-            executeStatus(rec);
+            if (strcmp(rec.value, "get") == 0)
+            {
+                mudouEstado = true;
+            }
+            else
+            {
+                // ackNak(rec.from, true);
+                executeStatus(rec);
+            }
         }
         else if (strcmp(rec.event, EVT_PRESENTATION) == 0)
         {
-            ackNak(rec.from, true);
 
 #ifdef GATEWAY
+            ackNak(rec.from, true);
             deviceInfo.updateDevice(rec.from, rec.value, false, lora.packetRssi());
             if (rec.from != 0xFF)
                 alexaCom.addDevice(rec.from, String(rec.from).c_str());
+#else
+            LoRaCom::send(rec.from, EVT_PRESENTATION, systemState.terminalName);
 #endif
         }
     }
