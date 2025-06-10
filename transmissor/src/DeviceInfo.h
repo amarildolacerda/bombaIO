@@ -4,6 +4,7 @@
 
 #include "Arduino.h"
 #include <vector>
+#include "AlexaCom.h"
 
 struct DeviceData
 {
@@ -150,6 +151,10 @@ public:
         if (x >= 0)
         {
             list[x].name = name;
+#ifdef ALEXA
+            if (tid != 0xFF)
+                alexaCom.renameDevice(tid, name);
+#endif
         }
     }
 };

@@ -292,8 +292,10 @@ public:
 #ifdef GATEWAY
             ackNak(rec.from, true);
             deviceInfo.updateDevice(rec.from, rec.value, false, lora.packetRssi());
-            if (rec.from != 0xFF)
-                alexaCom.addDevice(rec.from, String(rec.from).c_str());
+#ifdef ALEXA
+            if (rec.to != 0xFF)
+                alexaCom.addDevice(rec.from, String(rec.value).c_str());
+#endif
 #else
             LoRaCom::send(rec.from, EVT_PRESENTATION, systemState.terminalName);
 #endif

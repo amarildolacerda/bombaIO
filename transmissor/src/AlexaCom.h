@@ -13,7 +13,7 @@ struct AlexaDeviceMap
     String name;     // Nome do dispositivo
     String uniqueName()
     {
-        return "TERM" + String(tid);
+        return name + String(tid);
         // String a = name + "." + String(tid);
         // a.toLowerCase();
         // return a;
@@ -65,6 +65,7 @@ public:
         Logger::warn("Alexa, nao registrou o terminal %d", device_id);
         return -1;
     }
+    void renameDevice(const uint8_t tid, String name);
 };
 
 extern AlexaCom alexaCom;

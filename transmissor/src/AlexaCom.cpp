@@ -113,6 +113,18 @@ void AlexaCom::setup(AsyncWebServer *server, AlexaCallbackType callback)
 #endif
 }
 
+void AlexaCom::renameDevice(const uint8_t tid, String name)
+{
+
+    size_t i = indexOf(tid);
+    if (i >= 0)
+    {
+        String oldname = alexaDevices[i].name;
+        alexaDevices[i].name = name;
+        alexa.renameDevice(oldname.c_str(), name.c_str());
+    }
+}
+
 void AlexaCom::loop()
 
 {
