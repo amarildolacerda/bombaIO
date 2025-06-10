@@ -28,7 +28,7 @@ public:
          Serial.print(":");
          Serial.println(txSuccess);
  */
-/*        if (millis() - resetTime > 60000)
+        if (millis() - resetTime > 60000)
         {
             resetTime = millis();
             txCount = 0;
@@ -36,12 +36,12 @@ public:
             rxCount = 0;
             rxSuccess = 0;
         }
-*/    }
-long ps()
-{
-    return (rxCount / ((((millis() - resetTime)) / 1000) + 1)); // +1 para garantir >0
-    // return rxSuccess;
-}
+    }
+    long ps()
+    {
+        return (rxCount / ((((millis() - resetTime)) / 1000) + 1)); // +1 para garantir >0
+        // return rxSuccess;
+    }
 };
 
 extern Stats stats;
