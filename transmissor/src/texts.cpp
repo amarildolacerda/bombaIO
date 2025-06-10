@@ -3,7 +3,7 @@
 namespace Texts
 {
 
-    String leftPad(String original, int length, char fillChar)
+    String left(String original, int length, char fillChar)
     {
         // Verifica se precisa truncar
         if (original.length() >= length)
@@ -26,7 +26,7 @@ namespace Texts
         return result;
     }
 
-    String centerText(String text, int width, char fillChar)
+    String center(String text, int width, char fillChar)
     {
         const int textLength = text.length();
 
@@ -60,5 +60,15 @@ namespace Texts
 
         return centered;
     }
+    String format(const char *format, ...)
+    {
+        char formattedMsg[255];
+        va_list args;
 
+        va_start(args, format);                                      // Inicializa va_list com o último parâmetro fixo
+        vsnprintf(formattedMsg, sizeof(formattedMsg), format, args); // Formata a string
+        va_end(args);                                                // Finaliza va_list
+
+        return String(formattedMsg); // Retorna a String formatada
+    }
 } // namespace Texts

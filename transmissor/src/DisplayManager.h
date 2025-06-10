@@ -9,7 +9,15 @@
 // #include "queue_message.h"
 
 #ifdef ESP32
-#include "ESPCPUTemp.h"
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+    float temperatureRead();
+
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 #include "texts.h"
@@ -35,9 +43,7 @@ class DisplayManager
 private:
     unsigned long updated = 0;
     String loraRcvEvent = "";
-#ifdef ESP32
-    ESPCPUTemp tempSensor;
-#endif
+
 public:
     bool loraConnected = false;
     int termAtivos = 0;
@@ -70,9 +76,6 @@ public:
     }
     bool initialize()
     {
-#ifdef ESP32
-        tempSensor.begin();
-#endif
         return disp.initialize();
     }
 
@@ -134,7 +137,7 @@ private:
         disp.print((String)systemState.terminalId);
 #endif
 
-        disp.print(Texts::centerText(String(ps) + "ps", 9));
+        disp.print(Texts::center(String(ps) + "ps", 10));
         disp.setPos(6, 16);
         disp.println(isoDateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
         disp.setTextColor(WHITE, BLACK);
@@ -162,23 +165,21 @@ private:
         disp.print(" ");
         disp.println((String)rssi);
         disp.setPos(1, 16);
-        disp.println(Texts::leftPad(humanizedUptime(10), 5)); //  startedISODateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
+        disp.println(Texts::left(humanizedUptime(10), 5)); //  startedISODateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
 
 #ifdef ESP32
-        if (tempSensor.tempAvailable())
-        {
-            float temp = tempSensor.getTemp();
-            disp.setPos(2, 16);
-            disp.print(Texts::leftPad(String(temp) + "C", 5));
-        }
+        float temp = temperatureRead();
+
+        disp.setPos(2, 16);
+        disp.print(Texts::left(Texts::format("%.1fc", temp) + "C", 5));
 #endif
 
 #ifdef GATEWAY
         if (isDiscovering)
         {
             disp.setPos(3, 0);
-            disp.println("  Modo pareamento");
-            disp.println("   em andamento"); // redundante, so esta preenchendo espaço no display
+            disp.println(Texts::center("Modo pareamento", 20));
+            disp.println(Texts::center("em andamento", 20)); // redundante, so esta preenchendo espaço no display
         }
         else
         {

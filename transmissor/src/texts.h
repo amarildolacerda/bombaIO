@@ -13,7 +13,7 @@ namespace Texts
      * @param fillChar Caractere de preenchimento (padrão: espaço)
      * @return String formatada
      */
-    String leftPad(String original, int length, char fillChar = ' ');
+    String left(String original, int length, char fillChar = ' ');
 
     /**
      * @brief Centraliza texto com preenchimento
@@ -22,7 +22,9 @@ namespace Texts
      * @param fillChar Caractere de preenchimento (padrão: espaço)
      * @return String centralizada
      */
-    String centerText(String text, int width, char fillChar = ' ');
+    String center(String text, int width, char fillChar = ' ');
+
+    String format(const char *format, ...);
 
 } // namespace Texts
 
