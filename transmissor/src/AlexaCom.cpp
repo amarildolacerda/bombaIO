@@ -157,6 +157,9 @@ void AlexaCom::addDevice(uint8_t tid, const char *name)
     {
         alexa.addDevice(aname.c_str());
         map.alexaId = alexa.getDeviceId(aname.c_str());
+
+        alexa.setDeviceUniqueId((char)map.alexaId, map.uniqueId().c_str());
+
         alexaDevices.push_back(map);
     }
     Logger::info("Adicionou Alexa: %s", aname);

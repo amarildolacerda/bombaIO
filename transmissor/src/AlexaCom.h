@@ -18,6 +18,13 @@ struct AlexaDeviceMap
         // a.toLowerCase();
         // return a;
     }
+    String uniqueId()
+    {
+        String mac = WiFi.macAddress();
+        char uid[27];
+        snprintf(uid, 27, "%02X:%s:%s", tid, mac.c_str(), "00:00");
+        return (String)uid;
+    }
 };
 
 typedef std::function<void(const uint8_t tid, const char *, bool, unsigned char)> AlexaCallbackType;
