@@ -74,11 +74,13 @@ private:
 #endif
 
 public:
-    void setup(AlexaCallbackType cb)
+#ifdef ALEXA
+    void setCallback(AlexaCallbackType cb = nullptr)
     {
         alexaCallbackFn = cb;
-        begin();
     }
+#endif
+
     WiFiConn(AsyncWebServer *srv, DNSServer *dnsServer) : server(srv), dns(dnsServer)
     {
         wifiManager = new AsyncWiFiManager(server, dns);

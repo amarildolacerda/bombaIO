@@ -40,10 +40,11 @@ public:
     {
 #ifdef WIFI
 #ifdef ALEXA
-        wifiConn.setup(alexaDeviceCallback);
-#else
-        wifiConn.setup();
+        wifiConn.setCallback(alexaDeviceCallback);
 #endif
+
+        wifiConn.begin();
+
 #endif
     }
     void initPerif()
