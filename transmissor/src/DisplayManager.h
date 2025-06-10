@@ -4,7 +4,7 @@
 #define DISPPLAY_MANAGER_H
 
 #ifdef DISPLAY_ENABLED
-
+#include "Arduino.h"
 // #include "deviceinfo.h"
 // #include "queue_message.h"
 
@@ -18,6 +18,8 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
+//#define BATTERY_PIN 34 // Pino onde a tensão da bateria está conectada
+
 #endif
 
 #include "texts.h"
@@ -43,7 +45,14 @@ class DisplayManager
 private:
     unsigned long updated = 0;
     String loraRcvEvent = "";
+ /*   float bateryRead()
+    {
+        int leituraAnalogica = analogRead(BATTERY_PIN);
 
+        // Converte a leitura para tensão (considerando um divisor de tensão)
+        return (leituraAnalogica / 4095.0) * 3.3 * 2; // 3.3V é a referência do ESP32, multiplicar por 2 se houver divisor de tensão
+    }
+*/
 public:
     bool loraConnected = false;
     int termAtivos = 0;
@@ -168,10 +177,17 @@ private:
         disp.println(Texts::left(humanizedUptime(10), 5)); //  startedISODateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
 
 #ifdef ESP32
-        float temp = temperatureRead();
+        static long tempUpdate = 0;
+        if (millis() - tempUpdate > 60000)
+        {
+            float temp = temperatureRead();
 
-        disp.setPos(2, 16);
-        disp.print(Texts::left(Texts::format("%.1fc", temp) + "C", 5));
+            disp.setPos(2, 16);
+            disp.print(Texts::left(Texts::format("%.1fc", temp) + "C", 5));
+            //  disp.setPos(3, 16);
+            //  disp.print(Texts::left(Texts::format("%.1fv", bateryRead()), 5));
+            //  tempUpdate = millis();
+        }
 #endif
 
 #ifdef GATEWAY
