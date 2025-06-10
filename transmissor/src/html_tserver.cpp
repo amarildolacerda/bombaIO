@@ -50,6 +50,10 @@ String HtmlServer::getCommonStyles()
     styles += "  .device-card h3 { margin: 10px 0; font-size: 18px; color: #333; }";
     styles += "  .device-card button { margin-top: 10px; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }";
     styles += "  .device-card button:hover { background-color: #2980b9; }";
+    // Adicionando classes de status
+    styles += "  .status-on { color: #2ecc71; font-weight: bold; }";
+    styles += "  .status-off { color: #e74c3c; font-weight: bold; }";
+    styles += "  .status-error { color: #f39c12; font-weight: bold; }";
     return styles;
 }
 
@@ -120,7 +124,7 @@ void HtmlServer::generateHomePage(AsyncWebServerRequest *request)
         html += "      <h3>";
         html += "      <div style='cursor:pointer;' onclick=\"window.location='/device?tid=" + String(data.tid) + "'\">" + String(data.name) + "</div></h3>";
         html += "      <hr/>";
-        html += "      <p id='device-status-" + String(data.tid) + "'>...</p>";
+        html += "      <p id='device-status-" + String(data.tid) + "' class='status'>...</p>";
         html += "      <div class='device-actions'>";
         html += "        <button onclick=\"controlDevice(" + String(data.tid) + ", 'on')\" class='btn-success'>Ligar</button>";
         html += "        <button onclick=\"controlDevice(" + String(data.tid) + ", 'off')\" class='btn-danger'>Desligar</button>";
@@ -132,41 +136,44 @@ void HtmlServer::generateHomePage(AsyncWebServerRequest *request)
     html += "</div>";
 
     html += "<script>";
-    html += "async function updateStatus(id) {";
-    html += "  const res = await fetch(`/ctlDevice?tid=${id}&action=" + String(EVT_STATUS) + "`, { method: 'POST' });";
-    html += "  const statusElement = document.getElementById(`device-status-${id}`);";
-    html += "  if (res.ok) {";
-    html += "    const json = await res.json();";
-    html += "    statusElement.innerText = json.status;";
-    html += "  } else {";
-    html += "    statusElement.innerText = 'Erro';";
+    html += "async function updateAllStatuses() {";
+    html += "  try {";
+    html += "    const res = await fetch('/batchStatus', { method: 'GET' });";
+    html += "    if (res.ok) {";
+    html += "      const data = await res.json();";
+    html += "      data.devices.forEach(device => {";
+    html += "        const statusElement = document.getElementById(`device-status-${device.tid}`);";
+    html += "        if (statusElement) {";
+    html += "          statusElement.innerText = device.status;";
+    html += "          statusElement.className = ";
+    html += "            device.status.includes('ON') ? 'status-on' :";
+    html += "            device.status.includes('OFF') ? 'status-off' : 'status-error';";
+    html += "        }";
+    html += "      });";
+    html += "    } else {";
+    html += "      console.error('Failed to fetch status:', res.status);";
+    html += "      setTimeout(updateAllStatuses, 500);";
+    html += "    }";
+    html += "  } catch (error) {";
+    html += "    console.error('Error fetching status:', error);";
+    html += "    setTimeout(updateAllStatuses, 1000); ";
     html += "  }";
     html += "}";
     html += "async function controlDevice(id, action) {";
-    html += "  await fetch(`/ctlDevice?tid=${id}&action=${action}`, { method: 'POST' });";
-    html += "  updateStatus(id);";
-    html += "}";
-    html += "document.addEventListener('DOMContentLoaded', () => {";
-    html += "  const devices = [";
-    for (const auto &data : deviceInfo.getDevices())
-    {
-        if (data.tid > 0)
-        {
-            html += "'" + String(data.tid) + "',";
-        }
-    }
-    html += "];";
-    html += "  let currentIndex = 0;";
-    html += "  const updateNextDevice = () => {";
-    html += "    if (currentIndex < devices.length) {";
-    html += "      updateStatus(devices[currentIndex]);";
-    html += "      currentIndex++;";
-    html += "    } else {";
-    html += "      currentIndex = 0;";
+    html += "  try {";
+    html += "    await fetch(`/ctlDevice?tid=${id}&action=${action}`, { method: 'POST' });";
+    html += "    const statusElement = document.getElementById(`device-status-${id}`);";
+    html += "    if (statusElement) {";
+    html += "      statusElement.innerText = action === 'on' ? 'Ligando...' : 'Desligando...';";
+    html += "      statusElement.className = action === 'on' ? 'status-on' : 'status-off';";
     html += "    }";
-    html += "  };";
-    html += "  setInterval(updateNextDevice, 1000);";
-    html += "});";
+    html += "    setTimeout(updateAllStatuses, 1000);";
+    html += "  } catch (error) {";
+    html += "    console.error('Error controlling device:', error);";
+    html += "  }";
+    html += "}";
+    html += "updateAllStatuses();";
+    html += "setInterval(updateAllStatuses, 1000);";
     html += "</script>";
 
     html += "</body></html>";
@@ -184,6 +191,8 @@ void HtmlServer::generateDeviceDetailsPage(AsyncWebServerRequest *request, uint8
     html += "<style>";
     html += getCommonStyles();
     html += "  .button-group { margin-top: 15px; }";
+    html += "  .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; }";
+    html += "  .info-label { font-weight: bold; }";
     html += "</style>";
     html += "</head>";
     html += "<body>";
@@ -198,9 +207,9 @@ void HtmlServer::generateDeviceDetailsPage(AsyncWebServerRequest *request, uint8
 
         html += "  <div class='card'>";
         html += "    <h2>" + rdata.name + "</h2>";
-        html += "    <p>RSSI: " + ((idx >= 0) ? String(rdata.rssi) : "") + " dBm</p>";
-        html += "    <p>Última Atualização: " + ((idx >= 0) ? String(deviceInfo.diffSeconds(rdata.lastSeen)) : "") + "s</p>";
-        html += "    <p id='device-status'>Estado: Carregando...</p>";
+        html += "    <div class='info-row'><span class='info-label'>RSSI:</span><span id='device-rssi'>" + String(rdata.rssi) + " dBm</span></div>";
+        html += "    <div class='info-row'><span class='info-label'>Última Atualização:</span><span id='device-lastseen'>" + String(deviceInfo.diffSeconds(rdata.lastSeen)) + "s</span></div>";
+        html += "    <div class='info-row'><span class='info-label'>Estado:</span><span id='device-status' class='status-off'>Carregando...</span></div>";
         html += "    <div class='button-group'>";
         html += "      <button onclick=\"controlDevice('on')\" class='btn-success'>Ligar</button>";
         html += "      <button onclick=\"controlDevice('off')\" class='btn-danger'>Desligar</button>";
@@ -208,19 +217,38 @@ void HtmlServer::generateDeviceDetailsPage(AsyncWebServerRequest *request, uint8
         html += "  </div>";
 
         html += "<script>";
-        html += "async function updateStatus() {";
-        html += "  const res = await fetch(`/ctlDevice?tid=" + String(rdata.tid) + "&action=" + EVT_STATUS + "`, { method: 'POST' });";
-        html += "  if (res.ok) {";
-        html += "    const json = await res.json();";
-        html += "    document.getElementById('device-status').innerText = 'Estado: ' + json.status;";
+        html += "async function updateDeviceInfo() {";
+        html += "  try {";
+        html += "    const res = await fetch('/batchStatus', { method: 'GET' });";
+        html += "    if (res.ok) {";
+        html += "      const data = await res.json();";
+        html += "      const device = data.devices.find(d => d.tid == " + String(rdata.tid) + ");";
+        html += "      if (device) {";
+        html += "        document.getElementById('device-status').innerText = device.status;";
+        html += "        document.getElementById('device-status').className = ";
+        html += "          device.status.includes('ON') ? 'status-on' : ";
+        html += "          device.status.includes('OFF') ? 'status-off' : 'status-error';";
+        html += "        document.getElementById('device-rssi').innerText = device.rssi + ' dBm';";
+        html += "        document.getElementById('device-lastseen').innerText = device.lastSeen + 's';";
+        html += "      }";
+        html += "    }";
+        html += "  } catch (error) {";
+        html += "    console.error('Error updating device info:', error);";
         html += "  }";
         html += "}";
         html += "async function controlDevice(action) {";
-        html += "  await fetch(`/ctlDevice?tid=" + String(rdata.tid) + "&action=${action}`, { method: 'POST' });";
-        html += "  updateStatus();";
+        html += "  try {";
+        html += "    await fetch(`/ctlDevice?tid=" + String(rdata.tid) + "&action=${action}`, { method: 'POST' });";
+        html += "    const statusElement = document.getElementById('device-status');";
+        html += "    statusElement.innerText = action === 'on' ? 'Ligando...' : 'Desligando...';";
+        html += "    statusElement.className = 'status-' + (action === 'on' ? 'on' : 'off');";
+        html += "    setTimeout(updateDeviceInfo, 500);";
+        html += "  } catch (error) {";
+        html += "    console.error('Error controlling device:', error);";
+        html += "  }";
         html += "}";
-        html += "updateStatus();";
-        html += "setInterval(updateStatus, 1000);";
+        html += "updateDeviceInfo();";
+        html += "setInterval(updateDeviceInfo, 1000);";
         html += "</script>";
     }
     html += "  <a href='/' class='btn-info'>Voltar</a>";
@@ -339,7 +367,7 @@ void HtmlServer::handleToggleDevice(AsyncWebServerRequest *request)
 
         int timeDiff = deviceInfo.diffSeconds(data.lastSeen);
         bool isOffline = (timeDiff == -1) || (timeDiff > 60 * 5);
-        status = isOffline ? "Não Responde" : (data.state ? "Ligado" : "Desligado");
+        status = isOffline ? "Não Responde" : (data.state ? "ON" : "OFF");
     }
     respStatus(request, tid, status);
 }
@@ -357,32 +385,66 @@ void HtmlServer::initWebServer(AsyncWebServer *server)
     espServer->on("/device", HTTP_GET, handleDeviceDetailsRequest);
     espServer->on("/ctlDevice", HTTP_POST, [](AsyncWebServerRequest *request)
                   { handleToggleDevice(request); });
+
+    espServer->on("/batchStatus", HTTP_GET, [](AsyncWebServerRequest *request)
+                  { 
+                      //Serial.println("Handling batch status request"); // Debug log
+                      handleBatchStatusRequest(request); });
     espServer->on("/reset", HTTP_GET, [](AsyncWebServerRequest *request)
                   {
-        deviceInfo.clear();
-        request->redirect("/");
-        delay(100);
-        ESP.restart(); });
-
+                      deviceInfo.clear();
+                      request->redirect("/");
+                      delay(100);
+                      ESP.restart(); });
     espServer->on("/restart", HTTP_GET, [](AsyncWebServerRequest *request)
                   {
-        request->redirect("/");
-        delay(1000);
-        ESP.restart(); });
-
+                      request->redirect("/");
+                      delay(1000);
+                      ESP.restart(); });
     espServer->on("/discovery", HTTP_POST, [](AsyncWebServerRequest *request)
                   {
-        if (request->hasArg("enable")) {
-            systemState.setDiscovering(request->arg("enable") == "1");
-            request->send(200, "text/plain", "OK");
-        } else {
-            request->send(400, "text/plain", "Bad Request");
-        } });
+                      if (request->hasArg("enable")) {
+                          systemState.setDiscovering(request->arg("enable") == "1");
+                          request->send(200, "text/plain", "OK");
+                      } else {
+                          request->send(400, "text/plain", "Bad Request");
+                      } });
 
     // Rotas OTA
     espServer->on("/ota", HTTP_GET, generateOTAPage);
     espServer->on("/update", HTTP_POST, [](AsyncWebServerRequest *request)
                   { doOTAUpdate(request); });
+}
+
+void HtmlServer::handleBatchStatusRequest(AsyncWebServerRequest *request)
+{
+    // Serial.println("Processing batch status request"); // Debug log
+
+    DynamicJsonDocument doc(1024);
+    JsonArray devices = doc.createNestedArray("devices");
+
+    for (const auto &data : deviceInfo.getDevices())
+    {
+        if (data.tid > 0)
+        {
+            JsonObject device = devices.createNestedObject();
+            device["tid"] = data.tid;
+
+            int timeDiff = deviceInfo.diffSeconds(data.lastSeen);
+            bool isOffline = (timeDiff == -1) || (timeDiff > 60 * 5);
+            device["status"] = isOffline ? "Não Responde" : (data.state ? "ON" : "OFF");
+            device["name"] = data.name;
+            device["rssi"] = data.rssi;
+            device["lastSeen"] = timeDiff;
+
+            // Serial.printf("Device %d - Status: %s, RSSI: %d, LastSeen: %ds\n",
+            //               data.tid, device["status"].as<const char *>(), data.rssi, timeDiff); // Debug log
+        }
+    }
+
+    String response;
+    serializeJson(doc, response);
+    request->send(200, "application/json", response);
 }
 
 bool HtmlServer::begin()

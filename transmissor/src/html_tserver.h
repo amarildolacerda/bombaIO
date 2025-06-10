@@ -4,6 +4,7 @@
 
 #include <ESPAsyncWebServer.h>
 #include "queue_message.h"
+#include <ArduinoJson.h>
 
 class HtmlServer
 {
@@ -19,9 +20,10 @@ private:
     static void handleRootRequest(AsyncWebServerRequest *request);
     static void handleDeviceDetailsRequest(AsyncWebServerRequest *request);
     static void doOTAUpdate(AsyncWebServerRequest *request);
+    static void handleBatchStatusRequest(AsyncWebServerRequest *request); // Novo método
 
 public:
-    MessageRec txRec;
+    MessageRec txRec = {};
 
     // ========== Web Server Interface ==========
     static void waitTimeout(const bool ateQueDiferente, const int timeout = 3000);
