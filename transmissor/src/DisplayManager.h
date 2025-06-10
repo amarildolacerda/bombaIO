@@ -66,7 +66,7 @@ public:
     }
 
 private:
-    String humanizedUptime()
+    String humanizedUptime(int32_t detailBefore = 60)
     {
         unsigned long now = millis();
         unsigned long seconds = now / 1000;
@@ -76,7 +76,7 @@ private:
         seconds %= 60;
         minutes %= 60;
 
-        char buffer[16]; // Buffer suficiente para armazenar a string
+        char buffer[20]; // Buffer suficiente para todas as combinações
 
         if (hours > 0)
         {
@@ -89,11 +89,16 @@ private:
                 snprintf(buffer, sizeof(buffer), "%luh", hours);
             }
         }
+        else if (minutes >= detailBefore)
+        {
+            snprintf(buffer, sizeof(buffer), "%lumin", minutes);
+        }
         else
         {
+            // Mostra minutos e segundos quando menos de 10 minutos
             if (minutes > 0)
             {
-                snprintf(buffer, sizeof(buffer), "%lumin", minutes);
+                snprintf(buffer, sizeof(buffer), "%lum%02lus", minutes, seconds);
             }
             else
             {
