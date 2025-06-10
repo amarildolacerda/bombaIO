@@ -52,7 +52,7 @@ public:
             if (alexaDevices[i].tid == tid)
                 return i;
         }
-        Logger::error("Alexa, nao achei o terminal  %d", tid);
+        Logger::warn("Alexa, nao achei o terminal  %d", tid);
         return -1;
     }
     int findBYAlexaId(unsigned char device_id)
@@ -62,7 +62,7 @@ public:
             if (alexaDevices[i].alexaId == device_id)
                 return i;
         }
-        Logger::error("Alexa, nao registrou o terminal %d", device_id);
+        Logger::warn("Alexa, nao registrou o terminal %d", device_id);
         return -1;
     }
 };

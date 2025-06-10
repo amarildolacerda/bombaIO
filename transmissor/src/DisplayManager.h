@@ -8,6 +8,12 @@
 // #include "deviceinfo.h"
 // #include "queue_message.h"
 
+#ifdef ESP32
+#include "ESPCPUTemp.h"
+#endif
+
+#include "texts.h"
+
 #include "systemstate.h"
 #include "config.h"
 #ifdef ESP32
@@ -29,7 +35,9 @@ class DisplayManager
 private:
     unsigned long updated = 0;
     String loraRcvEvent = "";
-
+#ifdef ESP32
+    ESPCPUTemp tempSensor;
+#endif
 public:
     bool loraConnected = false;
     int termAtivos = 0;
@@ -62,6 +70,9 @@ public:
     }
     bool initialize()
     {
+#ifdef ESP32
+        tempSensor.begin();
+#endif
         return disp.initialize();
     }
 
@@ -122,10 +133,8 @@ private:
         disp.print("Term: ");
         disp.print((String)systemState.terminalId);
 #endif
-        disp.print("  ");
-        disp.print((String)ps);
-        disp.print("ps");
-        disp.print("  ");
+
+        disp.print(Texts::centerText(String(ps) + "ps", 9));
         disp.setPos(6, 16);
         disp.println(isoDateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
         disp.setTextColor(WHITE, BLACK);
@@ -153,7 +162,16 @@ private:
         disp.print(" ");
         disp.println((String)rssi);
         disp.setPos(1, 16);
-        disp.println(humanizedUptime()); //  startedISODateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
+        disp.println(Texts::leftPad(humanizedUptime(10), 5)); //  startedISODateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
+
+#ifdef ESP32
+        if (tempSensor.tempAvailable())
+        {
+            float temp = tempSensor.getTemp();
+            disp.setPos(2, 16);
+            disp.print(Texts::leftPad(String(temp) + "C", 5));
+        }
+#endif
 
 #ifdef GATEWAY
         if (isDiscovering)
