@@ -43,6 +43,10 @@ public:
         }
 #endif
     }
+    static void sendPresentation(const uint8_t tid)
+    {
+        LoRaCom::send(tid, EVT_PRESENTATION, systemState.terminalName);
+    }
 };
 
 #endif

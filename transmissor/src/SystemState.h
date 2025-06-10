@@ -17,16 +17,18 @@ public:
     bool isInitialized = false;     // lora ok.
     bool isRelayOn = false;         // on/off
     bool isDiscovering = false;     // used to indicate if the system is in discovery mode
+    long discoveryDuration = 30000;
 
-    bool setDiscovering(bool value)
+    bool setDiscovering(bool value, const long ms = 60000)
     {
+        discoveryDuration = ms;
         isDiscovering = value;
         discoveryUpdate = millis();
         return isDiscovering;
     }
     void handle()
     {
-        if (isDiscovering && millis() - discoveryUpdate > 60000)
+        if (isDiscovering && millis() - discoveryUpdate > discoveryDuration)
         {
             isDiscovering = false; // stop discovery after timeout
             Logger::log(LogLevel::INFO, "Discovery timeout reached, stopping discovery.");

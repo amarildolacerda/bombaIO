@@ -66,6 +66,43 @@ public:
     }
 
 private:
+    String humanizedUptime()
+    {
+        unsigned long now = millis();
+        unsigned long seconds = now / 1000;
+        unsigned long minutes = seconds / 60;
+        unsigned long hours = minutes / 60;
+
+        seconds %= 60;
+        minutes %= 60;
+
+        char buffer[16]; // Buffer suficiente para armazenar a string
+
+        if (hours > 0)
+        {
+            if (minutes > 0)
+            {
+                snprintf(buffer, sizeof(buffer), "%luh%02lum", hours, minutes);
+            }
+            else
+            {
+                snprintf(buffer, sizeof(buffer), "%luh", hours);
+            }
+        }
+        else
+        {
+            if (minutes > 0)
+            {
+                snprintf(buffer, sizeof(buffer), "%lumin", minutes);
+            }
+            else
+            {
+                snprintf(buffer, sizeof(buffer), "%lus", seconds);
+            }
+        }
+
+        return String(buffer);
+    }
     void _showFooter()
     {
         disp.fillRect(0, Config::SCREEN_HEIGHT - 12, Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT);
@@ -111,7 +148,7 @@ private:
         disp.print(" ");
         disp.println((String)rssi);
         disp.setPos(1, 16);
-        disp.println(startedISODateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
+        disp.println(humanizedUptime()); //  startedISODateTime.substring(11, 16)); // Mostra apenas HH:MM:SS
 
 #ifdef GATEWAY
         if (isDiscovering)

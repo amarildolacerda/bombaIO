@@ -82,7 +82,7 @@ public:
         systemState.isInitialized = lora.connected;
         Serial.println("LoRa init succeeded.");
 
-        systemState.setDiscovering(true);
+        systemState.setDiscovering(true, 30000);
     }
 
     long discoveryUpdate = 0;
@@ -231,6 +231,14 @@ public:
         }
 #endif
 
+#ifdef GATEWAY
+        if (rec.to == systemState.terminalId && strcmp(rec.event, EVT_PRESENTATION) != 0)
+        {
+            if (deviceInfo.indexOf(rec.from) < 0)
+                LoRaCom::sendPresentation(rec.from);
+        }
+#endif
+
         if (strcmp(rec.event, EVT_PING) == 0)
         {
             lora.send(rec.from, EVT_PONG, Config::TERMINAL_NAME, systemState.terminalId);
@@ -269,6 +277,7 @@ public:
             else
             {
                 // ackNak(rec.from, true);
+
                 executeStatus(rec);
             }
         }
