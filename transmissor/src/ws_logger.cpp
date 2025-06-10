@@ -1,4 +1,6 @@
 #include "ws_logger.h"
+#ifdef WIFI
+
 #include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
 
@@ -90,4 +92,6 @@ void WSLogger::initWs(AsyncWebServer &server)
 </html>
 )rawliteral"); });
 }
+#endif
+
 #endif

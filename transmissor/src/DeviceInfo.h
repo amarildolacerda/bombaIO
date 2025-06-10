@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(ESP32)
+#ifdef GATEWAY
 
 #include "Arduino.h"
 #include <vector>

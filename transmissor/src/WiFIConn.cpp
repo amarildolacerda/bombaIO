@@ -1,3 +1,4 @@
+#ifdef WIFI
 #include "WiFiConn.h"
 
 #ifdef ALEXA
@@ -7,3 +8,4 @@
 AsyncWebServer server(Config::WEBSERVER_PORT);
 DNSServer dns;
 WiFiConn wifiConn(&server, &dns);
+#endif

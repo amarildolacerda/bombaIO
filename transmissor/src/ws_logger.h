@@ -1,6 +1,8 @@
 #ifndef WSLOGGER_H
 #define WSLOGGER_H
 
+#ifdef WIFI
+
 #include "Arduino.h"
 #include "logger.h"
 #include "config.h"
@@ -20,5 +22,7 @@ namespace WSLogger
     void initWs(AsyncWebServer &server);
 #endif
 }
+
+#endif
 
 #endif

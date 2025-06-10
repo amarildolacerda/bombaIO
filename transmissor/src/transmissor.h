@@ -25,12 +25,12 @@
 
 /// LoRa -------------------------------------------------------------------------
 
+#ifdef ALEXA
 static void alexaDeviceCallback(uint8_t tid, const char *device_name, bool state, unsigned char value)
 {
-#ifdef ALEXA
     LoRaCom::send(tid, EVT_GPIO, state ? GPIO_ON : GPIO_OFF);
-#endif
 }
+#endif
 
 class App
 {
@@ -113,13 +113,14 @@ public:
             lastSendTime = millis(); // timestamp the message
             mudouEstado = false;
         }
-        static long receiveUpdate = 0;
+        //     static long receiveUpdate = 0;
         MessageRec rec;
         if (lora.processIncoming(rec))
         {
             handleReceived(rec);
         }
 
+#ifdef GATEWAY
         if (systemState.isDiscovering)
         {
             static long discUpdate = 0;
@@ -129,6 +130,7 @@ public:
                 discUpdate = millis();
             }
         }
+#endif
         updateDisplay();
         LoRaCom::loop();
 
@@ -234,10 +236,12 @@ public:
         }
         else if (strcmp(rec.event, EVT_ACK) == 0)
         {
+#ifdef GATEWAY
             if (strlen(rec.value) > 0)
             {
                 deviceInfo.updateDeviceName(rec.from, rec.value);
             }
+#endif
             // Nada a fazer
         }
         else if (strcmp(rec.event, EVT_NAK) == 0)
@@ -247,10 +251,12 @@ public:
         else if (strcmp(rec.event, EVT_PONG) == 0)
         {
             ackNak(rec.from, true);
+#ifdef GATEWAY
             if (strlen(rec.value) > 0)
             {
                 deviceInfo.updateDeviceName(rec.from, rec.value);
             }
+#endif
             // Na
         }
         else if (strcmp(rec.event, EVT_STATUS) == 0)
