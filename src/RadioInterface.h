@@ -35,6 +35,7 @@ protected:
     const char bBOF = '{';
     const char bSEP = '|';
     RadioStates state = RadioStateRX;
+    bool connected = false;
 
 private:
     void setState(RadioStates st)
@@ -56,11 +57,14 @@ private:
     }
 
 public:
+    bool isConnected()
+    {
+        return connected;
+    }
     bool isValidMessage(const char *msg, uint8_t len)
     {
         return (len >= 4) && (msg[0] == '{') && (msg[len - 1] == '}');
     }
-    bool connected = false;
 
     void meshMessage(MessageRec &rec)
     {

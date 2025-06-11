@@ -115,7 +115,7 @@ public:
             connected = true;
         configParams();
 
-        return connected;
+        return isConnected();
     };
     int packetRssi() override
     {

@@ -19,11 +19,11 @@ static LoRaRF95 radio;
 class LoRaCom
 {
 public:
-    static void send(const uint8_t tid, const String event, const String value)
+    static void send(const uint8_t tid, const String& event, const String& value)
     {
         radio.send(tid, event.c_str(), value.c_str(), TERMINAL_ID);
     }
-    static void receive(const uint8_t tid, const String event, const String value)
+    static void receive(const uint8_t tid, const String& event, const String& value)
     {
         MessageRec rec;
         memset(&rec, 0, sizeof(MessageRec));
@@ -51,6 +51,15 @@ public:
     static bool begin(const uint8_t tid, const long band, const bool promiscuos = true)
     {
         return radio.begin(tid, band, promiscuos);
+    }
+    static int packetRssi()
+    {
+        return radio.packetRssi();
+    }
+
+    static int packetSnr()
+    {
+        return radio.packetSnr();
     }
 };
 

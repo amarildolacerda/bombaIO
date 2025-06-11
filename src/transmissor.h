@@ -51,6 +51,7 @@ public:
     {
 #ifdef DISPLAY_ENABLED
         displayManager.initialize();
+        displayManager.showMessage("Preparando...");
 #endif
     }
     void setup()
@@ -58,6 +59,7 @@ public:
         Serial.begin(115200); // initialize serial
         while (!Serial)
             ;
+        initPerif();
 
         systemState.terminalId = TERMINAL_ID;
         systemState.terminalName = String(TERMINAL_NAME);
@@ -71,15 +73,16 @@ public:
         }
 #endif
 
-        Serial.println("LoRa Duplex");
+        Serial.print("LoRa Duplex Term: ");
+        Serial.print(TERMINAL_ID);
+        Serial.print(" ");
+        Serial.println(TERMINAL_NAME);
 
         LoRaCom::begin(systemState.terminalId, Config::LORA_BAND, true); // initialize LoRa at 868 MHz
 
-        initPerif();
-
         initNet();
 
-        systemState.isInitialized = radio.connected;
+        systemState.isInitialized = radio.isConnected();
         Serial.println("LoRa init succeeded.");
 
         systemState.setDiscovering(true, 30000);
@@ -90,7 +93,7 @@ public:
 #endif
     }
 
-    long discoveryUpdate = 0;
+    // Removed unused variable discoveryUpdate
     bool mudouEstado = true;
     void loop()
     {
@@ -132,14 +135,12 @@ public:
             static long discUpdate = 0;
             if (millis() - discUpdate > 10000)
             {
-                lora.send(0xFF, EVT_PRESENTATION, systemState.terminalName.c_str(), systemState.terminalId);
+                LoRaCom::send(0xFF, EVT_PRESENTATION, systemState.terminalName.c_str());
                 discUpdate = millis();
             }
         }
 #endif
         updateDisplay();
-        LoRaCom::loop();
-
         systemState.isRunning = false;
     }
 
@@ -158,9 +159,9 @@ public:
             displayManager.isoDateTime = wifiConn.getISOTime();
 #endif
             displayManager.isDiscovering = systemState.isDiscovering;
-            displayManager.snr = lora.packetSnr();
+            displayManager.snr = LoRaCom::packetSnr();
             displayManager.startedISODateTime = systemState.startedISODateTime;
-            displayManager.rssi = lora.packetRssi();
+            displayManager.rssi = LoRaCom::packetRssi();
             displayManager.ps = stats.ps();
             displayManager.loraConnected = systemState.isInitialized;
             displayManager.handle();
@@ -291,7 +292,7 @@ public:
 
 #ifdef GATEWAY
             ackNak(rec.from, true);
-            deviceInfo.updateDevice(rec.from, rec.value, false, lora.packetRssi());
+            deviceInfo.updateDevice(rec.from, rec.value, false, LoRaCom::packetRssi());
 #ifdef ALEXA
             if (rec.to != 0xFF)
                 alexaCom.addDevice(rec.from, String(rec.value).c_str());

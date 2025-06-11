@@ -49,7 +49,7 @@ private:
             IPAddress(192, 168, 4, 1),
             IPAddress(255, 255, 255, 0));
 
-        wifiManager->autoConnect(Config::TERMINAL_NAME);
+        wifiManager->autoConnect(TERMINAL_NAME);
         systemState.isConnected = WiFi.isConnected();
     }
 
