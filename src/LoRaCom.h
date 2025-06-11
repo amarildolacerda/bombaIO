@@ -2,6 +2,7 @@
 #define LORACOM_H
 
 #include "config.h"
+#include "SystemState.h"
 
 #if defined(TTGO) || defined(HELTEC)
 #include "LoRa32.h"
