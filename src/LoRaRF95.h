@@ -7,7 +7,7 @@
 #include "config.h"
 #include "logger.h"
 #include "queue_message.h"
-#include "LoRaInterface.h"
+#include "RadioInterface.h"
 #include "app_messages.h"
 #include "stats.h"
 
@@ -25,7 +25,7 @@ SoftwareSerial SSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
 static RH_RF95<SoftwareSerial> rf95(COMSerial);
 #endif
 
-class LoraRF : public LoRaInterface
+class LoRaRF95 : public RadioInterface
 {
 private:
 public:
@@ -40,26 +40,9 @@ public:
         rf95.setPromiscuous(true);
         rf95.setFrequency(band);
 
-        switch (config)
-        {
-        case LORA_SLOW:
-            rf95.setModemConfig(rf95.Bw125Cr48Sf4096);
-            rf95.setTxPower(14, false);
-            rf95.setPreambleLength(9);
-
-            break;
-        case LORA_FAST:
-            rf95.setModemConfig(rf95.Bw500Cr45Sf128);
-            rf95.setTxPower(14, false);
-            rf95.setPreambleLength(8);
-            break;
-        default:
-            // rf95.setModemConfig(rf95.Bw125Cr45Sf128);
-            rf95.setTxPower(14, false);
-            rf95.setPreambleLength(8);
-
-            break;
-        }
+        // rf95.setModemConfig(rf95.Bw125Cr45Sf128);
+        rf95.setTxPower(14, false);
+        rf95.setPreambleLength(8);
 
         return connected;
     }
@@ -158,7 +141,7 @@ private:
             return false;
         }
 
-        char buffer[Config::MESSAGE_MAX_LEN];
+        char buffer[MESSAGE_MAX_LEN];
         uint8_t recvLen = sizeof(buffer);
 
         memset(buffer, 0, recvLen);
@@ -178,7 +161,7 @@ private:
             }
 
             recvLen -= 3;
-            if (recvLen > Config::MESSAGE_MAX_LEN)
+            if (recvLen > MESSAGE_MAX_LEN)
             {
                 Logger::error("Message too long");
                 ackIf(false);
@@ -219,10 +202,10 @@ private:
     bool sendMessage(MessageRec &rec) override
     {
         stats.txCount++;
-        char message[Config::MESSAGE_MAX_LEN] = {0};
+        char message[MESSAGE_MAX_LEN] = {0};
         uint8_t len = snprintf(message, sizeof(message), "%c{%s|%s}", rec.hope, rec.event, rec.value);
 
-        if (len == 0 || len > Config::MESSAGE_MAX_LEN)
+        if (len == 0 || len > MESSAGE_MAX_LEN)
         {
             return false;
         }

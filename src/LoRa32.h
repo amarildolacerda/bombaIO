@@ -3,7 +3,7 @@
 
 #include <SPI.h> // include libraries
 #include <LoRa.h>
-#include <LoRaInterface.h>
+#include <RadioInterface.h>
 #include <config.h>
 #include <app_messages.h>
 #include "logger.h"
@@ -12,7 +12,7 @@ const int csPin = 18;    // LoRa radio chip select
 const int resetPin = 14; // LoRa radio reset
 const int irqPin = 26;   // change for your board; must be a hardware interrupt pin
 
-class LoRa32 : public LoRaInterface
+class LoRa32 : public RadioInterface
 {
 public:
     bool sendMessage(MessageRec &rec) override
@@ -115,7 +115,7 @@ public:
             connected = true;
         configParams();
 
-        return connected;
+        return isConnected();
     };
     int packetRssi() override
     {

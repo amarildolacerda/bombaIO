@@ -7,6 +7,9 @@
 // Libraries: The project uses the ESP32 Arduino core libraries and other related libraries for LoRa, OLED display, and Wi-Fi functionalities.
 #include <Arduino.h>
 
+// #define TERMINAL_ID VTERMINAL_ID
+// #define TERMINAL_NAME VTERMINAL_NAME
+
 // ========== Configurações do Sistema ==========
 namespace Config
 {
@@ -18,9 +21,6 @@ namespace Config
     constexpr const uint8_t LORA_RX_PIN = 10; // RX pin for RF95
     constexpr const uint8_t LORA_TX_PIN = 11; // TX pin for RF95
 #endif
-    constexpr const int TERMINAL_ID = VTERMINAL_ID;
-    constexpr const char *TERMINAL_NAME = VTERMINAL_NAME;
-    constexpr const int MESSAGE_MAX_LEN = 128;
     // Hardware - Pinos LoRa (TTGO LoRa32 v1)
 
 #ifdef TTGO
@@ -76,7 +76,6 @@ namespace Config
     constexpr const uint32_t STATE_CHECK_INTERVAL = 30000;
     constexpr const uint32_t PRESENTATION_INTERVAL = 60000;
     constexpr const uint32_t COMMAND_TIMEOUT = 3000;
-    constexpr const uint32_t RELAY_PIN = 5; // Atualização a cada 1 minuto
 
     // Tuya IoT
     constexpr const char *LPID = "sshilmfl"; // Substituir pelo PID real
