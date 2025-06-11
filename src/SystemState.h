@@ -18,6 +18,9 @@ public:
     bool isRelayOn = false;         // on/off
     bool isDiscovering = false;     // used to indicate if the system is in discovery mode
     long discoveryDuration = 30000;
+#ifdef TERMINAL
+    bool waitingACK = false;
+#endif
 
     bool setDiscovering(bool value, const long ms = 60000)
     {

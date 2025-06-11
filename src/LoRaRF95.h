@@ -18,7 +18,7 @@ static RH_RF95<HardwareSerial> rf95(Serial);
 #else
 
 #include <SoftwareSerial.h>
-SoftwareSerial SSerial(Config::RX_PIN, Config::TX_PIN); // RX, TX
+SoftwareSerial SSerial(RX_PIN, TX_PIN); // RX, TX
 #define COMSerial SSerial
 #define ShowSerial Serial
 
@@ -66,72 +66,7 @@ private:
     {
         rf95.setModeTx();
     }
-    bool parseRecv(char *buf, uint8_t len, MessageRec &rec)
-    {
-        memset(&rec, 0, sizeof(MessageRec));
-        len = strlen(buf);
-        // Serial.print(len);
-        // Serial.print(":");
-        // Serial.println(buf);
 
-        rec.to = rf95.headerTo();
-        rec.from = rf95.headerFrom();
-        rec.id = rf95.headerId();
-        rec.hope = _headerHope;
-
-        if (buf == NULL || buf[0] != '{' || buf[len - 1] != '}')
-        {
-            Logger::error("Mensagem mal formatada ");
-            // Serial.println(buf);
-            return false;
-        }
-
-        // Copia o conteúdo interno (sem as chaves)
-        char content[100];
-        strncpy(content, buf + 1, len - 2);
-        content[len - 2] = '\0';
-
-        // Separar event e value usando '|'
-        char *token = strtok(content, "|");
-        if (token != nullptr)
-        {
-            int xe = snprintf(rec.event, sizeof(rec.event), token);
-            rec.event[xe] = '\0'; // Adicionar o terminador nulo
-        }
-
-        token = strtok(nullptr, "|");
-        if (token != nullptr)
-        {
-            int xv = snprintf(rec.value, sizeof(rec.value), token);
-            rec.value[xv] = '\0'; // Adicionar o terminador nulo
-        }
-        else
-        {
-            rec.value[0] = '\0';
-            // sprintf(rec.value, '\0');
-        }
-
-        return true;
-    }
-
-    void printHex(const char *msg)
-    {
-        if (msg == NULL)
-        {
-            Serial.println("(NULL)");
-            return;
-        }
-
-        for (uint8_t i = 0; msg[i] != '\0'; i++)
-        {
-            uint8_t val = msg[i]; // Garante tratamento como byte unsigned
-            if (val < 0x10)
-                Serial.print("0");
-            Serial.print(val, HEX);
-            Serial.print(" ");
-        }
-        Serial.println();
-    }
     bool receiveMessage() override
     {
 
@@ -169,12 +104,13 @@ private:
             }
 
             MessageRec rec;
-            bool parsed = parseRecv(buffer + 1, recvLen - 1, rec);
+            bool parsed = parseRcv(rec, buffer + 1);
             if (!parsed)
             {
-                printHex(buffer + 1);
+                // printHex(buffer + 1);
                 return false; // bloqueia caracteres invalidos
             }
+            rec.hope = _headerHope;
 
             if (strstr(buffer, EVT_PING) != NULL)
             {

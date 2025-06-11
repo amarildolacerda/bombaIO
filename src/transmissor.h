@@ -110,7 +110,7 @@ public:
         static long lastSendTime = 0; // last send time
         int timeUpdate = Config::PING_TIMEOUT_MS;
 #ifdef TERMINAL
-        timeUpdate = 5000;
+        timeUpdate = (systemState.waitingACK ? 5000 : 30000);
 #endif
         if (mudouEstado || millis() - lastSendTime > timeUpdate)
         {
@@ -118,6 +118,8 @@ public:
             sendPing();
 #else
             sendStatus();
+            systemState.waitingACK = true;
+
 #endif
             lastSendTime = millis(); // timestamp the message
             mudouEstado = false;
@@ -256,6 +258,8 @@ public:
             {
                 deviceInfo.updateDeviceName(rec.from, rec.value);
             }
+#else
+            systemState.waitingACK = false;
 #endif
             // Nada a fazer
         }
@@ -282,8 +286,7 @@ public:
             }
             else
             {
-                // ackNak(rec.from, true);
-
+                ackNak(rec.from, true); // na estacao avisa que pode ficar transquila
                 executeStatus(rec);
             }
         }

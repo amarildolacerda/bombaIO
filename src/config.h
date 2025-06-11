@@ -39,16 +39,6 @@ namespace Config
 #elif RF95
     constexpr const uint32_t LORA_BAND = 868.0; // usado RF95
 #endif
-#ifndef MIRX_PIN
-    constexpr int RX_PIN = 6;
-#else
-    constexpr int RX_PIN = MIRX_PIN;
-#endif
-#ifndef MOTX_PIN
-    constexpr int TX_PIN = 7;
-#else
-    constexpr int TX_PIN = MOTX_PIN;
-#endif
 
     constexpr const uint16_t LORA_SYNC_WORD = 0x12;
 
@@ -72,7 +62,7 @@ namespace Config
 
     // Sistema
     constexpr const uint32_t SERIAL_BAUD = 115200;
-    constexpr const uint32_t PING_TIMEOUT_MS = 10000;
+    constexpr const uint32_t PING_TIMEOUT_MS = 30000;
     constexpr const uint32_t STATE_CHECK_INTERVAL = 30000;
     constexpr const uint32_t PRESENTATION_INTERVAL = 60000;
     constexpr const uint32_t COMMAND_TIMEOUT = 3000;
