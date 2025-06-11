@@ -18,7 +18,7 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
-//#define BATTERY_PIN 34 // Pino onde a tensão da bateria está conectada
+// #define BATTERY_PIN 34 // Pino onde a tensão da bateria está conectada
 
 #endif
 
@@ -45,14 +45,14 @@ class DisplayManager
 private:
     unsigned long updated = 0;
     String loraRcvEvent = "";
- /*   float bateryRead()
-    {
-        int leituraAnalogica = analogRead(BATTERY_PIN);
+    /*   float bateryRead()
+       {
+           int leituraAnalogica = analogRead(BATTERY_PIN);
 
-        // Converte a leitura para tensão (considerando um divisor de tensão)
-        return (leituraAnalogica / 4095.0) * 3.3 * 2; // 3.3V é a referência do ESP32, multiplicar por 2 se houver divisor de tensão
-    }
-*/
+           // Converte a leitura para tensão (considerando um divisor de tensão)
+           return (leituraAnalogica / 4095.0) * 3.3 * 2; // 3.3V é a referência do ESP32, multiplicar por 2 se houver divisor de tensão
+       }
+   */
 public:
     bool loraConnected = false;
     int termAtivos = 0;
@@ -170,7 +170,7 @@ private:
         }
         disp.setPos(1, 0);
         disp.print("Radio: ");
-        disp.print(loraConnected ? (baixo) ? "Baixo" : "OK" : "Ups");
+        disp.print(loraConnected ? (baixo) ? "Ups" : "OK" : "Ups");
         disp.print(" ");
         disp.println((String)rssi);
         disp.setPos(1, 16);
