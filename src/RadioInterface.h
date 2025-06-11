@@ -5,25 +5,20 @@
 #include <queue_message.h>
 #include "logger.h"
 
-//[stable]
-enum LoRaStates
-{
-    LoRaRX,
-    LoRaTX
-};
+#define MESSAGE_MAX_LEN 128
 
-enum LoRaConfig
+//[stable]
+enum RadioStates
 {
-    LORA_SLOW,
-    LORA_FAST,
-    LORA_MED
+    RadioStateRX,
+    RadioStateTX
 };
 
 // Constantes para controle de mesh
 #define ALIVE_PACKET 3
 #define MESSAGE_TIMEOUT_MS 10
 
-class LoRaInterface
+class RadioInterface
 {
 protected:
     uint8_t terminalId = 0;
@@ -39,19 +34,19 @@ protected:
     const char bEOF = '}';
     const char bBOF = '{';
     const char bSEP = '|';
+    RadioStates state = RadioStateRX;
 
 private:
-    LoRaStates state = LoRaRX;
-    void setState(LoRaStates st)
+    void setState(RadioStates st)
     {
         state = st;
         switch (state)
         {
-        case LoRaRX:
+        case RadioStateRX:
             modeRx();
             /* code */
             break;
-        case LoRaTX:
+        case RadioStateTX:
             modeTx();
             break;
         default:
@@ -61,7 +56,6 @@ private:
     }
 
 public:
-    LoRaConfig config = LORA_MED;
     bool isValidMessage(const char *msg, uint8_t len)
     {
         return (len >= 4) && (msg[0] == '{') && (msg[len - 1] == '}');
@@ -129,7 +123,7 @@ public:
         return !rxQueue.isEmpty();
     }
 
-    virtual ~LoRaInterface() {}
+    virtual ~RadioInterface() {}
     virtual bool receive(MessageRec &rec)
     {
         if (rec.id == 0)
@@ -170,19 +164,19 @@ public:
     {
         switch (state)
         {
-        case LoRaRX:
+        case RadioStateRX:
             if (receiveMessage())
                 lastStateChange = millis();
 
             // Reduzido de 100ms para 50ms para melhorar throughput
             if (txQueue.size() > 0 && millis() - lastStateChange > MESSAGE_TIMEOUT_MS)
             {
-                setState(LoRaTX);
+                setState(RadioStateTX);
                 lastStateChange = millis();
             }
             break;
 
-        case LoRaTX:
+        case RadioStateTX:
             if (sendNextMessage())
             {
                 lastStateChange = millis();
@@ -191,7 +185,7 @@ public:
             // Reduzido de 100ms para 50ms
             if (millis() - lastStateChange > MESSAGE_TIMEOUT_MS)
             {
-                setState(LoRaRX);
+                setState(RadioStateRX);
                 lastStateChange = millis();
             }
 

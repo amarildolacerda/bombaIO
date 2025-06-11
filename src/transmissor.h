@@ -59,27 +59,27 @@ public:
         while (!Serial)
             ;
 
-        systemState.terminalId = Config::TERMINAL_ID;
-        systemState.terminalName = String(Config::TERMINAL_NAME);
+        systemState.terminalId = TERMINAL_ID;
+        systemState.terminalName = String(TERMINAL_NAME);
 #ifdef GATEWAY
         systemState.isGateway = true;
 #else
         systemState.isGateway = (systemState.terminalId == 0);
         if (!systemState.isGateway)
         {
-            pinMode(Config::RELAY_PIN, OUTPUT);
+            pinMode(RELAY_PIN, OUTPUT);
         }
 #endif
 
         Serial.println("LoRa Duplex");
 
-        lora.begin(systemState.terminalId, Config::LORA_BAND, true); // initialize LoRa at 868 MHz
+        LoRaCom::begin(systemState.terminalId, Config::LORA_BAND, true); // initialize LoRa at 868 MHz
 
         initPerif();
 
         initNet();
 
-        systemState.isInitialized = lora.connected;
+        systemState.isInitialized = radio.connected;
         Serial.println("LoRa init succeeded.");
 
         systemState.setDiscovering(true, 30000);
@@ -102,7 +102,7 @@ public:
 #endif
 
         // Lora ------------------------------------------------------------
-        lora.loop();
+        LoRaCom::loop();
 
         static long lastSendTime = 0; // last send time
         int timeUpdate = Config::PING_TIMEOUT_MS;
@@ -121,7 +121,7 @@ public:
         }
         //     static long receiveUpdate = 0;
         MessageRec rec;
-        if (lora.processIncoming(rec))
+        if (radio.processIncoming(rec))
         {
             handleReceived(rec);
         }
@@ -176,15 +176,15 @@ public:
 
     void sendPing()
     {
-        lora.send(0xFF, EVT_PING, Config::TERMINAL_NAME, systemState.terminalId);
+        LoRaCom::send(0xFF, EVT_PING, TERMINAL_NAME);
     }
     void sendStatus()
     {
-        lora.send(0, EVT_STATUS, digitalRead(Config::RELAY_PIN) ? "on" : "off", systemState.terminalId);
+        LoRaCom::send(0, EVT_STATUS, digitalRead(RELAY_PIN) ? "on" : "off");
     }
     void ackNak(uint8_t to, bool b)
     {
-        lora.send(to, b ? EVT_ACK : EVT_NAK, Config::TERMINAL_NAME, systemState.terminalId);
+        LoRaCom::send(to, b ? EVT_ACK : EVT_NAK, TERMINAL_NAME);
     }
     void executeStatus(const MessageRec rec)
     {
@@ -217,15 +217,15 @@ public:
         {
             if (strcmp(rec.value, GPIO_ON) == 0)
             {
-                digitalWrite(Config::RELAY_PIN, HIGH);
+                digitalWrite(RELAY_PIN, HIGH);
             }
             else if (strcmp(rec.value, GPIO_OFF) == 0)
             {
-                digitalWrite(Config::RELAY_PIN, LOW);
+                digitalWrite(RELAY_PIN, LOW);
             }
             else if (strcmp(rec.value, GPIO_TOGGLE) == 0)
             {
-                digitalWrite(Config::RELAY_PIN, !digitalRead(Config::RELAY_PIN));
+                digitalWrite(RELAY_PIN, !digitalRead(RELAY_PIN));
             }
             else
             {
@@ -246,7 +246,7 @@ public:
 
         if (strcmp(rec.event, EVT_PING) == 0)
         {
-            lora.send(rec.from, EVT_PONG, Config::TERMINAL_NAME, systemState.terminalId);
+            LoRaCom::send(rec.from, EVT_PONG, TERMINAL_NAME);
         }
         else if (strcmp(rec.event, EVT_ACK) == 0)
         {
