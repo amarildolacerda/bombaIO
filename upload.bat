@@ -1,0 +1,1 @@
+avrdude -p%1 -carduino -P%2 -b57600 -D -Uflash:w:%3:i

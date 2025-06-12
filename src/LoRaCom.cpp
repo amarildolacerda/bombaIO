@@ -1,11 +1,16 @@
+
+
 #include "LoRaCom.h"
 
-#if defined(TTGO) || defined(HELTEC)
-LoRa32 radio;
-#elif RF95
+LoRaCom loraCom;
+/*
+#ifdef RF95
 LoRaRF95 radio;
+#elif defined(LORA32) || defined(TTGO) || defined(HELTEC)
+LoRa32 radio;
 #elif NRF24
 RadioNRF24 radio;
-#elif DUMMY
+#else
 LoRaDummy radio;
 #endif
+*/

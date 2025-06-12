@@ -30,7 +30,7 @@
 #ifdef ALEXA
 static void alexaDeviceCallback(uint8_t tid, const char *device_name, bool state, unsigned char value)
 {
-    LoRaCom::send(tid, EVT_GPIO, state ? GPIO_ON : GPIO_OFF);
+    loraCom.send(tid, EVT_GPIO, state ? GPIO_ON : GPIO_OFF);
 }
 #endif
 
@@ -61,6 +61,7 @@ public:
         Serial.begin(Config::SERIAL_BAUD); // initialize serial
         while (!Serial)
             ;
+        Serial.println("Iniciando");
         initPerif();
 
         systemState.terminalId = TERMINAL_ID;
@@ -75,23 +76,21 @@ public:
         }
 #endif
 
-        Serial.print("Radio Duplex Term: ");
-        Serial.print(TERMINAL_ID);
-        Serial.print(" ");
-        Serial.println(TERMINAL_NAME);
-
-        LoRaCom::begin(systemState.terminalId, Config::LORA_BAND, true); // initialize LoRa at 868 MHz
+        loraCom.begin(systemState.terminalId, Config::LORA_BAND, true); // initialize LoRa at 868 MHz
 
         initNet();
 
-        systemState.isInitialized = radio.isConnected();
+        systemState.isInitialized = loraCom.isConnected();
         Serial.println("Radio started");
+        String ident = "Radio duplex " + loraCom.getIdent();
+        ident += " Term: %d %s";
+        Logger::info(ident.c_str(), TERMINAL_ID, TERMINAL_NAME);
 
         systemState.setDiscovering(true, 30000);
 #ifdef GATEWAY
-        LoRaCom::sendPresentation(0xFF); // pede apresentação para os terminais.
+        loraCom.sendPresentation(0xFF); // pede apresentação para os terminais.
 #else
-        LoRaCom::sendPresentation(0); // se apresenta ao gateway
+        loraCom.sendPresentation(0); // se apresenta ao gateway
 #endif
     }
 
@@ -107,7 +106,7 @@ public:
 #endif
 
         // Lora ------------------------------------------------------------
-        LoRaCom::loop();
+        loraCom.loop();
 
         static long lastSendTime = 0; // last send time
         int timeUpdate = Config::PING_TIMEOUT_MS;
@@ -128,7 +127,7 @@ public:
         }
         //     static long receiveUpdate = 0;
         MessageRec rec;
-        if (radio.processIncoming(rec))
+        if (loraCom.processIncoming(rec))
         {
             handleReceived(rec);
         }
@@ -139,7 +138,7 @@ public:
             static long discUpdate = 0;
             if (millis() - discUpdate > 10000)
             {
-                LoRaCom::send(0xFF, EVT_PRESENTATION, systemState.terminalName.c_str());
+                loraCom.send(0xFF, EVT_PRESENTATION, systemState.terminalName.c_str());
                 discUpdate = millis();
             }
         }
@@ -163,9 +162,9 @@ public:
             displayManager.isoDateTime = wifiConn.getISOTime();
 #endif
             displayManager.isDiscovering = systemState.isDiscovering;
-            displayManager.snr = LoRaCom::packetSnr();
+            displayManager.snr = loraCom.packetSnr();
             displayManager.startedISODateTime = systemState.startedISODateTime;
-            displayManager.rssi = LoRaCom::packetRssi();
+            displayManager.rssi = loraCom.packetRssi();
             displayManager.ps = stats.ps();
             displayManager.loraConnected = systemState.isInitialized;
             displayManager.handle();
@@ -181,15 +180,15 @@ public:
 
     void sendPing()
     {
-        LoRaCom::send(0xFF, EVT_PING, TERMINAL_NAME);
+        loraCom.send(0xFF, EVT_PING, TERMINAL_NAME);
     }
     void sendStatus()
     {
-        LoRaCom::send(0, EVT_STATUS, digitalRead(RELAY_PIN) ? "on" : "off");
+        loraCom.send(0, EVT_STATUS, digitalRead(RELAY_PIN) ? "on" : "off");
     }
     void ackNak(uint8_t to, bool b)
     {
-        LoRaCom::send(to, b ? EVT_ACK : EVT_NAK, TERMINAL_NAME);
+        loraCom.send(to, b ? EVT_ACK : EVT_NAK, TERMINAL_NAME);
     }
     void executeStatus(const MessageRec rec)
     {
@@ -249,13 +248,13 @@ public:
         if (rec.to == systemState.terminalId && strcmp(rec.event, EVT_PRESENTATION) != 0)
         {
             if (deviceInfo.indexOf(rec.from) < 0)
-                LoRaCom::sendPresentation(rec.from);
+                loraCom.sendPresentation(rec.from);
         }
 #endif
 
         if (strcmp(rec.event, EVT_PING) == 0)
         {
-            LoRaCom::send(rec.from, EVT_PONG, TERMINAL_NAME);
+            loraCom.send(rec.from, EVT_PONG, TERMINAL_NAME);
         }
         else if (strcmp(rec.event, EVT_ACK) == 0)
         {
@@ -301,13 +300,13 @@ public:
 
 #ifdef GATEWAY
             ackNak(rec.from, true);
-            deviceInfo.updateDevice(rec.from, rec.value, false, LoRaCom::packetRssi());
+            deviceInfo.updateDevice(rec.from, rec.value, false, loraCom.packetRssi());
 #ifdef ALEXA
             if (rec.to != 0xFF)
                 alexaCom.addDevice(rec.from, String(rec.value).c_str());
 #endif
 #else
-            LoRaCom::send(rec.from, EVT_PRESENTATION, systemState.terminalName);
+            loraCom.send(rec.from, EVT_PRESENTATION, systemState.terminalName);
 #endif
         }
     }

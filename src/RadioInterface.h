@@ -37,7 +37,7 @@ protected:
     RadioStates state = RadioStateRX;
     bool connected = false;
 
-private:
+public:
     void setState(RadioStates st)
     {
         state = st;
@@ -56,7 +56,10 @@ private:
         }
     }
 
-public:
+    virtual String getIdent()
+    {
+        return "Dummie";
+    }
     bool isConnected()
     {
         return connected;

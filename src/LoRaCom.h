@@ -7,28 +7,48 @@
 #ifdef WS
 #include "ExtraQueue.h"
 #endif
-#if defined(TTGO) || defined(HELTEC)
-#include "LoRa32.h"
-extern LoRa32 radio;
-#elif RF95
+
+#ifdef RF95
 #include "LoRaRF95.h"
-extern LoRaRF95 radio;
+#elif defined(LORA32) || defined(TTGO) || defined(HELTEC)
+#include "LoRa32.h"
 #elif NRF24
 #include "RadioNRF24.h"
-extern RadioNRF24 radio;
-#elif DUMMY
+#else
 #include "LoRaDummy.h"
-extern LoRaDummy radio;
 #endif
 
 class LoRaCom
 {
+private:
+    RadioInterface *radio = nullptr;
+
 public:
-    static void send(const uint8_t tid, const String &event, const String &value)
+    LoRaCom()
     {
-        radio.send(tid, event.c_str(), value.c_str(), TERMINAL_ID);
+#ifdef RF95
+        radio = new LoRaRF95();
+#elif defined(LORA32) || defined(TTGO) || defined(HELTEC)
+        radio = new LoRa32();
+#elif NRF24
+        radio = new RadioNRF24();
+#else
+        radio = new LoRaDummy();
+#endif
     }
-    static void receive(const uint8_t tid, const String &event, const String &value)
+    RadioInterface *getRadio()
+    {
+        return radio;
+    }
+    String getIdent()
+    {
+        return radio->getIdent();
+    }
+    void send(const uint8_t tid, const String &event, const String &value)
+    {
+        radio->send(tid, event.c_str(), value.c_str(), TERMINAL_ID);
+    }
+    void receive(const uint8_t tid, const String &event, const String &value)
     {
         MessageRec rec;
         memset(&rec, 0, sizeof(MessageRec));
@@ -37,9 +57,9 @@ public:
         snprintf(rec.event, sizeof(rec.event), "%s", event.c_str());
         snprintf(rec.value, sizeof(rec.value), "%s", value.c_str());
         rec.hope = ALIVE_PACKET;
-        radio.receive(rec);
+        radio->receive(rec);
     }
-    static void loop()
+    void loop()
     {
 #ifdef WS
         MessageRec rec;
@@ -47,25 +67,34 @@ public:
             LoRaCom::send(rec.to, rec.event, rec.value);
 
 #endif
-        radio.loop();
+        radio->loop();
     }
-    static void sendPresentation(const uint8_t tid)
+    void sendPresentation(const uint8_t tid)
     {
-        LoRaCom::send(tid, EVT_PRESENTATION, systemState.terminalName);
+        send(tid, EVT_PRESENTATION, systemState.terminalName);
     }
-    static bool begin(const uint8_t tid, const long band, const bool promiscuos = true)
+    bool begin(const uint8_t tid, const long band, const bool promiscuos = true)
     {
-        return radio.begin(tid, band, promiscuos);
+        return radio->begin(tid, band, promiscuos);
     }
-    static int packetRssi()
+    int packetRssi()
     {
-        return radio.packetRssi();
+        return radio->packetRssi();
     }
 
-    static int packetSnr()
+    int packetSnr()
     {
-        return radio.packetSnr();
+        return radio->packetSnr();
+    }
+    bool processIncoming(MessageRec &rec)
+    {
+        return radio->processIncoming(rec);
+    }
+    bool isConnected()
+    {
+        return radio->isConnected();
     }
 };
 
+extern LoRaCom loraCom;
 #endif
