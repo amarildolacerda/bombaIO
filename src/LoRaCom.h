@@ -3,13 +3,20 @@
 
 #include "config.h"
 #include "SystemState.h"
+#include "app_messages.h"
 
 #if defined(TTGO) || defined(HELTEC)
 #include "LoRa32.h"
-static LoRa32 radio;
+LoRa32 radio;
 #elif RF95
 #include "LoRaRF95.h"
-static LoRaRF95 radio;
+LoRaRF95 radio;
+#elif NRF24
+#include "RadioNRF24.h"
+RadioNRF24 radio;
+#elif DUMMY
+#include "LoRaDummy.h"
+LoRaDummy radio;
 #endif
 
 #ifdef WS

@@ -70,13 +70,36 @@ public:
     {
         if (rec.to != terminalId && terminalId > 0) // avaliar mesh
         {                                           // o gateway nao retransmite, para o caso de ser um terminal
-            uint8_t hope = rec.hope;
-            if (hope > 0)
+            if (rec.hope > 0)
             {
                 rec.hope--;
                 txQueue.pushItem(rec); // re-enviar a mensagem para o gateway
             }
         }
+    }
+    int encodeMessage(MessageRec &rec, char *buffer, const size_t len)
+    {
+        int result = snprintf(buffer, len, "%c%c%c%c%c{%s|%s}", rec.to, rec.from, rec.id, 0, rec.hope, rec.event, rec.value);
+        buffer[3] = result - 5;
+        // rec.print();
+        return result;
+    }
+    int decodeMessage(MessageRec &rec, char *buffer, const size_t len)
+    {
+        if (len < 5)
+            return -1;
+        memset(&rec, 0, sizeof(rec));
+        int result = 0;
+        if (parseRcv(rec, buffer + 5))
+        {
+            rec.to = buffer[0];
+            rec.from = buffer[1];
+            rec.id = buffer[2];
+            result = buffer[3];
+            rec.hope = buffer[4];
+            // rec.print();
+        }
+        return strlen(rec.event) + strlen(rec.value) + 3;
     }
     bool parseRcv(MessageRec &rec, const String msg)
     {
@@ -201,6 +224,12 @@ public:
     virtual bool sendMessage(MessageRec &rec) = 0;
     virtual bool receiveMessage() = 0;
     virtual bool begin(const uint8_t terminal_Id, long band, bool promisc = true) = 0;
+    void log(bool isSend, MessageRec &rec)
+    {
+        Logger::log(rec.hope < 3 ? LogLevel::VERBOSE : isSend ? LogLevel::SEND
+                                                              : LogLevel::RECEIVE,
+                    "%s[%d-%d:%d](%d) %s|%s", rec.hope < 3 ? "MESH " : "", rec.from, rec.to, rec.id, rec.hope, rec.event, rec.value);
+    }
 };
 
 #endif // LORA_INTERFACE_H

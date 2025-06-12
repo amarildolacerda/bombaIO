@@ -23,6 +23,8 @@
 #include "DeviceInfo.h"
 #endif
 
+#include "app_messages.h"
+
 /// LoRa -------------------------------------------------------------------------
 
 #ifdef ALEXA
@@ -56,7 +58,7 @@ public:
     }
     void setup()
     {
-        Serial.begin(115200); // initialize serial
+        Serial.begin(Config::SERIAL_BAUD); // initialize serial
         while (!Serial)
             ;
         initPerif();
@@ -73,7 +75,7 @@ public:
         }
 #endif
 
-        Serial.print("LoRa Duplex Term: ");
+        Serial.print("Radio Duplex Term: ");
         Serial.print(TERMINAL_ID);
         Serial.print(" ");
         Serial.println(TERMINAL_NAME);
@@ -83,7 +85,7 @@ public:
         initNet();
 
         systemState.isInitialized = radio.isConnected();
-        Serial.println("LoRa init succeeded.");
+        Serial.println("Radio started");
 
         systemState.setDiscovering(true, 30000);
 #ifdef GATEWAY
@@ -214,6 +216,8 @@ public:
 #ifdef DISPLAY_ENABLED
         displayManager.showEvent(String(rec.from) + " " + String(rec.event) + "  " + String(rec.value));
 #endif
+        stats.rxSuccess++;
+        Logger::log(LogLevel::RECEIVE, "Handled from %d:%d, %s|%s", rec.from, rec.id, rec.event, rec.value);
 
 #ifndef GATEWAY
         if (strcmp(rec.event, EVT_GPIO) == 0)
@@ -221,10 +225,12 @@ public:
             if (strcmp(rec.value, GPIO_ON) == 0)
             {
                 digitalWrite(RELAY_PIN, HIGH);
+                Logger::warn("Mudou para ON");
             }
             else if (strcmp(rec.value, GPIO_OFF) == 0)
             {
                 digitalWrite(RELAY_PIN, LOW);
+                Logger::warn("Mudou para OFF");
             }
             else if (strcmp(rec.value, GPIO_TOGGLE) == 0)
             {

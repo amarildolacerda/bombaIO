@@ -1,10 +1,10 @@
 #ifndef LORA_DUMMY_H
 #define LORA_DUMMY_H
-#include "lorainterface.h"
+#include "RadioInterface.h"
 #include "stats.h"
 #include "app_messages.h"
 
-class LoRaDummy : public LoRaInterface
+class LoRaDummy : public RadioInterface
 {
 
 public:
@@ -53,7 +53,7 @@ public:
     };
     void loop() override
     {
-        LoRaInterface::loop();
+        RadioInterface::loop();
         static long lastReceive = 0;
         if (millis() - lastReceive > 1000)
         {

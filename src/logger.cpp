@@ -102,3 +102,18 @@ bool Logger::vlog(const LogLevel level, const char *format, va_list args)
 
     return true;
 }
+
+void Logger::hex(LogLevel level, const char *texto, const size_t len)
+{
+    String resultado = "";
+    for (int i = 0; i < len; i++)
+    {
+        char c = texto[i];
+        if (c < 16)
+            resultado += "0"; // Garante dois dígitos
+        resultado += String(c, HEX);
+        resultado += " ";
+    }
+    resultado.trim();
+    Logger::log(level, resultado.c_str()); // Remove espaço no final
+}

@@ -18,22 +18,23 @@ public:
     bool sendMessage(MessageRec &rec) override
     {
         stats.txCount++;
-        String outgoing = "{" + String(rec.event) + "|" + String(rec.value) + "}";
-        LoRa.beginPacket();                // start packet
-        LoRa.write(rec.to);                // add destination address
-        LoRa.write(rec.from);              // add sender address
-        LoRa.write(rec.id);                // add message ID
-        LoRa.write(outgoing.length() + 1); // add payload length
-        LoRa.write(rec.hope);
-        LoRa.print(outgoing); // add payload
-        if (LoRa.endPacket() > 0)
+        char message[64] = {0};
+        int result = encodeMessage(rec, message, 64);
+        if (result > 0)
         {
-            stats.txSuccess++;
-        }; // finish packet and send it
-        String fmt = String(rec.hope < 3 ? "MESH " : "") + "[%d-%d:%d](%d) %s|%s";
-
-        Logger::log(LogLevel::SEND, fmt.c_str(), rec.from, rec.to, rec.id, rec.hope, rec.event, rec.value);
-        return true;
+            // Logger::hex(message, result);
+            LoRa.beginPacket(); // start packet
+            for (uint8_t i = 0; i < result; i++)
+            {
+                LoRa.write(message[i]); // add payload
+            }
+            if (LoRa.endPacket() > 0)
+            {
+                stats.txSuccess++;
+                log(true, rec);
+            }; // finish packet and send it
+        }
+        return result > 0;
     };
 
     bool receiveMessage() override
@@ -44,20 +45,11 @@ public:
         if (packetSize == 0)
             return false; // if there's no packet, return
 
-        // read packet header bytes:
         MessageRec rec;
         memset(&rec, 0, sizeof(rec));
 
-        // read packet header bytes:
-        rec.to = LoRa.read();              // recipient address
-        rec.from = LoRa.read();            // sender address
-        rec.id = LoRa.read();              // incoming msg ID
-        byte incomingLength = LoRa.read(); // incoming msg length
-        rec.hope = LoRa.read();
-
-        String incoming = "";
-
-        uint8_t len = 0;
+        size_t len = 0;
+        char message[64] = {0};
         long updated = millis();
         while (len <= packetSize)
         {
@@ -65,13 +57,13 @@ public:
                 break;
             if (LoRa.available())
             {
-                incoming += (char)LoRa.read();
-                len++;
+                message[len++] = (char)LoRa.read();
                 updated = millis();
             }
         }
 
-        if (!parseRcv(rec, incoming))
+        uint8_t result = decodeMessage(rec, message, len);
+        if (result <= 0)
             return false;
 
         if (rec.from == terminalId)
@@ -88,8 +80,7 @@ public:
         }
 
         rxQueue.pushItem(rec); // add to rx queue
-        Logger::log(LogLevel::RECEIVE, "[%d-%d:%d](%d) %s|%s", rec.from, rec.to, rec.id, rec.hope, rec.event, rec.value);
-        stats.rxSuccess++;
+                               //        Logger::log(LogLevel::RECEIVE, "[%d-%d:%d](%d) %s|%s", rec.from, rec.to, rec.id, rec.hope, rec.event, rec.value);
         return true;
     };
     void configParams()
