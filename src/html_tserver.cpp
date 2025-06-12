@@ -15,6 +15,8 @@
 #include <Update.h>
 #endif
 
+#include "ExtraQueue.h"
+
 // Inicialização do membro estático
 AsyncWebServer *HtmlServer::espServer = nullptr;
 
@@ -354,9 +356,7 @@ void HtmlServer::handleToggleDevice(AsyncWebServerRequest *request)
 
     if (action != EVT_STATUS)
     {
-        htmlServer.txRec.to = tid;
-        sprintf(htmlServer.txRec.event, EVT_GPIO);
-        sprintf(htmlServer.txRec.value, action.c_str());
+        txExtraQueue.push(tid, EVT_GPIO, action.c_str(), systemState.terminalId, 3);
         Logger::info("WS %d %s", tid, action);
     }
 

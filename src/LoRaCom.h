@@ -4,23 +4,21 @@
 #include "config.h"
 #include "SystemState.h"
 #include "app_messages.h"
-
+#ifdef WS
+#include "ExtraQueue.h"
+#endif
 #if defined(TTGO) || defined(HELTEC)
 #include "LoRa32.h"
-LoRa32 radio;
+extern LoRa32 radio;
 #elif RF95
 #include "LoRaRF95.h"
-LoRaRF95 radio;
+extern LoRaRF95 radio;
 #elif NRF24
 #include "RadioNRF24.h"
-RadioNRF24 radio;
+extern RadioNRF24 radio;
 #elif DUMMY
 #include "LoRaDummy.h"
-LoRaDummy radio;
-#endif
-
-#ifdef WS
-#include "html_tserver.h"
+extern LoRaDummy radio;
 #endif
 
 class LoRaCom
@@ -44,11 +42,10 @@ public:
     static void loop()
     {
 #ifdef WS
-        if (htmlServer.txRec.to != 0)
-        {
-            LoRaCom::send(htmlServer.txRec.to, htmlServer.txRec.event, htmlServer.txRec.value);
-            htmlServer.txRec.to = 0;
-        }
+        MessageRec rec;
+        if (txExtraQueue.popItem(rec))
+            LoRaCom::send(rec.to, rec.event, rec.value);
+
 #endif
         radio.loop();
     }
