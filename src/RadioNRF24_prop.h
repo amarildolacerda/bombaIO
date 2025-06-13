@@ -101,13 +101,13 @@ public:
         // Converte MessageRec para RF24Payload
         rec.updateCRC();
         stats.txCount++;
-        // char msg[MESSAGE_MAX_LEN] = {0};
-        // size_t len = rec.encode(msg, MESSAGE_MAX_LEN);
+        char msg[MESSAGE_MAX_LEN] = {0};
+        size_t len = rec.encode(msg, MESSAGE_MAX_LEN);
         rec.print();
-        // Serial.println(msg + 5);
-        // if (len == 0)
-        //     return false;
-        bool success = radio.write(&rec, sizeof(rec));
+        Serial.println(msg + 5);
+        if (len == 0)
+            return false;
+        bool success = radio.write(msg, len);
 
         if (success)
         {
@@ -130,11 +130,10 @@ public:
         if (radio.available(&pipe))
         {                                           // is there a payload? get the pipe number that received it
             uint8_t bytes = radio.getPayloadSize(); // get the size of the payload
-            // char msg[MESSAGE_MAX_LEN] = {0};
-            radio.read(&rec, bytes);
+            char msg[MESSAGE_MAX_LEN] = {0};
+            radio.read(msg, bytes);
 
-            // if (!rec.decode(msg))
-            if (rec.len < 3)
+            if (!rec.decode(msg))
             {
                 rec.print();
                 Logger::error("Mensagem mal formada: %d: %s %s", rec.from, rec.event, rec.value);

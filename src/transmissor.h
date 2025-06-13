@@ -87,11 +87,14 @@ public:
         Logger::info(ident.c_str(), TERMINAL_ID, TERMINAL_NAME);
 
         systemState.setDiscovering(true, 30000);
-#ifdef GATEWAY
-        loraCom.sendPresentation(0xFF); // pede apresentação para os terminais.
-#else
-        loraCom.sendPresentation(0); // se apresenta ao gateway
-#endif
+        if (systemState.isGateway)
+        {
+            loraCom.sendPresentation(0xFF); // pede apresentação para os terminais.
+        }
+        else
+        {
+            loraCom.sendPresentation(0); // se apresenta ao gateway
+        }
     }
 
     // Removed unused variable discoveryUpdate
@@ -110,18 +113,22 @@ public:
 
         static long lastSendTime = 0; // last send time
         int timeUpdate = Config::PING_TIMEOUT_MS;
-#ifdef TERMINAL
-        timeUpdate = (systemState.waitingACK ? 5000 : 30000);
-#endif
+
+        if (!systemState.isGateway)
+            timeUpdate = (systemState.waitingACK ? 5000 : 30000);
+
         if (mudouEstado || millis() - lastSendTime > timeUpdate)
         {
-#ifdef GATEWAY
-            sendPing();
-#else
-            sendStatus();
-            systemState.waitingACK = true;
+            if (systemState.isGateway)
+            {
+                sendPing();
+            }
+            else
+            {
+                sendStatus();
+                systemState.waitingACK = true;
+            }
 
-#endif
             lastSendTime = millis(); // timestamp the message
             mudouEstado = false;
         }
@@ -132,17 +139,18 @@ public:
             handleReceived(rec);
         }
 
-#ifdef GATEWAY
-        if (systemState.isDiscovering)
+        if (systemState.isGateway)
         {
-            static long discUpdate = 0;
-            if (millis() - discUpdate > 10000)
+            if (systemState.isDiscovering)
             {
-                loraCom.send(0xFF, EVT_PRESENTATION, systemState.terminalName.c_str());
-                discUpdate = millis();
+                static long discUpdate = 0;
+                if (millis() - discUpdate > 10000)
+                {
+                    loraCom.send(0xFF, EVT_PRESENTATION, systemState.terminalName.c_str());
+                    discUpdate = millis();
+                }
             }
         }
-#endif
         updateDisplay();
         systemState.isRunning = false;
     }
@@ -218,38 +226,39 @@ public:
         stats.rxSuccess++;
         Logger::log(LogLevel::RECEIVE, "Handled from %d:%d, %s|%s", rec.from, rec.id, rec.event, rec.value);
 
-#ifndef GATEWAY
-        if (strcmp(rec.event, EVT_GPIO) == 0)
+        if (systemState.isGateway)
         {
-            if (strcmp(rec.value, GPIO_ON) == 0)
+            if (strcmp(rec.event, EVT_GPIO) == 0)
             {
-                digitalWrite(RELAY_PIN, HIGH);
-                Logger::warn("Mudou para ON");
+                if (strcmp(rec.value, GPIO_ON) == 0)
+                {
+                    digitalWrite(RELAY_PIN, HIGH);
+                    Logger::warn("Mudou para ON");
+                }
+                else if (strcmp(rec.value, GPIO_OFF) == 0)
+                {
+                    digitalWrite(RELAY_PIN, LOW);
+                    Logger::warn("Mudou para OFF");
+                }
+                else if (strcmp(rec.value, GPIO_TOGGLE) == 0)
+                {
+                    digitalWrite(RELAY_PIN, !digitalRead(RELAY_PIN));
+                }
+                else
+                {
+                    return;
+                }
+                ackNak(rec.from, true);
+                mudouEstado = true; // antecipa a notificação de mudança
             }
-            else if (strcmp(rec.value, GPIO_OFF) == 0)
-            {
-                digitalWrite(RELAY_PIN, LOW);
-                Logger::warn("Mudou para OFF");
-            }
-            else if (strcmp(rec.value, GPIO_TOGGLE) == 0)
-            {
-                digitalWrite(RELAY_PIN, !digitalRead(RELAY_PIN));
-            }
-            else
-            {
-                return;
-            }
-            ackNak(rec.from, true);
-            mudouEstado = true; // antecipa a notificação de mudança
         }
-#endif
-
 #ifdef GATEWAY
         if (rec.to == systemState.terminalId && strcmp(rec.event, EVT_PRESENTATION) != 0)
         {
             if (deviceInfo.indexOf(rec.from) < 0)
                 loraCom.sendPresentation(rec.from);
         }
+
 #endif
 
         if (strcmp(rec.event, EVT_PING) == 0)

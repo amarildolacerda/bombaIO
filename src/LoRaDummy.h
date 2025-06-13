@@ -30,7 +30,7 @@ public:
             MessageRec rec;
             rec.from = 200;
             rec.to = 0; // Broadcast
-            rec.hope = ALIVE_PACKET;
+            rec.hop = ALIVE_PACKET;
             rec.id = ++nHeaderId;
             snprintf(rec.event, sizeof(rec.event), EVT_STATUS);
             if (nHeaderId % 2 == 0)
@@ -61,7 +61,7 @@ public:
             MessageRec rec;
             rec.from = terminalId;
             rec.to = 0xFF; // Broadcast
-            rec.hope = ALIVE_PACKET;
+            rec.hop = ALIVE_PACKET;
             rec.id = ++nHeaderId;
             snprintf(rec.event, sizeof(rec.event), EVT_PING);
             snprintf(rec.value, sizeof(rec.value), "dummy");

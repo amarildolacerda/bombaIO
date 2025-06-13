@@ -1,6 +1,5 @@
 // implementa transmissor ou reception com base em -DRECEPTION ou -DTRANSMISSOR
 
-#define TERMINAL_ID 9
 #ifdef TEST
 #include <SoftwareSerial.h>
 #include <RH_RF95.h>

@@ -2,6 +2,7 @@
 #define QUEUEMESSAGE_H
 
 #include "Arduino.h"
+#include "logger.h"
 
 #if defined(__AVR__)
 #include <util/atomic.h>
@@ -33,14 +34,15 @@ struct MessageRec
     uint8_t from;
     uint8_t id;
     uint8_t len;
-    uint8_t hope;
+    uint8_t hop;
+    uint8_t crc;
     char event[MAX_EVENT_LEN];
     char value[MAX_VALUE_LEN];
-    uint8_t crc;
 
     // Calcula CRC-8 usando polinômio 0x07
     void updateCRC()
     {
+        len = strlen(event) + strlen(value) + 3;
         crc = calculateCRC();
     }
 
@@ -51,8 +53,9 @@ struct MessageRec
     uint8_t calculateCRC() const
     {
         uint8_t calculated = 0;
-        const uint8_t *data = reinterpret_cast<const uint8_t *>(this);
-        for (size_t i = 0; i < sizeof(MessageRec) - 1; i++)
+        char data[255];
+        size_t x = sprintf(data, "%c%c%c%c%c{%s|%s}", to, from, id, len, hop, event, value);
+        for (size_t i = 0; i < x; i++)
         {
             calculated ^= data[i];
             for (uint8_t j = 0; j < 8; j++)
@@ -68,15 +71,27 @@ struct MessageRec
     // Verifica a integridade dos dados
     bool verifyCRC() const
     {
-
-        return crc == calculateCRC();
+        uint8_t calc = calculateCRC();
+#ifdef DEBUG_ON
+        if (crc != calc)
+        {
+            const uint8_t *data = reinterpret_cast<const uint8_t *>(this);
+            char acrc[3];
+            char ccrc[3];
+            sprintf(acrc, "%02X", crc);
+            sprintf(ccrc, "%02X", calc);
+            Logger::warn("CRC: %s Calc:%s Data:%s", acrc, ccrc, data + 5);
+            Logger::hex(LogLevel::ERROR, (char *)data, sizeof(MessageRec));
+        }
+#endif
+        return crc == calc;
     }
 
 #ifdef DEBUG_ON
     void print()
     {
         char msg[100] = {0};
-        snprintf(msg, sizeof(msg), "%d[%d-%d:%d](%d) {%s|%s}", from, from, to, id, hope, event, value);
+        snprintf(msg, sizeof(msg), "[%d-%d:%d](%d:%d) {%s|%s}", from, to, id, hop, len, event, value);
         Serial.println(msg);
     }
 #endif
@@ -98,6 +113,47 @@ struct MessageRec
     void clear()
     {
         memset(this, 0, sizeof(MessageRec));
+    }
+    bool decode(const char *msg)
+    {
+        if (sizeof(msg) < 8)
+            return false;
+        to = msg[0];
+        from = msg[1];
+        id = msg[2];
+        len = msg[3];
+        hop = msg[4];
+        return _parseRcv(String(msg + 5));
+    }
+    size_t encode(char *msg, size_t len)
+    {
+        return snprintf(msg, len, "%c%c%c%c%c{%s|%s}", to, from, id, len, hop, event, value);
+    }
+
+    bool _parseRcv(const String msg)
+    {
+
+        if (!msg.startsWith("{") || !msg.endsWith("}"))
+        {
+            Logger::error("Mensagem mal formatada: %s", msg);
+            return false;
+        }
+
+        String content = msg.substring(1, msg.length() - 1); // remove { and }
+        int sepIndex = content.indexOf('|');
+        int x = sprintf(event, "%s", content.substring(0, sepIndex).c_str());
+        event[x] = '\0';
+        if (sepIndex != -1)
+        {
+            x = sprintf(value, "%s", content.substring(sepIndex + 1).c_str());
+            value[x] = '\0';
+        }
+        else
+        {
+            value[0] = '\0'; // no value provided
+        }
+
+        return true;
     }
 };
 #pragma pack(pop)
@@ -196,13 +252,14 @@ public:
               const uint8_t from, const uint8_t hope, const uint8_t id = 0)
     {
         MessageRec msg;
-        memset(&msg, 0, sizeof(MessageRec));
+        msg.clear();
         msg.to = to;
         msg.from = from;
-        msg.hope = hope;
+        msg.hop = hope;
         msg.id = id;
         strncpy(msg.event, event, MAX_EVENT_LEN);
         strncpy(msg.value, value, MAX_VALUE_LEN);
+        msg.calculateCRC();
         return pushItem(msg);
     }
 

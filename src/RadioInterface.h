@@ -73,16 +73,16 @@ public:
     {
         if (rec.to != terminalId && terminalId > 0) // avaliar mesh
         {                                           // o gateway nao retransmite, para o caso de ser um terminal
-            if (rec.hope > 0)
+            if (rec.hop > 0)
             {
-                rec.hope--;
+                rec.hop--;
                 txQueue.pushItem(rec); // re-enviar a mensagem para o gateway
             }
         }
     }
     int encodeMessage(MessageRec &rec, char *buffer, const size_t len)
     {
-        int result = snprintf(buffer, len, "%c%c%c%c%c{%s|%s}", rec.to, rec.from, rec.id, 0, rec.hope, rec.event, rec.value);
+        int result = snprintf(buffer, len, "%c%c%c%c%c{%s|%s}", rec.to, rec.from, rec.id, 0, rec.hop, rec.event, rec.value);
         buffer[3] = result - 5;
         // rec.print();
         return result;
@@ -99,7 +99,7 @@ public:
             rec.from = buffer[1];
             rec.id = buffer[2];
             result = buffer[3];
-            rec.hope = buffer[4];
+            rec.hop = buffer[4];
             // rec.print();
         }
         return strlen(rec.event) + strlen(rec.value) + 3;
@@ -165,13 +165,14 @@ public:
     send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId)
     {
         MessageRec rec;
-        memset(&rec, 0, sizeof(MessageRec));
+        rec.clear();
         rec.to = tid;
         rec.from = terminalId;
         snprintf(rec.event, sizeof(rec.event), event);
         snprintf(rec.value, sizeof(rec.value), value);
-        rec.hope = ALIVE_PACKET;
+        rec.hop = ALIVE_PACKET;
         rec.id = ++nHeaderId;
+        rec.calculateCRC();
         return txQueue.pushItem(rec);
     }
     virtual bool processIncoming(MessageRec &rec)
@@ -229,9 +230,9 @@ public:
     virtual bool begin(const uint8_t terminal_Id, long band, bool promisc = true) = 0;
     void log(bool isSend, MessageRec &rec)
     {
-        Logger::log(rec.hope < 3 ? LogLevel::VERBOSE : isSend ? LogLevel::SEND
-                                                              : LogLevel::RECEIVE,
-                    "%s[%d-%d:%d](%d) %s|%s", rec.hope < 3 ? "MESH " : "", rec.from, rec.to, rec.id, rec.hope, rec.event, rec.value);
+        Logger::log(rec.hop < 3 ? LogLevel::VERBOSE : isSend ? LogLevel::SEND
+                                                             : LogLevel::RECEIVE,
+                    "%s[%d-%d:%d](%d) %s|%s", rec.hop < 3 ? "MESH " : "", rec.from, rec.to, rec.id, rec.hop, rec.event, rec.value);
     }
 };
 

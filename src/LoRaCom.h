@@ -56,7 +56,7 @@ public:
         rec.from = TERMINAL_ID;
         snprintf(rec.event, sizeof(rec.event), "%s", event.c_str());
         snprintf(rec.value, sizeof(rec.value), "%s", value.c_str());
-        rec.hope = ALIVE_PACKET;
+        rec.hop = ALIVE_PACKET;
         radio->receive(rec);
     }
     void loop()
