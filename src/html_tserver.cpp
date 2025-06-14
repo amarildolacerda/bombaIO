@@ -16,6 +16,7 @@
 #endif
 
 #include "ExtraQueue.h"
+#include "WifiConn.h"
 
 // Inicialização do membro estático
 AsyncWebServer *HtmlServer::espServer = nullptr;
@@ -401,6 +402,13 @@ void HtmlServer::initWebServer(AsyncWebServer *server)
                       request->redirect("/");
                       delay(1000);
                       ESP.restart(); });
+    espServer->on("/resetWifi", HTTP_GET, [](AsyncWebServerRequest *request)
+                  {
+                      request->redirect("/");
+                      delay(1000);
+                      wifiConn.resetWifi();
+                      ESP.restart(); });
+
     espServer->on("/discovery", HTTP_POST, [](AsyncWebServerRequest *request)
                   {
                       if (request->hasArg("enable")) {

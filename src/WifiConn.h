@@ -48,17 +48,20 @@ private:
 
     void initWiFi()
     {
-        // wifiManager->setConfigPortalTimeout(120);
-        // wifiManager->setConnectTimeout(30);
+        // WiFi.begin("kcasa", "3938373635");
+        //  wifiManager->setConfigPortalTimeout(120);
+        //  wifiManager->setConnectTimeout(30);
         wifiManager->setDebugOutput(true);
-        // wifiManager->setAPStaticIPConfig(
-        //     IPAddress(192, 168, 4, 1),
-        //     IPAddress(192, 168, 4, 1),
-        //     IPAddress(255, 255, 255, 0));
-        WiFi.mode(WIFI_AP_STA);
-        wifiManager->resetSettings();
-        wifiManager->autoConnect(); //(TERMINAL_NAME);
+        // wifiManager->_asyncScan = true;
+        // WiFi.mode(WIFI_AP_STA);
+        WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP
+
+        // wifiManager->resetSettings();
+        // wifiManager->setConfigPortalBlocking(false);
+        wifiManager->setConfigPortalTimeout(180);
+        wifiManager->autoConnect(TERMINAL_NAME);
         systemState.isConnected = WiFi.isConnected();
+        wifiManager->startConfigPortal(TERMINAL_NAME);
     }
 
     void initNTP()
@@ -146,8 +149,15 @@ public:
 #endif
     }
 
+    void resetWifi()
+    {
+        wifiManager->resetSettings();
+    }
     void loop()
     {
+#ifdef WIFIMANAGER
+        wifiManager->process();
+#endif
 #ifdef ALEXA
         alexaCom.loop();
 #endif
