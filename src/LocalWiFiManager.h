@@ -5,8 +5,8 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <Preferences.h>
-#include <Ticker.h>
 #include <DNSServer.h>
+#include <nvs_flash.h>
 
 class WiFiManager
 {
@@ -17,7 +17,6 @@ private:
     String ssid;
     String password;
     Preferences preferences;
-    Ticker reconnectTicker;
     unsigned long connectionAttempts;
     bool autoReconnect;
     int maxConnectionAttempts;
@@ -29,17 +28,21 @@ private:
 
     void loadCredentials()
     {
-        if (!preferences.begin("wifi-config", true))
+        if (ssid.isEmpty())
         {
-            Serial.println("Erro ao abrir preferences para leitura");
-            return;
+            if (!preferences.begin("wifi-config", true))
+            {
+                // nao foi criado ainda
+                // Serial.println("Erro ao abrir preferences para leitura");
+                return;
+            }
+
+            ssid = preferences.getString("ssid", "");
+            password = preferences.getString("password", "");
+
+            Serial.printf("Credenciais carregadas - SSID: %s\n", ssid.c_str());
+            preferences.end();
         }
-
-        ssid = preferences.getString("ssid", "");
-        password = preferences.getString("password", "");
-
-        Serial.printf("Credenciais carregadas - SSID: %s\n", ssid.c_str());
-        preferences.end();
     }
 
     void saveCredentials()
@@ -57,10 +60,17 @@ private:
         preferences.end();
     }
 
+    char *apSSID = "ESP32-Config";
+    char *apPassword = "";
+    void setHostName(char *hn, char *pass = "")
+    {
+        apSSID = hn;
+        apPassword = pass;
+    }
     void startAP()
     {
-        const char *apSSID = "ESP32-Config";
-        const char *apPassword = "config1234"; // AP protegido
+        // const char *apSSID = "ESP32-Config";
+        // const char *apPassword = "config1234"; // AP protegido
 
         if (!WiFi.softAP(apSSID, apPassword))
         {
@@ -78,6 +88,12 @@ private:
         {
             dns->start(53, "*", WiFi.softAPIP());
             Serial.println("DNS Server iniciado para captive portal");
+            server->on("/", HTTP_GET, [this](AsyncWebServerRequest *request)
+                       {
+                           if (isInConfigurationMode)
+                           {
+                               request->redirect("/wifi");
+                           } });
         }
 
         isInConfigurationMode = true;
@@ -478,14 +494,40 @@ private:
         }
 
         Serial.printf("Tentando conectar a: %s\n", ssid.c_str());
+
+        // Configuração adicional para melhorar a conexão
+        WiFi.disconnect(true); // Esquece redes anteriores
+        delay(100);
+        WiFi.mode(WIFI_STA);
+        WiFi.setAutoReconnect(true);
+        WiFi.setSleep(false); // Desabilita sleep para melhor estabilidade
+
         WiFi.begin(ssid.c_str(), password.c_str());
 
+        // Aguarda um pouco para ver se conecta rapidamente
+        unsigned long startTime = millis();
+        while (millis() - startTime < 5000 && WiFi.status() != WL_CONNECTED)
+        {
+            delay(100);
+            Serial.print(".");
+        }
+
+        if (WiFi.status() == WL_CONNECTED)
+        {
+            Serial.println("\nConectado com sucesso!");
+            return;
+        }
+
+        Serial.println("\nNão conseguiu conectar imediatamente, continuando em background...");
         connectionAttempts = 0;
         autoReconnect = true;
     }
 
     void checkConnection()
     {
+        static unsigned long lastAttemptTime = 0;
+        const unsigned long retryInterval = 10000; // 10 segundos entre tentativas
+
         if (WiFi.status() == WL_CONNECTED)
         {
             if (isInConfigurationMode)
@@ -498,16 +540,41 @@ private:
 
         if (autoReconnect && connectionAttempts < maxConnectionAttempts)
         {
-            connectionAttempts++;
-            Serial.printf("Tentativa de conexão %d/%d\n", connectionAttempts, maxConnectionAttempts);
-
-            if (connectionAttempts >= maxConnectionAttempts)
+            unsigned long currentTime = millis();
+            if (currentTime - lastAttemptTime >= retryInterval)
             {
-                Serial.println("Máximo de tentativas alcançado, iniciando modo AP");
-                startAP();
+                lastAttemptTime = currentTime;
+                connectionAttempts++;
+
+                Serial.printf("Tentativa de conexão %d/%d\n", connectionAttempts, maxConnectionAttempts);
+                WiFi.reconnect();
+
+                if (connectionAttempts >= maxConnectionAttempts)
+                {
+                    Serial.println("Máximo de tentativas alcançado, iniciando modo AP");
+                    startAP();
+                }
             }
         }
     }
+    void printDebugInfo()
+    {
+        Serial.println("\n=== WiFi Debug Info ===");
+        Serial.printf("SSID: %s\n", ssid.c_str());
+        // Serial.printf("Password: %s\n", password.c_str());
+        Serial.printf("IP: %s", WiFi.localIP().toString());
+        Serial.printf("Connection attempts: %d/%d\n", connectionAttempts, maxConnectionAttempts);
+        Serial.printf("WiFi status: %d\n", WiFi.status());
+        Serial.printf("Configuration mode: %s\n", isInConfigurationMode ? "AP" : "STA");
+        Serial.println("=====================\n");
+    }
+    void _begin()
+    {
+
+        // Inicializa o NVS
+        loadCredentials();
+    }
+    static std::function<void(bool)> connectCallback;
 
 public:
     WiFiManager(AsyncWebServer *existingServer = nullptr, DNSServer *dnsServer = nullptr, int maxAttempts = 10)
@@ -522,38 +589,41 @@ public:
     {
         if (!server)
         {
-            // Se nenhum servidor foi fornecido, cria um novo
             server = new AsyncWebServer(80);
             Serial.println("Criado novo servidor web na porta 80");
         }
-
-        loadCredentials();
-    }
-
-    ~WiFiManager()
-    {
-        if (reconnectTicker.active())
+        else
         {
-            reconnectTicker.detach();
+            Serial.println("WebServer carregado");
         }
     }
-
-    void begin()
+    ~WiFiManager()
     {
-        autoConnect();
+    }
+    void setConnectCallback(std::function<void(bool)> callback)
+    {
+        connectCallback = callback;
     }
 
-    void autoConnect()
+    void eraseNVS()
     {
+        nvs_flash_erase(); // Limpa completamente o NVS
+        nvs_flash_init();  // Inicializa novamente
+    }
+
+    void
+    autoConnect(const char *ssid_ = "", const char *pass_ = "")
+    {
+        _begin();
+        ssid = ssid_;
+        password = pass_;
         WiFi.mode(WIFI_STA);
         WiFi.setAutoReconnect(true);
 
         tryConnect();
         setupWebServer();
         server->begin();
-
-        // Verificar conexão a cada 5 segundos
-        // reconnectTicker.attach(5, [this]() { checkConnection(); });
+        printDebugInfo();
     }
 
     void process()
@@ -569,7 +639,7 @@ public:
     {
         if (!preferences.begin("wifi-config", false))
         {
-            Serial.println("Erro ao abrir preferences para reset");
+            Serial.println("Config indisponivel, aguadando def");
             return;
         }
 

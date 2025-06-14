@@ -182,18 +182,21 @@ public:
 
     virtual bool
 
-    send(uint8_t tid, const char *event, const char *value, const uint8_t terminalId)
+    send(uint8_t tid, const char *event, const char *value, const uint8_t fromId)
     {
         MessageRec rec;
         rec.clear();
         rec.to = tid;
-        rec.from = terminalId;
+        rec.from = fromId;
         snprintf(rec.event, sizeof(rec.event), event);
         snprintf(rec.value, sizeof(rec.value), value);
         rec.hop = ALIVE_PACKET;
         rec.id = ++nHeaderId;
         rec.calculateCRC();
-        return txQueue.pushItem(rec);
+        if (rec.from == 0xFF && rec.to == this->terminalId)
+            return rxQueue.popItem(rec); // localmsg
+        else
+            return txQueue.pushItem(rec);
     }
     virtual bool processIncoming(MessageRec &rec)
     {

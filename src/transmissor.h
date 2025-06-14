@@ -30,7 +30,7 @@
 #ifdef ALEXA
 static void alexaDeviceCallback(uint8_t tid, const char *device_name, bool state, unsigned char value)
 {
-    loraCom.send(tid, EVT_GPIO, state ? GPIO_ON : GPIO_OFF);
+    loraCom.send(tid, EVT_GPIO, state ? GPIO_ON : GPIO_OFF, (tid == TERMINAL_ID) ? 0xFF : TERMINAL_ID);
 }
 #endif
 
@@ -70,11 +70,15 @@ public:
         systemState.isGateway = true;
 #else
         systemState.isGateway = (systemState.terminalId == 0);
-        if (!systemState.isGateway)
+
+#endif
+        if (RELAY_PIN > 0)
         {
             pinMode(RELAY_PIN, OUTPUT);
-        }
+#ifdef GATEWAY
+            deviceInfo.updateDevice(TERMINAL_ID, TERMINAL_NAME, false, 0);
 #endif
+        }
 
         loraCom.begin(systemState.terminalId, Config::LORA_BAND, true); // initialize LoRa at 868 MHz
 
@@ -192,7 +196,8 @@ public:
     }
     void sendStatus()
     {
-        loraCom.send(0, EVT_STATUS, digitalRead(RELAY_PIN) ? "on" : "off");
+        if (RELAY_PIN > 0)
+            loraCom.send(0, EVT_STATUS, digitalRead(RELAY_PIN) ? "on" : "off");
     }
     void ackNak(uint8_t to, bool b)
     {
@@ -232,17 +237,20 @@ public:
             {
                 if (strcmp(rec.value, GPIO_ON) == 0)
                 {
-                    digitalWrite(RELAY_PIN, HIGH);
+                    if (RELAY_PIN > 0)
+                        digitalWrite(RELAY_PIN, HIGH);
                     Logger::warn("Mudou para ON");
                 }
                 else if (strcmp(rec.value, GPIO_OFF) == 0)
                 {
-                    digitalWrite(RELAY_PIN, LOW);
+                    if (RELAY_PIN > 0)
+                        digitalWrite(RELAY_PIN, LOW);
                     Logger::warn("Mudou para OFF");
                 }
                 else if (strcmp(rec.value, GPIO_TOGGLE) == 0)
                 {
-                    digitalWrite(RELAY_PIN, !digitalRead(RELAY_PIN));
+                    if (RELAY_PIN > 0)
+                        digitalWrite(RELAY_PIN, !digitalRead(RELAY_PIN));
                 }
                 else
                 {

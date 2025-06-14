@@ -3,6 +3,11 @@
 #ifdef WIFI
 
 #include "Arduino.h"
+
+#ifdef ESP32
+#include <nvs_flash.h>
+#endif
+
 #include "config.h"
 #include "SystemState.h"
 #include "ws_logger.h"
@@ -51,23 +56,27 @@ private:
     void initWiFi()
     {
 #ifdef WIFIMANAGER
-        wifiManager->autoConnect();
-#else
-        // WiFi.begin("kcasa", "3938373635");
-        //  wifiManager->setConfigPortalTimeout(120);
-        //  wifiManager->setConnectTimeout(30);
-        wifiManager->setDebugOutput(true);
-        // wifiManager->_asyncScan = true;
-        // WiFi.mode(WIFI_AP_STA);
-        WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP
-
-        // wifiManager->resetSettings();
-        // wifiManager->setConfigPortalBlocking(false);
-        wifiManager->setConfigPortalTimeout(180);
-        wifiManager->_asyncScan = true;
-        wifiManager->autoConnect(TERMINAL_NAME);
+        wifiManager->autoConnect(); //("kcasa", "3938373635");
         systemState.isConnected = WiFi.isConnected();
-        // wifiManager->startConfigPortal(TERMINAL_NAME);
+#else
+        WiFi.mode(WIFI_AP_STA);
+        wifiManager->setConnectTimeout(20);       // Tempo de tentativa de conexão
+        wifiManager->setConfigPortalTimeout(180); // 3 minutos no modo AP
+
+        wifiManager->setAPCallback([](AsyncWiFiManager *wifiMgr)
+                                   {
+    Serial.println("Modo Configuração Ativado");
+    Serial.print("IP do AP: ");
+    Serial.println(WiFi.softAPIP()); });
+
+        wifiManager->setSaveConfigCallback([]()
+                                           {
+    Serial.println("Configuração salva. Reiniciando...");
+    ESP.restart(); });
+
+        // Tenta conectar em background
+        wifiManager->autoConnect("Gateway-Config", "");
+
 #endif
     }
 
@@ -106,38 +115,68 @@ public:
 #else
         wifiManager = new AsyncWiFiManager(server, dns);
 #endif
+#ifdef ESP32
+        esp_err_t ret = nvs_flash_init();
+        if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+        {
+            Serial.println("Reiniciando NVS");
+            ESP_ERROR_CHECK(nvs_flash_erase());
+            ret = nvs_flash_init();
+        }
+        else
+        {
+            Serial.println("NVS OK");
+        }
+        ESP_ERROR_CHECK(ret);
+#endif
     }
 
     ~WiFiConn()
     {
+
         delete wifiManager;
     }
 
+    void changeNetwork()
+    {
+        WiFi.disconnect();
+        wifiManager->startConfigPortal("ESP32-Config");
+    }
     bool begin()
     {
         initWiFi();
 
-        if (systemState.isConnected)
-        {
-            initNTP();
-            Logger::log(LogLevel::INFO, "WiFi connected: %s", WiFi.SSID().c_str());
-            systemState.isRunning = true;
-            systemState.isConnected = true;
-            systemState.isInitialized = true;
-        }
-        else
-        {
-            Logger::log(LogLevel::ERROR, "Failed to connect to WiFi");
-            systemState.isRunning = false;
-            systemState.isConnected = false;
-            systemState.isInitialized = false;
-        }
+        // Verificar conexão a cada 5 segundos
+        // reconnectTicker.attach(5, []()
+        //                       {
+        //                           const bool connected = WiFi.isConnected();
+        //                           if (systemState.isConnected != connected)
+        //                          {
+        //                              systemState.isConnected = connected;
+        //                          } });
+
+        // if (systemState.isConnected)
+        //{
+        initNTP();
+        // Logger::log(LogLevel::INFO, "WiFi connected: %s", WiFi.SSID().c_str());
+        systemState.isRunning = true;
+        // systemState.isConnected = true;
+        systemState.isInitialized = true;
+        //}
+        // else
+        //{
+        //    Logger::log(LogLevel::ERROR, "Failed to connect to WiFi");
+        //    systemState.isRunning = false;
+        //    systemState.isConnected = false;
+        //    systemState.isInitialized = false;
+        //}
 
         initAlexa();
         delay(500); // Stabilization after connection
 
 #ifdef WS
         htmlServer.initWebServer(server);
+        wifiManager->addRoots(server);
         htmlServer.begin();
 #else
         server->begin();
@@ -162,9 +201,11 @@ public:
     }
     void loop()
     {
+
 #ifdef WIFIMANAGER
         wifiManager->process();
 #endif
+
 #ifdef ALEXA
         alexaCom.loop();
 #endif
@@ -172,6 +213,17 @@ public:
 #ifdef WS
         htmlServer.process();
 #endif
+
+        static long wifiCheck = 0;
+        if (millis() - wifiCheck > 30000)
+        {
+            wifiCheck = millis();
+            if (!WiFi.isConnected())
+            {
+                WiFi.disconnect();
+                WiFi.reconnect();
+            }
+        }
     }
 
     String getISOTime(String format = "")
