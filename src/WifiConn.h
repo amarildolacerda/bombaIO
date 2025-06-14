@@ -18,10 +18,11 @@
 
 // WiFi related includes
 #ifdef WIFIMANAGER
-#include "WiFiManager.h"
+#include <LocalWiFiManager.h>
 #else
 #include "ESPAsyncWiFiManager.h"
 #endif
+
 #include "ESPAsyncWebServer.h"
 #include "WiFi.h"
 #include <ezTime.h>
@@ -37,6 +38,7 @@ private:
 
     AsyncWebServer *server;
     DNSServer *dns;
+
 #ifdef WIFIMANAGER
     WiFiManager *wifiManager;
 #else
@@ -48,6 +50,9 @@ private:
 
     void initWiFi()
     {
+#ifdef WIFIMANAGER
+        wifiManager->autoConnect();
+#else
         // WiFi.begin("kcasa", "3938373635");
         //  wifiManager->setConfigPortalTimeout(120);
         //  wifiManager->setConnectTimeout(30);
@@ -59,9 +64,11 @@ private:
         // wifiManager->resetSettings();
         // wifiManager->setConfigPortalBlocking(false);
         wifiManager->setConfigPortalTimeout(180);
+        wifiManager->_asyncScan = true;
         wifiManager->autoConnect(TERMINAL_NAME);
         systemState.isConnected = WiFi.isConnected();
-        wifiManager->startConfigPortal(TERMINAL_NAME);
+        // wifiManager->startConfigPortal(TERMINAL_NAME);
+#endif
     }
 
     void initNTP()
@@ -95,7 +102,7 @@ public:
     WiFiConn(AsyncWebServer *srv, DNSServer *dnsServer) : server(srv), dns(dnsServer)
     {
 #ifdef WIFIMANAGER
-        wifiManager = new WiFiManager();
+        wifiManager = new WiFiManager(srv, dns);
 #else
         wifiManager = new AsyncWiFiManager(server, dns);
 #endif
