@@ -18,11 +18,10 @@ public:
     bool sendMessage(MessageRec &rec) override
     {
         stats.txCount++;
-        char message[64] = {0};
-        int result = encodeMessage(rec, message, 64);
+        char message[MESSAGE_MAX_LEN] = {0};
+        size_t result = rec.encode(message, MESSAGE_MAX_LEN);
         if (result > 0)
         {
-            // Logger::hex(message, result);
             LoRa.beginPacket(); // start packet
             for (uint8_t i = 0; i < result; i++)
             {
@@ -30,6 +29,9 @@ public:
             }
             if (LoRa.endPacket() > 0)
             {
+#ifdef DEBUG_ON
+                Logger::hex(LogLevel::VERBOSE, message, result);
+#endif
                 stats.txSuccess++;
                 log(true, rec);
             }; // finish packet and send it
@@ -46,10 +48,9 @@ public:
             return false; // if there's no packet, return
 
         MessageRec rec;
-        memset(&rec, 0, sizeof(rec));
 
         size_t len = 0;
-        char message[64] = {0};
+        char message[MESSAGE_MAX_LEN] = {0};
         long updated = millis();
         while (len <= packetSize)
         {
@@ -61,9 +62,11 @@ public:
                 updated = millis();
             }
         }
-
-        uint8_t result = decodeMessage(rec, message, len);
-        if (result <= 0)
+        bool result = rec.decode(message, len);
+#ifdef DEBUG_ON
+        rec.print();
+#endif
+        if (!result)
             return false;
 
         if (rec.from == terminalId)
@@ -71,16 +74,9 @@ public:
             return false; // skip messages from myself
         }
 
+        addRxMessage(rec);
         meshMessage(rec);
 
-        if (rec.to != terminalId && rec.to != 0xFF)
-        {
-            Serial.println("This message is not for me.");
-            return false; // skip rest of function
-        }
-
-        rxQueue.pushItem(rec); // add to rx queue
-                               //        Logger::log(LogLevel::RECEIVE, "[%d-%d:%d](%d) %s|%s", rec.from, rec.to, rec.id, rec.hope, rec.event, rec.value);
         return true;
     };
     void configParams()
@@ -93,7 +89,6 @@ public:
     bool begin(const uint8_t terminal_Id, long band, bool promisc = true) override
     {
         terminalId = terminal_Id;
-        // override the default CS, reset, and IRQ pins (optional)
         LoRa.setPins(csPin, resetPin, irqPin); // set CS, reset, IRQ pin
 
         if (!LoRa.begin(band))

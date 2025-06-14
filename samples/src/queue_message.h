@@ -123,14 +123,14 @@ struct MessageRec
         id = msg[2];
         len = msg[3];
         hop = msg[4];
-        return _parseRcv(String(msg + 5));
+        return parseCmd(String(msg + 5));
     }
     size_t encode(char *msg, size_t len)
     {
         return snprintf(msg, len, "%c%c%c%c%c{%s|%s}", to, from, id, len, hop, event, value);
     }
 
-    bool _parseRcv(const String msg)
+    bool parseCmd(const String msg)
     {
 
         if (!msg.startsWith("{") || !msg.endsWith("}"))

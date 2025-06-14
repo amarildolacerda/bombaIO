@@ -17,7 +17,11 @@
 #endif
 
 // WiFi related includes
+#ifdef WIFIMANAGER
+#include "WiFiManager.h"
+#else
 #include "ESPAsyncWiFiManager.h"
+#endif
 #include "ESPAsyncWebServer.h"
 #include "WiFi.h"
 #include <ezTime.h>
@@ -33,23 +37,27 @@ private:
 
     AsyncWebServer *server;
     DNSServer *dns;
+#ifdef WIFIMANAGER
+    WiFiManager *wifiManager;
+#else
     AsyncWiFiManager *wifiManager;
-
+#endif
 #ifdef ALEXA
     AlexaCallbackType alexaCallbackFn;
 #endif
 
     void initWiFi()
     {
-        wifiManager->setConfigPortalTimeout(120);
-        wifiManager->setConnectTimeout(30);
+        // wifiManager->setConfigPortalTimeout(120);
+        // wifiManager->setConnectTimeout(30);
         wifiManager->setDebugOutput(true);
-        wifiManager->setAPStaticIPConfig(
-            IPAddress(192, 168, 4, 1),
-            IPAddress(192, 168, 4, 1),
-            IPAddress(255, 255, 255, 0));
-
-        wifiManager->autoConnect(TERMINAL_NAME);
+        // wifiManager->setAPStaticIPConfig(
+        //     IPAddress(192, 168, 4, 1),
+        //     IPAddress(192, 168, 4, 1),
+        //     IPAddress(255, 255, 255, 0));
+        WiFi.mode(WIFI_AP_STA);
+        wifiManager->resetSettings();
+        wifiManager->autoConnect(); //(TERMINAL_NAME);
         systemState.isConnected = WiFi.isConnected();
     }
 
@@ -83,7 +91,11 @@ public:
 
     WiFiConn(AsyncWebServer *srv, DNSServer *dnsServer) : server(srv), dns(dnsServer)
     {
+#ifdef WIFIMANAGER
+        wifiManager = new WiFiManager();
+#else
         wifiManager = new AsyncWiFiManager(server, dns);
+#endif
     }
 
     ~WiFiConn()

@@ -35,10 +35,14 @@ struct MessageRec
     uint8_t id;
     uint8_t len;
     uint8_t hop;
-    uint8_t crc;
     char event[MAX_EVENT_LEN];
     char value[MAX_VALUE_LEN];
+    uint8_t crc;
 
+    uint8_t headerCount()
+    {
+        return 5;
+    }
     // Calcula CRC-8 usando polinômio 0x07
     void updateCRC()
     {
@@ -114,23 +118,34 @@ struct MessageRec
     {
         memset(this, 0, sizeof(MessageRec));
     }
-    bool decode(const char *msg)
+    bool isEvent(const char *ev) const
     {
-        if (sizeof(msg) < 8)
+        return strcmp(event, ev) == 0;
+    }
+    bool decode(const char *msg, const size_t plen)
+    {
+        clear();
+        if (plen < 5)
             return false;
         to = msg[0];
         from = msg[1];
         id = msg[2];
         len = msg[3];
         hop = msg[4];
-        return _parseRcv(String(msg + 5));
+        return parseCmd(String(msg + 5));
     }
-    size_t encode(char *msg, size_t len)
+    size_t encode(char *buffer, const size_t len)
     {
-        return snprintf(msg, len, "%c%c%c%c%c{%s|%s}", to, from, id, len, hop, event, value);
+        updateCRC();
+        int result = snprintf(buffer, len, "%c%c%c%c%c{%s|%s}", to, from, id, len, hop, event, value);
+        return result;
+        //     // buffer[3] = result - 5;
+        //     //  rec.print();
+        //   updateCRC();
+        //   return snprintf(msg, len, "%c%c%c%c%c{%s|%s}", to, from, id, len, hop, event, value);
     }
 
-    bool _parseRcv(const String msg)
+    bool parseCmd(const String msg)
     {
 
         if (!msg.startsWith("{") || !msg.endsWith("}"))
@@ -191,6 +206,7 @@ public:
 
         CRITICAL_SECTION
         {
+
             if (count < maxItems)
             {
                 items[tail] = item;
@@ -217,7 +233,7 @@ public:
             for (int i = 0; i < count; i++)
             {
                 int index = (head + i) % maxItems;
-                if (items[index].dv() == item.dv())
+                if (items[index].crc == item.calculateCRC())
                 {
                     result = true;
                     break;
@@ -233,6 +249,7 @@ public:
         bool result = false;
         CRITICAL_SECTION
         {
+
             if (count > 0)
             {
                 item = items[head];
@@ -257,8 +274,8 @@ public:
         msg.from = from;
         msg.hop = hope;
         msg.id = id;
-        strncpy(msg.event, event, MAX_EVENT_LEN);
-        strncpy(msg.value, value, MAX_VALUE_LEN);
+        msg.setEvent(event);
+        msg.setValue(value);
         msg.calculateCRC();
         return pushItem(msg);
     }

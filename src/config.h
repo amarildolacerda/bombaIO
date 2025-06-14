@@ -17,10 +17,6 @@ namespace Config
     constexpr const char *ALEXA_TERMOSTATO = "Termostato";
     constexpr const uint8_t ALEXA_MAX_CLIENTS = 10;
 
-#ifdef RF95
-    constexpr const uint8_t LORA_RX_PIN = 10; // RX pin for RF95
-    constexpr const uint8_t LORA_TX_PIN = 11; // TX pin for RF95
-#endif
     // Hardware - Pinos LoRa (TTGO LoRa32 v1)
 
 #ifdef TTGO

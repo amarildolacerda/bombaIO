@@ -51,11 +51,13 @@ public:
     void receive(const uint8_t tid, const String &event, const String &value)
     {
         MessageRec rec;
-        memset(&rec, 0, sizeof(MessageRec));
+        rec.clear();
         rec.to = tid;
         rec.from = TERMINAL_ID;
-        snprintf(rec.event, sizeof(rec.event), "%s", event.c_str());
-        snprintf(rec.value, sizeof(rec.value), "%s", value.c_str());
+        rec.setEvent(event.c_str());
+        rec.setValue(value.c_str());
+        // snprintf(rec.event, sizeof(rec.event), "%s", event.c_str());
+        // snprintf(rec.value, sizeof(rec.value), "%s", value.c_str());
         rec.hop = ALIVE_PACKET;
         radio->receive(rec);
     }
