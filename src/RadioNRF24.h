@@ -23,7 +23,7 @@ private:
                              {0x05, 0xB6, 0xB5, 0xB4, 0xB3}};
 
 public:
-    RadioNRF24(uint8_t cePin = RX_PIN, uint8_t csnPin = TX_PIN)
+    RadioNRF24(uint8_t cePin = NRF24_CE, uint8_t csnPin = NRF24_CSN)
         : radio(cePin, csnPin), cePin(cePin), csnPin(csnPin) {}
 
     String getIdent() override
