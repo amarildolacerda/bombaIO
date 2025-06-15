@@ -38,6 +38,7 @@ struct MessageRec
     char event[MAX_EVENT_LEN];
     char value[MAX_VALUE_LEN];
     uint8_t crc;
+    MessageRec() : to(0), from(0), id(0), len(0), hop(3) {}
 
     uint8_t headerCount()
     {
