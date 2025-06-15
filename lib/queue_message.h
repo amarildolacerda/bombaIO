@@ -21,7 +21,7 @@ static portMUX_TYPE queueMutex = portMUX_INITIALIZER_UNLOCKED;
 
 #define MAX_EVENT_LEN 8
 #define MAX_VALUE_LEN 24
-#ifdef ESP32
+#if defined(ESP32) || defined(ESP8266)
 #define MAX_ITEMS 5
 #else
 #define MAX_ITEMS 2

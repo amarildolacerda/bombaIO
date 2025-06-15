@@ -260,14 +260,13 @@ public:
                 mudouEstado = true; // antecipa a notificação de mudança
             }
         }
-#ifdef GATEWAY
         if (rec.to == systemState.terminalId && strcmp(rec.event, EVT_PRESENTATION) != 0)
         {
-            if (deviceInfo.indexOf(rec.from) < 0)
+            if (systemState.isGateway)
+                ackNak(rec.from, true);
+            else
                 loraCom.sendPresentation(rec.from);
         }
-
-#endif
 
         if (strcmp(rec.event, EVT_PING) == 0)
         {

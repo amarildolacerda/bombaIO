@@ -180,7 +180,7 @@ public:
 
 #ifdef WS
         htmlServer.initWebServer(server);
-        wifiManager->addRoots(server);
+        // wifiManager->addRoots(server);
         htmlServer.begin();
 #else
         server->begin();

@@ -104,9 +104,9 @@ public:
     {
         if (isGateway)
         {
-            Serial.println("Enviando ");
-            rec.print();
-            // Envia para todos os clientes conectados
+            // Serial.println("Enviando ");
+            // rec.print();
+            //  Envia para todos os clientes conectados
             bool sent = false;
             for (auto dev : clients)
             {
@@ -212,7 +212,7 @@ private:
             }
             else
             {
-                msg.print();
+                // msg.print();
             }
         }
     }

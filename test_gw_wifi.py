@@ -49,7 +49,7 @@ class DeviceSimulator:
         """Formata mensagem no padrão %c%c%c%c%c{event|value}"""
         payload = f"{{{event}|{value}}}"
         length = len(payload)
-        return pack('BBBBB', to, from_id, msg_id, length, hop) + payload.encode('ascii')+b'\n'
+        return pack('BBBBB', to, from_id, msg_id, length, hop) + payload.encode() +b'\n'
     
     def parse_message(self, data):
         """Analisa mensagens no formato especificado"""
@@ -118,7 +118,7 @@ class DeviceSimulator:
             else:
                 color = Fore.WHITE
                 
-            print(f"{color}[ENVIADO] {Fore.WHITE}Para: {to}, {color}Evento: {event}, Valor: {value}")
+            print(f"{color}[ENVIADO] {Fore.WHITE}Para: {to}, Id: {msg_id} {color}Evento: {event}, Valor: {value}")
             return True
         except (socket.error, socket.timeout) as e:
             print(f"{Fore.RED}[ERRO] Falha no envio: {e}")
@@ -152,7 +152,7 @@ class DeviceSimulator:
             from_id=self.device_id,
             msg_id=self.msg_counter,
             hop=3,
-            event="presentation",
+            event="pub",
             value=self.terminal_name
         )
     
@@ -186,6 +186,9 @@ class DeviceSimulator:
                     # Processa cada mensagem individualmente
                     parsed = self.parse_message(msg)
                     if parsed:
+                        if parsed["event"] in ["ack","nak"]:
+                            print(parsed["event"])
+                            return
                         # (Restante do código de processamento...)
                         if parsed['event'] == "ping":
                             color = Fore.YELLOW
@@ -220,7 +223,7 @@ class DeviceSimulator:
             msg_id=self.msg_counter,
             hop=3,
             event="presentation",
-            value=self.name
+            value=self.terminal_name
         )
     
     def send_sensor_data(self, sensor_type, value):
@@ -275,9 +278,9 @@ class DeviceSimulator:
         print(f"{Fore.GREEN}[INFO] Dispositivo {self.device_id} desconectado")
 
 
-def run_test(gateway_ip):
-    DEVICE_ID = 42
-    device = DeviceSimulator(DEVICE_ID, gateway_ip)
+def run_test(gateway_ip, termId):
+
+    device = DeviceSimulator(termId, gateway_ip)
     
     if not device.start():
         return
@@ -302,8 +305,8 @@ def run_test(gateway_ip):
             time.sleep(1)
             device.send_sensor_data("st", "on" if device.status else "off")
             device.status = not device.status
-            time.sleep(1)
-            device.send_sensor_data("ping", device.terminal_name)
+            #time.sleep(1)
+            #device.send_sensor_data("ping", device.terminal_name)
             
             time.sleep(5)
             
@@ -316,6 +319,8 @@ def run_test(gateway_ip):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Teste de conexão com gateway IoT')
     parser.add_argument('ip', help='Endereço IP do gateway')
+    parser.add_argument("term",help="numero do terminal")
     args = parser.parse_args()
+    print(args)
     
-    run_test(args.ip)
+    run_test(args.ip, int(args.term) )
