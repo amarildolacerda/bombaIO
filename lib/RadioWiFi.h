@@ -186,13 +186,13 @@ private:
         pendingData.concat(data, len);
 
         // Serial.println(pendingData.substring(6, pendingData.indexOf('\n')));
-        Serial.println(pendingData);
-        Serial.println(pendingData.indexOf('\n', 6)); // Processa todas as mensagens completas no buffer
+        // Serial.println(pendingData);
+        // Serial.println(pendingData.indexOf('\n', 6)); // Processa todas as mensagens completas no buffer
         int endPos;
         while ((endPos = pendingData.indexOf('\n', 6)) != -1)
         {
             String message = pendingData.substring(0, endPos);
-            Serial.println(message);
+            // Serial.println(message);
             pendingData.remove(0, endPos + 1);
 
             MessageRec msg;

@@ -28,6 +28,12 @@ static portMUX_TYPE queueMutex = portMUX_INITIALIZER_UNLOCKED;
 #endif
 
 #pragma pack(push, 1)
+enum MessageSource
+{
+    MS_BASE = 0,
+    MS_WS = 1,
+    MS_WIFI = 2
+};
 struct MessageRec
 {
     uint8_t to;
@@ -38,6 +44,7 @@ struct MessageRec
     char event[MAX_EVENT_LEN];
     char value[MAX_VALUE_LEN];
     uint8_t crc;
+    MessageSource ms = MS_BASE;
     MessageRec() : to(0), from(0), id(0), len(0), hop(3) {}
 
     uint8_t headerCount()

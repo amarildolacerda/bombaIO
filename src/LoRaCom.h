@@ -14,6 +14,8 @@
 #include "LoRa32.h"
 #elif NRF24
 #include "RadioNRF24.h"
+#elif RADIO_WIFI
+#include "RadioWiFi.h"
 #else
 #include "LoRaDummy.h"
 #endif
@@ -32,6 +34,8 @@ public:
         radio = new LoRa32();
 #elif NRF24
         radio = new RadioNRF24();
+#elif RADIO_WIFI
+        radio = new RadioWiFi(12345, TERMINAL_ID == 0);
 #else
         radio = new LoRaDummy();
 #endif
@@ -46,7 +50,7 @@ public:
     }
     void send(const uint8_t tid, const String &event, const String &value, const uint8_t from = TERMINAL_ID)
     {
-      
+
         radio->send(tid, event.c_str(), value.c_str(), (TERMINAL_ID == tid) ? 0xFE : from);
     }
     void receive(const uint8_t tid, const String &event, const String &value)

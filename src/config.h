@@ -34,8 +34,10 @@ namespace Config
     constexpr const uint32_t LORA_BAND = 868E6; // usado esp32 TTGO LoRa32 v1
 #elif RF95
     constexpr const uint32_t LORA_BAND = 868.0; // usado RF95
-#elif defined(NRF24) || defined(DUMMY)
+#elif defined(NRF24)
     constexpr const int LORA_BAND = 76;
+#else
+    constexpr const uint32_t LORA_BAND = 0; // nao usado
 #endif
 
     constexpr const uint16_t LORA_SYNC_WORD = 0x12;
