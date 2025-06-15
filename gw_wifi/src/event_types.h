@@ -11,6 +11,8 @@
 // Comandos (CMD_)
 #define CMD_IDENTIFY "CMD_IDENT"
 #define CMD_IDENTIFY_ACK "CMD_IDENT_ACK"
+#define RSP_ACK "ACK"
+#define RSP_NAK "NAK"
 #define CMD_PING "CMD_PING"
 #define CMD_PONG "CMD_PONG"
 #define CMD_REBOOT "CMD_REBOOT"
