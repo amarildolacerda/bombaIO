@@ -132,12 +132,14 @@ struct MessageRec
         id = msg[2];
         len = msg[3];
         hop = msg[4];
-        return parseCmd(String(msg + 5));
+        bool b = parseCmd(String(msg + 5));
+
+        return b;
     }
-    size_t encode(char *buffer, const size_t len)
+    size_t encode(char *buffer, const size_t plen)
     {
         updateCRC();
-        int result = snprintf(buffer, len, "%c%c%c%c%c{%s|%s}", to, from, id, len, hop, event, value);
+        int result = snprintf(buffer, plen, "%c%c%c%c%c{%s|%s}", to, from, id, len, hop, event, value);
         return result;
         //     // buffer[3] = result - 5;
         //     //  rec.print();

@@ -113,7 +113,7 @@ class DeviceSimulator:
                 color = Fore.CYAN
             elif event.startswith("CMD_"):
                 color = Fore.MAGENTA
-            elif event in ["ACK", "PONG"]:
+            elif event in ["ack", "pong"]:
                 color = Fore.GREEN
             else:
                 color = Fore.WHITE
@@ -132,7 +132,7 @@ class DeviceSimulator:
             from_id=self.device_id,
             msg_id=self.msg_counter,
             hop=0,
-            event="ACK",
+            event="ack",
             value=str(original_msg['id'])
         )
     
@@ -148,7 +148,7 @@ class DeviceSimulator:
         )
     
     def receiver_thread(self):
-        """Thread para receber mensagens"""
+        """Thread para receber mensagens, tratando \n como delimitador"""
         buffer = b''
         while self.running:
             try:
@@ -156,7 +156,7 @@ class DeviceSimulator:
                     time.sleep(2)
                     continue
                 
-                data = self.socket.recv(128)
+                data = self.socket.recv(128)  # Recebe dados brutos (pode conter múltiplas mensagens)
                 if not data:
                     print(f"{Fore.RED}[ERRO] Conexão encerrada pelo servidor")
                     self.connected = False
@@ -165,37 +165,30 @@ class DeviceSimulator:
                 buffer += data
                 print(f"{Fore.LIGHTBLACK_EX}[DADOS] Recebidos {len(data)} bytes (buffer: {len(buffer)})")
                 
-                while len(buffer) >= 5:
-                    length = buffer[3]
-                    total_length = 5 + length
+                # Separa as mensagens pelo delimitador \n
+                messages = buffer.split(b'\n')
+                buffer = messages.pop()  # Guarda mensagem incompleta de volta no buffer
+                
+                for msg in messages:
+                    if len(msg) < 5:  # Verifica tamanho mínimo do cabeçalho
+                        print(f"{Fore.RED}[ERRO] Mensagem muito curta: {msg}")
+                        continue
                     
-                    if len(buffer) < total_length:
-                        break
-                    
-                    message = buffer[:total_length]
-                    buffer = buffer[total_length:]
-                    
-                    parsed = self.parse_message(message)
+                    # Processa cada mensagem individualmente
+                    parsed = self.parse_message(msg)
                     if parsed:
-                        # Cores por tipo de mensagem recebida
+                        # (Restante do código de processamento...)
                         if parsed['event'] == "PING":
                             color = Fore.YELLOW
+                            self.send_pong(parsed)
                         elif parsed['event'].startswith("CMD_"):
                             color = Fore.MAGENTA
                         else:
                             color = Fore.BLUE
-                            
-                        print(f"{color}[RECEBIDO] {Fore.WHITE}De: {parsed['from']}, {color}Evento: {parsed['event']}, Valor: {parsed['value']}")
                         
-                        if parsed['event'] == "PING":
-                            self.msg_counter += 1
-                            self.send_pong(parsed)
-                        elif parsed['event'] == "CMD_STATUS":
-                            self.msg_counter += 1
-                            self.send_sensor_data("st", "on" if self.status else "off")
-                        else:
-                            self.msg_counter += 1
-                            self.send_ack(parsed)
+                        print(f"{color}[RECEBIDO] {Fore.WHITE}De: {parsed['from']}, {color}Evento: {parsed['event']}, Valor: {parsed['value']}")
+                        self.msg_counter += 1
+                        self.send_ack(parsed)
             
             except socket.timeout:
                 continue
@@ -205,7 +198,6 @@ class DeviceSimulator:
             except Exception as e:
                 print(f"{Fore.RED}[ERRO] Exceção inesperada: {e}")
                 self.connected = False
-    
     def identify(self):
         """Envia mensagem de identificação"""
         return self.send_message(
