@@ -30,7 +30,7 @@
 #ifdef ALEXA
 static void alexaDeviceCallback(uint8_t tid, const char *device_name, bool state, unsigned char value)
 {
-    loraCom.send(tid, EVT_GPIO, state ? GPIO_ON : GPIO_OFF, (tid == TERMINAL_ID) ? 0xFF : TERMINAL_ID);
+    loraCom.send(tid, EVT_GPIO, state ? GPIO_ON : GPIO_OFF);
 }
 #endif
 
@@ -118,8 +118,8 @@ public:
         static long lastSendTime = 0; // last send time
         int timeUpdate = Config::PING_TIMEOUT_MS;
 
-        if (!systemState.isGateway)
-            timeUpdate = (systemState.waitingACK ? 5000 : 30000);
+        // if (!systemState.isGateway)
+        timeUpdate = ((systemState.waitingACK || mudouEstado) ? 5000 : 30000);
 
         if (mudouEstado || millis() - lastSendTime > timeUpdate)
         {
@@ -127,7 +127,7 @@ public:
             {
                 sendPing();
             }
-            else
+            if (RELAY_PIN > 0)
             {
                 sendStatus();
                 systemState.waitingACK = true;
@@ -275,13 +275,14 @@ public:
         }
         else if (strcmp(rec.event, EVT_ACK) == 0)
         {
+            systemState.waitingACK = false;
 #ifdef GATEWAY
             if (strlen(rec.value) > 0)
             {
                 deviceInfo.updateDeviceName(rec.from, rec.value);
             }
 #else
-            systemState.waitingACK = false;
+
 #endif
             // Nada a fazer
         }

@@ -358,7 +358,7 @@ void HtmlServer::handleToggleDevice(AsyncWebServerRequest *request)
 
     if (action != EVT_STATUS)
     {
-        txExtraQueue.push(tid, EVT_GPIO, action.c_str(), (tid == TERMINAL_ID) ? 0xFF : TERMINAL_ID, 3);
+        txExtraQueue.push(tid, EVT_GPIO, action.c_str(), TERMINAL_ID, 3);
         Logger::info("WS %d %s", tid, action);
     }
 

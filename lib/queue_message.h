@@ -84,8 +84,8 @@ struct MessageRec
             char ccrc[3];
             sprintf(acrc, "%02X", crc);
             sprintf(ccrc, "%02X", calc);
-            Logger::warn("CRC: %s Calc:%s Data:%s", acrc, ccrc, data + 5);
-            Logger::hex(LogLevel::ERROR, (char *)data, sizeof(MessageRec));
+            // Logger::warn("CRC: %s Calc:%s Data:%s", acrc, ccrc, data + 5);
+            // Logger::hex(LogLevel::ERROR, (char *)data, sizeof(MessageRec));
         }
 #endif
         return crc == calc;
@@ -96,7 +96,7 @@ struct MessageRec
     {
         char msg[100] = {0};
         snprintf(msg, sizeof(msg), "[%d-%d:%d](%d:%d) {%s|%s}", from, to, id, hop, len, event, value);
-        Serial.println(msg);
+        // Serial.println(msg);
     }
 #endif
     // Adicionar dentro da struct
@@ -150,7 +150,7 @@ struct MessageRec
 
         if (!msg.startsWith("{") || !msg.endsWith("}"))
         {
-            Logger::error("Mensagem mal formatada: %s", msg);
+            // Logger::error("Mensagem mal formatada: %s", msg);
             return false;
         }
 

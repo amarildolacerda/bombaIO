@@ -46,7 +46,8 @@ public:
     }
     void send(const uint8_t tid, const String &event, const String &value, const uint8_t from = TERMINAL_ID)
     {
-        radio->send(tid, event.c_str(), value.c_str(), from);
+      
+        radio->send(tid, event.c_str(), value.c_str(), (TERMINAL_ID == tid) ? 0xFE : from);
     }
     void receive(const uint8_t tid, const String &event, const String &value)
     {

@@ -117,7 +117,8 @@ public:
         else
         {
             stats.txErrors++;
-            Logger::error("Erro ao transmitir, radio inativo %s|%s", rec.event, rec.value);
+            if (isConnected())
+                Logger::error("Erro ao transmitir, radio inativo %s|%s", rec.event, rec.value);
         }
 
         return success;
@@ -134,10 +135,10 @@ public:
             radio.read(&rec, bytes);
 
             // if (!rec.decode(msg))
-            if (rec.len < 3)
+            if (rec.len < 3 || (rec.to == rec.from) || rec.hop > 32)
             {
-                rec.print();
-                Logger::error("Mensagem mal formada: %d: %s %s", rec.from, rec.event, rec.value);
+                if (isConnected())
+                    Logger::error("Mensagem mal formada: %d: %s %s", rec.from, rec.event, rec.value);
                 return false;
             }
             rec.print();

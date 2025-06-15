@@ -193,8 +193,8 @@ public:
         rec.hop = ALIVE_PACKET;
         rec.id = ++nHeaderId;
         rec.calculateCRC();
-        if (rec.from == 0xFF && rec.to == this->terminalId)
-            return rxQueue.popItem(rec); // localmsg
+        if (rec.from == 0xFE || rec.to == 0xFE)
+            return rxQueue.pushItem(rec); // localmsg
         else
             return txQueue.pushItem(rec);
     }
