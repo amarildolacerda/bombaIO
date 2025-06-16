@@ -2,12 +2,19 @@
 
 #ifdef TEST
 #include "Arduino.h"
+#include "ESPAsyncWiFiManager.h"
+#include "ESPAsyncWebServer.h"
+#include "DNSServer.h"
 
+static AsyncWebServer server(80);
+static DNSServer dns;
+AsyncWiFiManager wf(&server, &dns);
 void setup()
 {
     Serial.begin(115200);
     delay(1000); // Espera inicialização estável
 
+    wf.resetSettings();
     Serial.println("\n--- Teste de Memória ---");
     Serial.print("Free Heap: ");
     Serial.println(ESP.getFreeHeap()); // Deve ser > 0
