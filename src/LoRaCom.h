@@ -20,11 +20,17 @@
 #include "LoRaDummy.h"
 #endif
 
+#ifdef WIFI
+#include "broadcast.h"
+#endif
+
 class LoRaCom
 {
 private:
     RadioInterface *radio = nullptr;
-
+#ifdef WIFI
+    BroadcastHandler broadcast;
+#endif
 public:
     LoRaCom()
     {
@@ -75,6 +81,9 @@ public:
 
 #endif
         radio->loop();
+#ifdef WIFI
+        broadcast.loop();
+#endif
     }
     void sendPresentation(const uint8_t tid)
     {
@@ -82,6 +91,11 @@ public:
     }
     bool begin(const uint8_t tid, const long band, const bool promiscuos = true)
     {
+#ifdef WIFI
+        broadcast.setup();
+        broadcast.setCallback([](String ip, int port)
+                              { Logger::info("Broadcast: %s:%d", ip, port); });
+#endif
         return radio->begin(tid, band, promiscuos);
     }
     int packetRssi()

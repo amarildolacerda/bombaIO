@@ -92,6 +92,9 @@ public:
             connectToGateway();
             lastConnectionAttempt = millis();
         }
+        else
+        {
+        }
 
         MessageRec txRec;
         if (txQueue.popItem(txRec))
