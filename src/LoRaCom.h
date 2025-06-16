@@ -48,10 +48,10 @@ public:
     {
         return radio->getIdent();
     }
-    void send(const uint8_t tid, const String &event, const String &value, const uint8_t from = TERMINAL_ID)
+    void send(const uint8_t tid, const String &event, const String &value, const uint8_t from = TERMINAL_ID, uint8_t seq = 0)
     {
 
-        radio->send(tid, event.c_str(), value.c_str(), (TERMINAL_ID == tid) ? 0xFE : from);
+        radio->send(tid, event.c_str(), value.c_str(), (TERMINAL_ID == tid) ? 0xFE : from, seq);
     }
     void receive(const uint8_t tid, const String &event, const String &value)
     {

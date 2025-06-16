@@ -182,7 +182,7 @@ public:
 
     virtual bool
 
-    send(uint8_t tid, const char *event, const char *value, const uint8_t fromId)
+    send(uint8_t tid, const char *event, const char *value, const uint8_t fromId, uint8_t seq = 0)
     {
         MessageRec rec;
         rec.clear();
@@ -191,7 +191,7 @@ public:
         snprintf(rec.event, sizeof(rec.event), event);
         snprintf(rec.value, sizeof(rec.value), value);
         rec.hop = ALIVE_PACKET;
-        rec.id = ++nHeaderId;
+        rec.id = seq == 0 ? ++nHeaderId : seq;
         rec.calculateCRC();
         if (rec.from == 0xFE || rec.to == 0xFE)
             return rxQueue.pushItem(rec); // localmsg

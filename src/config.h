@@ -15,7 +15,9 @@ namespace Config
 {
     constexpr const char *TIMEZONE = "BRT3BRST";
     constexpr const char *ALEXA_TERMOSTATO = "Termostato";
+#ifndef ALEXA_MAX_CLIENTS
     constexpr const uint8_t ALEXA_MAX_CLIENTS = 10;
+#endif
 
     // Hardware - Pinos LoRa (TTGO LoRa32 v1)
 

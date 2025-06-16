@@ -175,7 +175,7 @@ private:
         MessageRec identMsg;
         identMsg.to = 0xFF; // Broadcast para o cliente
         identMsg.from = terminalId;
-        identMsg.setEvent("IDENTIFY");
+        identMsg.setEvent(EVT_PRESENTATION);
         identMsg.setValue(terminalName);
         identMsg.updateCRC();
         sendToClient(client, identMsg);
@@ -200,7 +200,6 @@ private:
             {
                 if (addRxMessage(msg))
                 {
-                    log(false, msg);
                     for (auto &dev : clients)
                     {
                         if (dev.client == client)
@@ -209,6 +208,8 @@ private:
                         }
                     }
                 }
+                else
+                    log(false, msg);
             }
             else
             {
@@ -294,7 +295,7 @@ private:
             MessageRec identMsg;
             identMsg.to = 0xFF; // Broadcast para o gateway
             identMsg.from = terminalId;
-            identMsg.setEvent("IDENTIFY");
+            identMsg.setEvent("pub");
             identMsg.setValue(terminalName);
             identMsg.updateCRC();
             sendToClient(c, identMsg); }, nullptr);

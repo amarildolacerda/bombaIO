@@ -199,9 +199,9 @@ public:
         if (RELAY_PIN > 0)
             loraCom.send(0, EVT_STATUS, digitalRead(RELAY_PIN) ? "on" : "off");
     }
-    void ackNak(uint8_t to, bool b)
+    void ackNak(uint8_t to, bool b, uint8_t seq)
     {
-        loraCom.send(to, b ? EVT_ACK : EVT_NAK, TERMINAL_NAME);
+        loraCom.send(to, b ? EVT_ACK : EVT_NAK, TERMINAL_NAME, TERMINAL_ID, seq);
     }
     void executeStatus(const MessageRec rec)
     {
@@ -256,16 +256,18 @@ public:
                 {
                     return;
                 }
-                ackNak(rec.from, true);
+                ackNak(rec.from, true, rec.id);
                 mudouEstado = true; // antecipa a notificação de mudança
+                return;
             }
         }
         if (rec.to == systemState.terminalId && strcmp(rec.event, EVT_PRESENTATION) != 0)
         {
             if (systemState.isGateway)
-                ackNak(rec.from, true);
+                ackNak(rec.from, true, rec.id);
             else
                 loraCom.sendPresentation(rec.from);
+            return;
         }
 
         if (strcmp(rec.event, EVT_PING) == 0)
@@ -291,14 +293,14 @@ public:
         }
         else if (strcmp(rec.event, EVT_PONG) == 0)
         {
-            ackNak(rec.from, true);
+            ackNak(rec.from, true, rec.id);
 #ifdef GATEWAY
             if (strlen(rec.value) > 0)
             {
                 deviceInfo.updateDeviceName(rec.from, rec.value);
             }
 #endif
-            // Na
+            return;
         }
         else if (strcmp(rec.event, EVT_STATUS) == 0)
         {
@@ -308,15 +310,16 @@ public:
             }
             else
             {
-                ackNak(rec.from, true); // na estacao avisa que pode ficar transquila
+                ackNak(rec.from, true, rec.id); // na estacao avisa que pode ficar transquila
                 executeStatus(rec);
             }
+            return;
         }
         else if (strcmp(rec.event, EVT_PRESENTATION) == 0)
         {
 
 #ifdef GATEWAY
-            ackNak(rec.from, true);
+            ackNak(rec.from, true, rec.id);
             deviceInfo.updateDevice(rec.from, rec.value, false, loraCom.packetRssi());
 #ifdef ALEXA
             if (rec.to != 0xFF)
@@ -325,6 +328,7 @@ public:
 #else
             loraCom.send(rec.from, EVT_PRESENTATION, systemState.terminalName);
 #endif
+            return;
         }
     }
 };
