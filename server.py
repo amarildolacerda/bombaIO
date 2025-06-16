@@ -15,13 +15,13 @@ discovered_devices = []  # Lista de dispositivos encontrados
 running = True  # Indica se o servidor está rodando
 
 def send_broadcast():
-    """ Envia broadcast para descobrir dispositivos na rede """
+    """ Envia broadcast com ESP_DISCOVERY para identificar dispositivos na rede """
     global pairing_mode, running
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as broadcast_socket:
         broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         
         while pairing_mode and running:
-            message = f"{socket.gethostbyname(socket.gethostname())}:{PORT}".encode()
+            message = f"ESP_DISCOVERY|server-ip={socket.gethostbyname(socket.gethostname())}|port={PORT}".encode()
             broadcast_socket.sendto(message, ('255.255.255.255', BROADCAST_PORT))
             print(Fore.BLUE + f"🔊 Enviando broadcast: {message.decode()}")
             time.sleep(BROADCAST_INTERVAL)
@@ -34,10 +34,13 @@ def listen_for_devices():
         
         while pairing_mode and running:
             data, addr = listen_socket.recvfrom(1024)
-            device_info = addr[0]
-            if device_info not in discovered_devices:
-                discovered_devices.append(device_info)
-                print(Fore.GREEN + f"🆕 Dispositivo descoberto: {device_info}")
+            message = data.decode(errors="ignore")
+
+            if message.startswith("ESP_DISCOVERY|"):
+                device_ip = addr[0]
+                if device_ip not in discovered_devices:
+                    discovered_devices.append(device_ip)
+                    print(Fore.GREEN + f"🆕 Dispositivo descoberto: {device_ip}")
 
 def send_alive_messages():
     """ Envia mensagens alive para dispositivos descobertos a cada 30 segundos """
@@ -46,7 +49,7 @@ def send_alive_messages():
         for device in discovered_devices:
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as alive_socket:
-                    message = b"{alive|server}\n"
+                    message = b"ESP_DISCOVERY|alive|server\n"
                     alive_socket.sendto(message, (device, BROADCAST_PORT))
                     print(Fore.CYAN + f"📡 Enviando alive para {device}")
             except Exception as e:
@@ -54,7 +57,7 @@ def send_alive_messages():
         time.sleep(ALIVE_INTERVAL)
 
 def start_server():
-    """ Inicia o servidor TCP """
+    """ Inicia o servidor TCP e responde apenas a mensagens ESP_DISCOVERY """
     global running
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         server_socket.bind((HOST, PORT))
@@ -75,19 +78,12 @@ def start_server():
                         payload = data.decode(errors="ignore")
                         print(Fore.YELLOW + f"📥 Recebido -> {payload}")
 
-                        if "ping" in payload:
-                            response = b"{pong|server}\n"
-                        elif "st" in payload:
-                            response = b"{ack|status-ok}\n"
-                        elif "pub" in payload:
-                            response = b"{ack|published}\n"
-                        elif "ack" in payload:
-                            response = b"{confirm|received}\n"
+                        if payload.startswith("ESP_DISCOVERY|"):
+                            response = b"ESP_DISCOVERY|ack|server-ok\n"
+                            conn.sendall(response)
+                            print(Fore.MAGENTA + f"🚀 Enviado -> {response.decode(errors='ignore')}")
                         else:
-                            response = b"{error|unknown-command}\n"
-
-                        conn.sendall(response)
-                        print(Fore.MAGENTA + f"🚀 Enviado -> {response.decode(errors='ignore')}")
+                            print(Fore.RED + "⚠ Mensagem ignorada! Não pertence ao protocolo ESP_DISCOVERY.")
             except KeyboardInterrupt:
                 running = False
                 print(Fore.RED + "\nServidor encerrado pelo usuário.")

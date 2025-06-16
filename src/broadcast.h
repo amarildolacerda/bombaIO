@@ -31,41 +31,49 @@ public:
         udp.begin(BROADCAST_PORT); // Inicia escuta do broadcast
     }
 
+    void sendBroadcastRequest()
+    {
+        Serial.println("📢 Enviando pedido de broadcast...");
+        String message = "ESP_DISCOVERY|device=ESP|ip=" + WiFi.localIP().toString() + "|port=" + String(CLIENT_PORT);
+
+        udp.beginPacket("255.255.255.255", BROADCAST_PORT);
+        udp.print(message);
+        udp.endPacket();
+        Serial.println("✅ Pedido de broadcast enviado: " + message);
+    }
+
     void loop()
     {
         int packetSize = udp.parsePacket();
         if (packetSize)
         {
-            char buffer[50];
+            char buffer[100];
             udp.read(buffer, sizeof(buffer));
-            buffer[packetSize] = '\0'; // Garante que seja uma string válida
+            buffer[packetSize] = '\0';
 
-            Serial.print("📡 Broadcast recebido: ");
-            Serial.println(buffer);
+            String receivedMessage = String(buffer);
 
-            // Extrai IP e porta do servidor
-            String serverIP = String(buffer).substring(0, String(buffer).indexOf(":"));
-            int serverPort = String(buffer).substring(String(buffer).indexOf(":") + 1).toInt();
-
-            Serial.print("🌐 Servidor encontrado: ");
-            Serial.print(serverIP);
-            Serial.print(":");
-            Serial.println(serverPort);
-
-            // Executa o callback, se definido
-            if (callback)
+            // **Filtrar mensagens apenas do nosso protocolo**
+            if (receivedMessage.startsWith("ESP_DISCOVERY|"))
             {
-                callback(serverIP, serverPort);
-            }
+                Serial.print("📡 Broadcast válido recebido: ");
+                Serial.println(receivedMessage);
 
-            // Envia resposta ao servidor
-            udp.beginPacket(serverIP.c_str(), serverPort);
-            udp.print("{device|ESP}");
-            udp.endPacket();
-            Serial.println("✅ Resposta enviada ao servidor!");
+                // Extrai IP e porta do servidor
+                String serverIP = receivedMessage.substring(receivedMessage.indexOf("ip=") + 3, receivedMessage.indexOf("|port="));
+                int serverPort = receivedMessage.substring(receivedMessage.indexOf("|port=") + 6).toInt();
+
+                Serial.print("🌐 Servidor encontrado: ");
+                Serial.print(serverIP);
+                Serial.print(":");
+                Serial.println(serverPort);
+            }
+            else
+            {
+                Serial.println("⚠ Mensagem ignorada! Não pertence ao nosso protocolo.");
+            }
         }
     }
-
     void setCallback(BroadcastCallback cb)
     {
         callback = cb;
