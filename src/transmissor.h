@@ -157,6 +157,17 @@ public:
         }
         updateDisplay();
         systemState.isRunning = false;
+
+// montar um logger INFO para informar a memoria livre
+#if defined(ESP32) || defined(ESP8266)
+        static long freeUpdated = 0;
+        if (millis() - freeUpdated > 30000)
+        {
+
+            Logger::info("Memoria Livre: %.f", ESP.getFreeHeap());
+            freeUpdated = millis();
+        }
+#endif
     }
 
     void updateDisplay()
