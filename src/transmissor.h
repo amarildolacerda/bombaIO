@@ -164,7 +164,7 @@ public:
         if (millis() - freeUpdated > 30000)
         {
 
-            Logger::info("Memoria Livre: %.f", ESP.getFreeHeap());
+            Logger::info("Memoria Livre: %d", ESP.getFreeHeap());
             freeUpdated = millis();
         }
 #endif

@@ -1,6 +1,32 @@
 // implementa transmissor ou reception com base em -DRECEPTION ou -DTRANSMISSOR
 
 #ifdef TEST
+#include "Arduino.h"
+
+void setup()
+{
+    Serial.begin(115200);
+    delay(1000); // Espera inicialização estável
+
+    Serial.println("\n--- Teste de Memória ---");
+    Serial.print("Free Heap: ");
+    Serial.println(ESP.getFreeHeap()); // Deve ser > 0
+
+    if (ESP.getFreeHeap() == 0)
+    {
+        Serial.println("ERRO: Heap zerado! Reiniciando...");
+        ESP.restart();
+    }
+}
+
+void loop()
+{
+    Serial.print("Free Heap (loop): ");
+    Serial.println(ESP.getFreeHeap());
+    delay(2000);
+}
+
+#elif TEST_RF95
 #include <SoftwareSerial.h>
 #include <RH_RF95.h>
 #include "config.h"
