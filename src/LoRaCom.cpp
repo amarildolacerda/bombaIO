@@ -3,14 +3,18 @@
 #include "LoRaCom.h"
 
 LoRaCom loraCom;
-/*
-#ifdef RF95
-LoRaRF95 radio;
-#elif defined(LORA32) || defined(TTGO) || defined(HELTEC)
-LoRa32 radio;
-#elif NRF24
-RadioNRF24 radio;
-#else
-LoRaDummy radio;
+void broadcastCallbackFn(const NetworkInfo *info)
+{
+
+#ifdef RADIO_WIFI
+    RadioInterface *rd = loraCom.radio;
+    if (rd)
+    {
+        RadioWiFi *wifiRadio = static_cast<RadioWiFi *>(rd);
+        if (wifiRadio)
+        {
+            wifiRadio->setClientToGateway(info->ip, info->port);
+        }
+    }
 #endif
-*/
+}

@@ -20,18 +20,20 @@
 #include "LoRaDummy.h"
 #endif
 
-#ifdef WIFI
+#ifdef BROADCAST
 #include "broadcast.h"
 #endif
+
+extern void broadcastCallbackFn(const NetworkInfo *info);
 
 class LoRaCom
 {
 private:
-    RadioInterface *radio = nullptr;
-#ifdef WIFI
-    BroadcastHandler broadcast;
+#ifdef BROADCAST
+    BroadcastHandler *broadcast = nullptr;
 #endif
 public:
+    RadioInterface *radio = nullptr;
     LoRaCom()
     {
 #ifdef RF95
@@ -46,10 +48,7 @@ public:
         radio = new LoRaDummy();
 #endif
     }
-    RadioInterface *getRadio()
-    {
-        return radio;
-    }
+
     String getIdent()
     {
         return radio->getIdent();
@@ -81,8 +80,16 @@ public:
 
 #endif
         radio->loop();
-#ifdef WIFI
-        broadcast.loop();
+#ifdef BROADCAST
+        broadcast->loop();
+#ifdef GATEWAY
+        static long broadcastUpdate = 0;
+        if (broadcastUpdate == 0 || millis() - broadcastUpdate > 30000)
+        {
+            broadcast->sendBroadcastRequest();
+            broadcastUpdate = millis();
+        }
+#endif
 #endif
     }
     void sendPresentation(const uint8_t tid)
@@ -91,10 +98,10 @@ public:
     }
     bool begin(const uint8_t tid, const long band, const bool promiscuos = true)
     {
-#ifdef WIFI
-        broadcast.setup();
-        broadcast.setCallback([](String ip, int port)
-                              { Logger::info("Broadcast: %s:%d", ip, port); });
+#ifdef BROADCAST
+        broadcast = new BroadcastHandler(tid == 0);
+        broadcast->setup();
+        broadcast->setCallback(broadcastCallbackFn);
 #endif
         return radio->begin(tid, band, promiscuos);
     }

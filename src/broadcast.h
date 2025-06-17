@@ -6,35 +6,34 @@
 #include <ESPAsyncTCP.h>
 #include <WiFiUdp.h>
 
-#define BROADCAST_PORT 54321 // Porta UDP do broadcast
-#define CLIENT_PORT 12346    // Porta do cliente para resposta
+#define BROADCAST_PORT 12346 // Porta UDP do broadcast
+#define CLIENT_PORT 12345    // Porta do cliente para resposta
 
-typedef void (*BroadcastCallback)(String, int); // Definição do callback
+struct NetworkInfo
+{
+    IPAddress ip;
+    int port;
+};
+
+typedef void (*BroadcastCallback)(const NetworkInfo *info); // Definição do callback
 
 class BroadcastHandler
 {
+private:
+    bool isGateway;
+
 public:
-    BroadcastHandler() : callback(nullptr) {}
+    BroadcastHandler(bool gateway) : isGateway(gateway), callback(nullptr) {}
 
     void setup()
     {
-        Serial.begin(115200);
-        WiFi.begin("SSID", "PASSWORD"); // Conecte-se à rede WiFi
-
-        while (WiFi.status() != WL_CONNECTED)
-        {
-            delay(500);
-            Serial.print(".");
-        }
-        Serial.println("\n✅ WiFi conectado!");
-
         udp.begin(BROADCAST_PORT); // Inicia escuta do broadcast
     }
 
     void sendBroadcastRequest()
     {
         Serial.println("📢 Enviando pedido de broadcast...");
-        String message = "ESP_DISCOVERY|device=ESP|ip=" + WiFi.localIP().toString() + "|port=" + String(CLIENT_PORT);
+        String message = "ESP_DISCOVERY|ip=" + WiFi.localIP().toString() + "|port=" + String(CLIENT_PORT);
 
         udp.beginPacket("255.255.255.255", BROADCAST_PORT);
         udp.print(message);
@@ -63,10 +62,18 @@ public:
                 String serverIP = receivedMessage.substring(receivedMessage.indexOf("ip=") + 3, receivedMessage.indexOf("|port="));
                 int serverPort = receivedMessage.substring(receivedMessage.indexOf("|port=") + 6).toInt();
 
-                Serial.print("🌐 Servidor encontrado: ");
-                Serial.print(serverIP);
-                Serial.print(":");
-                Serial.println(serverPort);
+                if (callback && serverPort > 0)
+                {
+                    NetworkInfo info;
+                    info.ip.fromString(serverIP.c_str());
+                    info.port = serverPort;
+                    callback(&info);
+
+                    Serial.print("🌐 Servidor encontrado: ");
+                    Serial.print(serverIP);
+                    Serial.print(":");
+                    Serial.println(serverPort);
+                }
             }
             else
             {

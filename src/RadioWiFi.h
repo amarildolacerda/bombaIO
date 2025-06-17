@@ -5,6 +5,7 @@
 #include "RadioInterface.h"
 #include <ESPAsyncTCP.h>
 #include <vector>
+#include "EEPROM.h"
 
 struct Device
 {
@@ -17,6 +18,11 @@ struct Device
 class RadioWiFi : public RadioInterface
 {
 private:
+    struct PersistentData
+    {
+        char gatewayIP[20];
+        uint16_t port;
+    };
     AsyncServer *tcpServer;
     AsyncClient *tcpClient;
     std::vector<Device> clients; // Para modo gateway
@@ -25,6 +31,7 @@ private:
     const unsigned long connectionInterval = 5000; // 5 segundos
     String pendingData;                            // Buffer para dados recebidos parcialmente
     bool isGateway;
+    String gatewayIP = "";
 
 public:
     RadioWiFi(uint16_t port = 12345, bool gatewayMode = false)
@@ -79,9 +86,74 @@ public:
         {
             // No modo cliente, a conexão será estabelecida no loop
             connected = false;
+            loadPersistentData();
         }
 
         return true;
+    }
+
+    String toString(IPAddress ip)
+    {
+        char ipChar[16]; // Buffer para o IP (máximo "XXX.XXX.XXX.XXX")
+        sprintf(ipChar, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+        return String(ipChar);
+    }
+    void setClientToGateway(IPAddress ip, int port)
+    {
+        if (!isGateway)
+        {
+            String newIP = toString(ip);
+            if (IPAddress::isValid(newIP))
+            {
+                Logger::info(String("Broadcast: " + newIP + ":" + String(port)).c_str());
+                if (!isGateway && (newIP.compareTo(gatewayIP) != 0 || port != tcpPort))
+                {
+
+                    if (tcpClient)
+                    {
+                        tcpClient->close();
+                        connected = false;
+                    }
+                    gatewayIP = String("" + newIP);
+                    tcpPort = port;
+
+                    savePersistentData();
+                }
+            }
+        }
+    }
+
+    void loadPersistentData()
+    {
+        PersistentData data;
+        EEPROM.begin(sizeof(PersistentData));
+        EEPROM.get(0, data);
+        EEPROM.end();
+
+        if (data.gatewayIP[0] != '\0')
+        {
+
+            if (IPAddress::isValid(data.gatewayIP))
+            {
+                gatewayIP = String(data.gatewayIP);
+                // gatewayIP = "192.168.15.96";
+                tcpPort = data.port;
+                Serial.println("Dados persistentes carregados: " + gatewayIP + ":" + String(tcpPort));
+            }
+        }
+    }
+
+    void savePersistentData()
+    {
+        PersistentData data;
+        strncpy(data.gatewayIP, gatewayIP.c_str(), sizeof(data.gatewayIP));
+        data.port = tcpPort;
+
+        EEPROM.begin(sizeof(PersistentData));
+        EEPROM.put(0, data);
+        EEPROM.commit();
+        EEPROM.end();
+        Serial.println("Dados persistentes salvos: " + gatewayIP + ":" + String(tcpPort));
     }
 
     virtual void loop() override
@@ -274,12 +346,18 @@ private:
         if (sent)
         {
             log(true, rec);
+            Serial.print("To: ");
+            Serial.println(client->remoteIP());
         }
         return sent;
     }
 
     void connectToGateway()
     {
+        if (gatewayIP.isEmpty())
+        {
+            return;
+        }
         if (tcpClient)
         {
             tcpClient->close();
@@ -319,8 +397,17 @@ private:
             connected = false; }, nullptr);
 
         // Conecta ao gateway (substitua pelo IP do seu gateway)
-        IPAddress gatewayIP(192, 168, 1, 1);
-        tcpClient->connect(gatewayIP, tcpPort);
+        // IPAddress gatewayIP(192, 168, 1, 1);
+        // tcpClient->connect(gatewayIP, tcpPort);
+        IPAddress ip;
+        ip.fromString(gatewayIP);
+        tcpClient->connect(ip, tcpPort);
+
+        if (tcpClient->connected())
+            Logger::info(String("Conectou em: " + String(gatewayIP) + ":" + String(tcpPort)).c_str());
+        // Serial.print(ip);
+        // Serial.print(" ");
+        // Serial.println(gatewayIP);
     }
 };
 

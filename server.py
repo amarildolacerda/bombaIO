@@ -7,8 +7,8 @@ init(autoreset=True)  # Inicializa o colorama para resetar cores automaticamente
 
 HOST = "0.0.0.0"  # Aceita conexões de qualquer IP
 PORT = 12345  # Porta TCP para comunicação
-BROADCAST_PORT = 54321  # Porta UDP para broadcast
-BROADCAST_INTERVAL = 5  # Tempo entre broadcasts
+BROADCAST_PORT = 12346  # Porta UDP para broadcast
+BROADCAST_INTERVAL = 15  # Tempo entre broadcasts
 ALIVE_INTERVAL = 30  # Tempo entre mensagens alive
 pairing_mode = True  # Indica se está no modo de pareamento
 discovered_devices = []  # Lista de dispositivos encontrados
@@ -21,7 +21,7 @@ def send_broadcast():
         broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         
         while pairing_mode and running:
-            message = f"ESP_DISCOVERY|server-ip={socket.gethostbyname(socket.gethostname())}|port={PORT}".encode()
+            message = f"ESP_DISCOVERY|ip={socket.gethostbyname(socket.gethostname())}|port={PORT}".encode()
             broadcast_socket.sendto(message, ('255.255.255.255', BROADCAST_PORT))
             print(Fore.BLUE + f"🔊 Enviando broadcast: {message.decode()}")
             time.sleep(BROADCAST_INTERVAL)
@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
         # Após um tempo, encerra o modo de pareamento e inicia envio de alive
         time.sleep(30)
-        pairing_mode = False
+        #pairing_mode = False
         threading.Thread(target=send_alive_messages, daemon=True).start()
 
         # Inicia o servidor TCP
