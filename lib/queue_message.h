@@ -47,6 +47,18 @@ struct MessageRec
     MessageSource ms = MS_BASE;
     MessageRec() : to(0), from(0), id(0), len(0), hop(3) {}
 
+    MessageRec clone()
+    {
+        MessageRec novo;
+        novo.to = to;
+        novo.from = from;
+        novo.hop = hop;
+        novo.id = hop;
+        novo.len = len;
+        novo.crc = crc;
+        novo.ms = ms;
+        return novo;
+    }
     uint8_t headerCount()
     {
         return 5;
