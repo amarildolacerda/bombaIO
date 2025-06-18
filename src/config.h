@@ -69,10 +69,6 @@ namespace Config
     constexpr const uint32_t PRESENTATION_INTERVAL = 60000;
     constexpr const uint32_t COMMAND_TIMEOUT = 3000;
 
-    // Tuya IoT
-    constexpr const char *LPID = "sshilmfl"; // Substituir pelo PID real
-    constexpr const char *LMCU_VER = "1.0";
-
 }
 
 #endif
