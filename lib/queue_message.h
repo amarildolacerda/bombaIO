@@ -158,13 +158,19 @@ struct MessageRec
     bool parseCmd(const String msg)
     {
 
-        if (!msg.startsWith("{") || !msg.endsWith("}"))
+        uint8_t len = msg.length();
+        if (msg.endsWith("\n"))
+        {
+            len--;
+        }
+        String content = msg.substring(0, len); // remove { and }
+        if (!content.startsWith("{") || !content.endsWith("}"))
         {
             // Logger::error("Mensagem mal formatada: %s", msg);
             return false;
         }
 
-        String content = msg.substring(1, msg.length() - 1); // remove { and }
+        content = content.substring(1, content.length() - 1); // remove { and }
         int sepIndex = content.indexOf('|');
         int x = sprintf(event, "%s", content.substring(0, sepIndex).c_str());
         event[x] = '\0';
