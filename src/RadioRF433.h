@@ -6,7 +6,7 @@
 #include "logger.h"
 #include "stats.h"
 
-class RF433Interface : public RadioInterface
+class RadioRF433 : public RadioInterface
 {
 private:
     uint8_t _txPin;
@@ -15,7 +15,7 @@ private:
     uint16_t _speed;
 
 public:
-    RF433Interface(uint8_t txPin, uint8_t rxPin, uint8_t pttPin = -1, uint16_t speed = 2000) : _txPin(txPin), _rxPin(rxPin), _pttPin(pttPin), _speed(speed) {}
+    RadioRF433(uint8_t rxPin = RX_PIN, uint8_t txPin = TX_PIN, uint8_t pttPin = -1, uint16_t speed = 2000) : _txPin(txPin), _rxPin(rxPin), _pttPin(pttPin), _speed(speed) {}
 
     bool sendMessage(MessageRec &rec) override
     {

@@ -2,11 +2,12 @@
 #define UDP_INTERFACE_H
 
 #include <RadioInterface.h>
-#include <AsyncUDP.h>
+#include <ESPAsyncUDP.h>
+// #include <WiFiUdp.h>
 #include "logger.h"
 #include "stats.h"
 
-class UDPInterface : public RadioInterface
+class RadioUDP : public RadioInterface
 {
 private:
     AsyncUDP udp;
@@ -16,7 +17,7 @@ private:
     bool _initialized;
 
 public:
-    UDPInterface(uint16_t localPort = 1234, bool isServer = false) : _localPort(localPort), _isServer(isServer), _initialized(false)
+    RadioUDP(uint16_t localPort = 1234, bool isServer = false) : _localPort(localPort), _isServer(isServer), _initialized(false)
     {
         _broadcastIP = IPAddress(255, 255, 255, 255);
     }
@@ -66,6 +67,11 @@ public:
         // Não há ação específica para modo TX no UDP
     }
 
+    bool begin(const uint8_t terminal_id, uint16_t port)
+    {
+        _localPort = port;
+        return begin(terminal_id, 0, true);
+    }
     bool begin(const uint8_t terminal_Id, long band, bool promisc = true) override
     {
         terminalId = terminal_Id;
@@ -105,25 +111,32 @@ public:
         }
 
         MessageRec rec;
-        bool result = rec.decode((char *)packet.data(), packet.length());
-
-        if (!result)
+        char resp[MESSAGE_MAX_LEN] = {0};
+        memcpy(resp, packet.data(), packet.length());
+        Serial.println(resp + 5);
+        Serial.println(packet.length());
+        if (packet.length() < MESSAGE_MAX_LEN)
         {
+            // Print message content starting from offset 5; adjust offset if necessary
+            bool result = rec.decode(resp, packet.length());
+
+            if (!result && rec.from == terminalId)
+            {
 #ifdef DEBUG_ON
-            Logger::error("Pacote UDP mal formado");
+                Logger::error("Pacote UDP mal formado");
 #endif
-            return;
-        }
+                return;
+            }
 
-        if (rec.from == terminalId)
-        {
-            return; // skip messages from myself
-        }
+            if (rec.from == terminalId)
+            {
+                return; // skip messages from myself
+            }
 
-        addRxMessage(rec);
-        meshMessage(rec);
+            addRxMessage(rec);
+            meshMessage(rec);
+        }
     }
-
     void setBroadcastIP(IPAddress ip)
     {
         _broadcastIP = ip;

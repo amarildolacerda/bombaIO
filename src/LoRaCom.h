@@ -12,19 +12,28 @@
 #include "LoRaRF95.h"
 #elif defined(LORA32) || defined(TTGO) || defined(HELTEC)
 #include "LoRa32.h"
+#undef BROADCAST
 #elif NRF24
 #include "RadioNRF24.h"
+#undef BROADCAST
 #elif RADIO_WIFI
 #include "RadioWiFi.h"
+#define BROADCAST
+#elif RADIO_UDP
+#include "RadioUDP.h"
+#undef BROADCAST
+#elif RADIO_RF433
+#include "RadioRF433.h"
+#undef BROADCAST
 #else
 #include "LoRaDummy.h"
+#undef BROADCAST
 #endif
 
 #ifdef BROADCAST
 #include "broadcast.h"
-#endif
-
 extern void broadcastCallbackFn(const NetworkInfo *info);
+#endif
 
 class LoRaCom
 {
@@ -44,6 +53,15 @@ public:
         radio = new RadioNRF24();
 #elif RADIO_WIFI
         radio = new RadioWiFi(12345, TERMINAL_ID == 0);
+#elif RADIO_UDP
+        bool isServer = TERMINAL_ID == 0;
+#ifdef GATEWAY
+        isServer = true;
+#endif
+        radio = new RadioUDP(1234, isServer);
+#elif RADIO_RF433
+        radio = new RadioRF433();
+
 #else
         radio = new LoRaDummy();
 #endif
@@ -84,7 +102,7 @@ public:
         broadcast->loop();
 #ifdef GATEWAY
         static long broadcastUpdate = 0;
-        if (broadcastUpdate == 0 || millis() - broadcastUpdate > 30000)
+        if (broadcastUpdate == 0 || millis() - broadcastUpdate > 10000)
         {
             broadcast->sendBroadcastRequest();
             broadcastUpdate = millis();

@@ -3,6 +3,8 @@
 #include "LoRaCom.h"
 
 LoRaCom loraCom;
+
+#ifdef BROADCAST
 void broadcastCallbackFn(const NetworkInfo *info)
 {
 
@@ -18,3 +20,4 @@ void broadcastCallbackFn(const NetworkInfo *info)
     }
 #endif
 }
+#endif
