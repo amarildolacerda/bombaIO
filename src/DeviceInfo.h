@@ -6,7 +6,6 @@
 #include <vector>
 #include "AlexaCom.h"
 
-#pragma pack(push, 1)
 struct DeviceData
 {
     uint8_t tid;
@@ -23,7 +22,6 @@ struct DeviceData
         return String(tid);
     }
 };
-#pragma pack(pop)
 
 class DeviceInfo
 {

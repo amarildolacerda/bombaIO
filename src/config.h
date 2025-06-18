@@ -57,7 +57,7 @@ namespace Config
     // Rede
     constexpr const uint16_t WEBSERVER_PORT = 80;
     constexpr const uint16_t WIFI_TIMEOUT_S = 180;
-    constexpr const char *WIFI_AP_NAME = "TTGO_Transmitter";
+    constexpr const char *WIFI_AP_NAME = "transmitter";
     constexpr const char *NTP_SERVER = "pool.ntp.org";
     constexpr long GMT_OFFSET_SEC = -10800; // UTC-3 (Brasília)
     constexpr const int DAYLIGHT_OFFSET_SEC = 0;
