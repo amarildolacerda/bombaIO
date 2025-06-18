@@ -245,15 +245,16 @@ private:
         newDev.termId = 0xFF;
 
         clients.push_back(newDev);
-
-        // Envia identificação para o novo cliente
-        MessageRec identMsg;
-        identMsg.to = 0xFF; // Broadcast para o cliente
-        identMsg.from = terminalId;
-        identMsg.setEvent(EVT_PRESENTATION);
-        identMsg.setValue(terminalName);
-        identMsg.updateCRC();
-        sendToClient(client, identMsg);
+        /*
+                // Envia identificação para o novo cliente
+                MessageRec identMsg;
+                identMsg.to = 0xFF; // Broadcast para o cliente
+                identMsg.from = terminalId;
+                identMsg.setEvent(EVT_PRESENTATION);
+                identMsg.setValue(terminalName);
+                identMsg.updateCRC();
+                sendToClient(client, identMsg);
+                */
     }
 
     void handleClientData(AsyncClient *client, char *data, size_t len)
@@ -283,8 +284,8 @@ private:
                         }
                     }
                 }
-                else
-                    log(false, msg);
+                // else
+                //     log(false, msg);
             }
             else
             {
@@ -346,8 +347,8 @@ private:
         if (sent)
         {
             log(true, rec);
-            Serial.print("To: ");
-            Serial.println(client->remoteIP());
+            // Serial.print("To: ");
+            // Serial.println(client->remoteIP());
         }
         return sent;
     }

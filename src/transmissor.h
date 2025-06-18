@@ -148,13 +148,14 @@ public:
             if (systemState.isDiscovering)
             {
                 static long discUpdate = 0;
-                if (millis() - discUpdate > 10000)
+                if (millis() - discUpdate > 30000)
                 {
-                    loraCom.send(0xFF, EVT_PRESENTATION, systemState.terminalName.c_str());
+                    loraCom.sendPresentation(0xFF);
                     discUpdate = millis();
                 }
             }
         }
+
         updateDisplay();
         systemState.isRunning = false;
 
@@ -272,14 +273,6 @@ public:
                 return;
             }
         }
-        if (rec.to == systemState.terminalId && strcmp(rec.event, EVT_PRESENTATION) != 0)
-        {
-            if (systemState.isGateway)
-                ackNak(rec.from, true, rec.id);
-            else
-                loraCom.sendPresentation(rec.from);
-            return;
-        }
 
         if (strcmp(rec.event, EVT_PING) == 0)
         {
@@ -296,11 +289,13 @@ public:
 #else
 
 #endif
+            return;
             // Nada a fazer
         }
         else if (strcmp(rec.event, EVT_NAK) == 0)
         {
             // Nada a fazer
+            return;
         }
         else if (strcmp(rec.event, EVT_PONG) == 0)
         {
@@ -337,10 +332,12 @@ public:
                 alexaCom.addDevice(rec.from, String(rec.value).c_str());
 #endif
 #else
-            loraCom.send(rec.from, EVT_PRESENTATION, systemState.terminalName);
+            // loraCom.send(rec.from, EVT_PRESENTATION, systemState.terminalName);
+            loraCom.sendPresentation(rec.from);
 #endif
             return;
         }
+        ackNak(rec.from, true, rec.id);
     }
 };
 
